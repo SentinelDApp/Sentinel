@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import {
   ShieldCheckIcon,
@@ -59,8 +60,9 @@ const roles = [
   },
 ];
 
-const LoginPage = ({ onLogin }) => {
+const LoginPage = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,10 +73,26 @@ const LoginPage = ({ onLogin }) => {
     if (!selectedRole) return;
 
     setIsLoading(true);
-    // Simulate login
+    // Simulate login and navigate based on role
     setTimeout(() => {
       setIsLoading(false);
-      onLogin(selectedRole);
+      // Navigate to the appropriate dashboard based on selected role
+      switch (selectedRole) {
+        case 'manufacturer':
+          navigate('/admin/dashboard');
+          break;
+        case 'transporter':
+          navigate('/transporter/dashboard');
+          break;
+        case 'warehouse':
+          navigate('/supplier/dashboard');
+          break;
+        case 'retailer':
+          navigate('/retailer/dashboard');
+          break;
+        default:
+          navigate('/admin/dashboard');
+      }
     }, 1500);
   };
 
@@ -528,8 +546,8 @@ const LoginPage = ({ onLogin }) => {
               }`}
             >
               Don't have an account?{" "}
-              <button
-                type="button"
+              <Link
+                to="/signup"
                 className={`font-medium ${
                   isDarkMode
                     ? "text-blue-400 hover:text-blue-300"
@@ -537,7 +555,7 @@ const LoginPage = ({ onLogin }) => {
                 }`}
               >
                 Sign up
-              </button>
+              </Link>
             </p>
           </form>
         </div>

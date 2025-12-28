@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Truck,
   ArrowLeft,
@@ -104,6 +105,8 @@ const CONDITION_OPTIONS = [
 // ============================================================================
 
 const TransporterDashboard = () => {
+  const navigate = useNavigate();
+  
   // --- STATE ---
   const [selectedJob, setSelectedJob] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -245,11 +248,22 @@ const TransporterDashboard = () => {
         {/* Header */}
         <header className="bg-slate-900 text-white px-6 py-8">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-indigo-600 rounded-xl">
-                <Truck className="w-6 h-6" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <Link to="/" className="p-2 bg-indigo-600 rounded-xl">
+                  <Truck className="w-6 h-6" />
+                </Link>
+                <h1 className="text-2xl font-bold">Transporter Dashboard</h1>
               </div>
-              <h1 className="text-2xl font-bold">Transporter Dashboard</h1>
+              <button
+                onClick={() => navigate('/login')}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
             </div>
             <p className="text-slate-400 ml-14">Welcome back! Select a shipment to update.</p>
           </div>
@@ -324,6 +338,15 @@ const TransporterDashboard = () => {
               <p className="text-xs font-mono text-slate-500">{selectedJob.id}</p>
               <h2 className="text-lg font-bold truncate">{selectedJob.product}</h2>
             </div>
+            <button
+              onClick={() => navigate('/login')}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
           </div>
         </div>
       </header>

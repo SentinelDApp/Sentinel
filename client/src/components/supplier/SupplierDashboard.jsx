@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import SupplierOverview from './SupplierOverview';
 import CreateShipment from './CreateShipment';
 import ShipmentList from './ShipmentList';
@@ -14,6 +15,7 @@ import {
 } from './supplier.constants';
 
 const SupplierDashboard = () => {
+  const navigate = useNavigate();
   const [shipments, setShipments] = useState(DEMO_SHIPMENTS);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -174,12 +176,23 @@ const SupplierDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
-                <span className="text-xl">🛡️</span>
-              </div>
-              <h1 className="text-xl font-bold text-slate-50">Sentinel</h1>
+              <Link to="/" className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
+                  <span className="text-xl">🛡️</span>
+                </div>
+                <h1 className="text-xl font-bold text-slate-50">Sentinel</h1>
+              </Link>
               <span className="text-sm text-slate-400 hidden sm:inline">Supplier Portal</span>
             </div>
+            <button
+              onClick={() => navigate('/login')}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-xl transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
           </div>
         </div>
       </header>

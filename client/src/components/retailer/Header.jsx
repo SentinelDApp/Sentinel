@@ -4,6 +4,8 @@
  * Role-specific for retailers: receiving shipments, verifying products, fulfilling orders.
  */
 
+import { useNavigate, Link } from 'react-router-dom';
+
 // Primary retailer actions
 const primaryActions = [
   { 
@@ -34,6 +36,8 @@ const primaryActions = [
  * @param {Function} props.onViewOrders - Callback when View Orders is clicked
  */
 function Header({ onAcceptShipment, onViewReceived, onViewOrders }) {
+  const navigate = useNavigate();
+  
   // Handle action button clicks
   const handleActionClick = (actionId) => {
     switch (actionId) {
@@ -71,6 +75,15 @@ function Header({ onAcceptShipment, onViewReceived, onViewOrders }) {
               <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Blockchain Connected
             </span>
+            <button
+              onClick={() => navigate('/login')}
+              className="flex items-center gap-1.5 rounded-md bg-slate-800/50 border border-slate-700/50 px-2 py-0.5 text-[10px] font-medium text-slate-400 hover:text-white hover:border-slate-600 transition-all"
+            >
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
           </div>
         </div>
       </div>
