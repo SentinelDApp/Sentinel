@@ -1,11 +1,8 @@
 import React from 'react'
-import Signup from "./Signup";
+import Signup from "./components/signup/Signup";
+
 const App = () => {
-  return (
-    <div className='bg-gray-900 h-screen text-white flex  items-center justify-center'>
-      <Signup />
-    </div>
-  )
+  return <Signup />;
 }
 
 export default App
