@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 // Icons
 const ShieldCheckIcon = ({ className }) => (
@@ -715,8 +716,8 @@ export default function Signup() {
               }`}
             >
               Already registered?{" "}
-              <button
-                type="button"
+              <Link
+                to="/login"
                 className={`font-medium ${
                   isDarkMode
                     ? "text-blue-400 hover:text-blue-300"
@@ -724,7 +725,7 @@ export default function Signup() {
                 }`}
               >
                 Sign in
-              </button>
+              </Link>
             </p>
           </form>
         </div>

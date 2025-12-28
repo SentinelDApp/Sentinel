@@ -1,36 +1,14 @@
 /**
  * Sentinel - Smart Supply Chain Tracking
  * Main App Component
- * Routes to different role-based dashboards
+ * Uses React Router for navigation between role-based dashboards
  */
 
-import { useState } from "react";
-import RetailerDashboard from "./components/retailer/RetailerDashboard";
-import { AdminApp, ThemeProvider } from "./components/Admin";
+import { RouterProvider } from 'react-router-dom';
+import router from './router';
 
 function App() {
-  const [currentRole, setCurrentRole] = useState("admin"); // Default to admin for now
-
-  const renderDashboard = () => {
-    switch (currentRole) {
-      case "admin":
-        return (
-          <ThemeProvider>
-            <AdminApp
-              role={currentRole}
-              onLogout={() => setCurrentRole(null)}
-            />
-          </ThemeProvider>
-        );
-      case "retailer":
-        return <RetailerDashboard />;
-      // TODO: Add routing for other roles (Manufacturer, Distributor, Consumer)
-      default:
-        return <RetailerDashboard />;
-    }
-  };
-
-  return renderDashboard();
+  return <RouterProvider router={router} />;
 }
 
 export default App;
