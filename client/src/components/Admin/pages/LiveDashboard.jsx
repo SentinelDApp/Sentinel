@@ -11,6 +11,7 @@ import {
   BellIcon,
   XMarkIcon,
   EyeIcon,
+  UserIcon,
 } from "../icons/Icons";
 
 // Sample shipment tracking data
@@ -23,6 +24,23 @@ const shipmentsData = [
     location: "New York Distribution Center",
     lastUpdateAt: "2025-12-27 14:30:22",
     status: "in-transit",
+    alerts: 2,
+    alertsData: [
+      {
+        id: "ALT-001",
+        message: "Temperature deviation detected during transit",
+        from: "Transporter",
+        timestamp: "2025-12-27 13:45:00",
+        severity: "high",
+      },
+      {
+        id: "ALT-002",
+        message: "Minor delay at checkpoint",
+        from: "Warehouse",
+        timestamp: "2025-12-27 10:30:00",
+        severity: "medium",
+      },
+    ],
     activities: [
       {
         activity: "Package scanned at checkpoint",
@@ -64,6 +82,8 @@ const shipmentsData = [
     location: "Los Angeles Retail Store",
     lastUpdateAt: "2025-12-27 12:45:10",
     status: "delivered",
+    alerts: 0,
+    alertsData: [],
     activities: [
       {
         activity: "Delivered to customer",
@@ -93,6 +113,16 @@ const shipmentsData = [
     location: "Denver Transit Hub",
     lastUpdateAt: "2025-12-27 11:20:45",
     status: "in-transit",
+    alerts: 1,
+    alertsData: [
+      {
+        id: "ALT-003",
+        message: "Humidity levels above normal range",
+        from: "Transporter",
+        timestamp: "2025-12-27 09:15:00",
+        severity: "medium",
+      },
+    ],
     activities: [
       {
         activity: "In transit to destination",
@@ -116,6 +146,30 @@ const shipmentsData = [
     location: "Miami Port Authority",
     lastUpdateAt: "2025-12-26 18:30:00",
     status: "delayed",
+    alerts: 3,
+    alertsData: [
+      {
+        id: "ALT-004",
+        message: "Shipment delayed due to severe weather conditions",
+        from: "Transporter",
+        timestamp: "2025-12-26 18:30:00",
+        severity: "critical",
+      },
+      {
+        id: "ALT-005",
+        message: "Customs documentation requires additional verification",
+        from: "Warehouse",
+        timestamp: "2025-12-26 14:00:00",
+        severity: "high",
+      },
+      {
+        id: "ALT-006",
+        message: "Package handling warning issued",
+        from: "Transporter",
+        timestamp: "2025-12-26 10:30:00",
+        severity: "medium",
+      },
+    ],
     activities: [
       {
         activity: "Shipment delayed - weather conditions",
@@ -145,6 +199,8 @@ const shipmentsData = [
     location: "Houston Manufacturing",
     lastUpdateAt: "2025-12-27 09:00:00",
     status: "processing",
+    alerts: 0,
+    alertsData: [],
     activities: [
       {
         activity: "Quality inspection in progress",
@@ -167,6 +223,11 @@ const LiveDashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedShipment, setSelectedShipment] = useState(null);
+  const [alertsModal, setAlertsModal] = useState({
+    open: false,
+    shipment: null,
+  });
+  const [alertResponses, setAlertResponses] = useState({});
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -318,6 +379,7 @@ const LiveDashboard = () => {
                 <th className="px-6 py-4">Shipment ID</th>
                 <th className="px-6 py-4">Product ID</th>
                 <th className="px-6 py-4">Progress</th>
+                <th className="px-6 py-4">Alerts</th>
                 <th className="px-6 py-4">Last Updated By</th>
                 <th className="px-6 py-4">Location</th>
                 <th className="px-6 py-4">Last Update At</th>
@@ -383,6 +445,33 @@ const LiveDashboard = () => {
                         >
                           {shipment.progress}%
                         </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() =>
+                            shipment.alerts > 0 &&
+                            setAlertsModal({ open: true, shipment })
+                          }
+                          disabled={shipment.alerts === 0}
+                          className={`
+                            inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+                            transition-all duration-200
+                            ${
+                              shipment.alerts > 0
+                                ? isDarkMode
+                                  ? "bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 cursor-pointer"
+                                  : "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer"
+                                : isDarkMode
+                                ? "bg-green-500/10 text-green-400 border border-green-500/30 cursor-default"
+                                : "bg-green-50 text-green-600 border border-green-200 cursor-default"
+                            }
+                          `}
+                        >
+                          <AlertIcon className="w-3 h-3" />
+                          {shipment.alerts}
+                        </button>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -455,7 +544,7 @@ const LiveDashboard = () => {
                   {/* Activity Table - Shown when Track is clicked */}
                   {selectedShipment?.id === shipment.id && (
                     <tr key={`${shipment.id}-activity`}>
-                      <td colSpan="7" className="px-6 py-4">
+                      <td colSpan="8" className="px-6 py-4">
                         <div
                           className={`
                             rounded-xl p-4
@@ -676,6 +765,237 @@ const LiveDashboard = () => {
           );
         })}
       </div>
+
+      {/* Alerts Modal Overlay */}
+      {alertsModal.open && alertsModal.shipment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setAlertsModal({ open: false, shipment: null })}
+          />
+
+          {/* Modal Content */}
+          <div
+            className={`
+              relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl
+              ${
+                isDarkMode
+                  ? "bg-slate-900 border border-slate-800"
+                  : "bg-white border border-slate-200 shadow-2xl"
+              }
+            `}
+          >
+            {/* Modal Header */}
+            <div
+              className={`
+                flex items-center justify-between px-6 py-4 border-b
+                ${isDarkMode ? "border-slate-800" : "border-slate-200"}
+              `}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center">
+                  <AlertIcon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3
+                    className={`font-semibold ${
+                      isDarkMode ? "text-white" : "text-slate-900"
+                    }`}
+                  >
+                    Alerts for {alertsModal.shipment.id}
+                  </h3>
+                  <p
+                    className={`text-sm ${
+                      isDarkMode ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
+                    {alertsModal.shipment.alertsData.length} alert
+                    {alertsModal.shipment.alertsData.length !== 1 ? "s" : ""}{" "}
+                    for this batch
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAlertsModal({ open: false, shipment: null })}
+                className={`
+                  p-2 rounded-lg transition-colors
+                  ${
+                    isDarkMode
+                      ? "hover:bg-slate-800 text-slate-400 hover:text-white"
+                      : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                  }
+                `}
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto max-h-[calc(85vh-80px)] p-6 space-y-4">
+              {alertsModal.shipment.alertsData.length === 0 ? (
+                <div
+                  className={`text-center py-8 ${
+                    isDarkMode ? "text-slate-400" : "text-slate-500"
+                  }`}
+                >
+                  No alerts for this shipment
+                </div>
+              ) : (
+                alertsModal.shipment.alertsData.map((alert) => {
+                  const severityStyles = {
+                    critical: isDarkMode
+                      ? "border-l-red-500 bg-red-500/5"
+                      : "border-l-red-500 bg-red-50/50",
+                    high: isDarkMode
+                      ? "border-l-orange-500 bg-orange-500/5"
+                      : "border-l-orange-500 bg-orange-50/50",
+                    medium: isDarkMode
+                      ? "border-l-amber-500 bg-amber-500/5"
+                      : "border-l-amber-500 bg-amber-50/50",
+                    low: isDarkMode
+                      ? "border-l-blue-500 bg-blue-500/5"
+                      : "border-l-blue-500 bg-blue-50/50",
+                  };
+
+                  const severityBadge = {
+                    critical: isDarkMode
+                      ? "bg-red-500/10 text-red-400 border-red-500/30"
+                      : "bg-red-50 text-red-600 border-red-200",
+                    high: isDarkMode
+                      ? "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                      : "bg-orange-50 text-orange-600 border-orange-200",
+                    medium: isDarkMode
+                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                      : "bg-amber-50 text-amber-600 border-amber-200",
+                    low: isDarkMode
+                      ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                      : "bg-blue-50 text-blue-600 border-blue-200",
+                  };
+
+                  return (
+                    <div
+                      key={alert.id}
+                      className={`
+                        rounded-xl border-l-4 p-5
+                        ${severityStyles[alert.severity]}
+                        ${
+                          isDarkMode
+                            ? "border border-l-4 border-slate-800"
+                            : "border border-l-4 border-slate-200"
+                        }
+                      `}
+                    >
+                      {/* Alert Header */}
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span
+                              className={`text-xs font-mono ${
+                                isDarkMode ? "text-slate-500" : "text-slate-400"
+                              }`}
+                            >
+                              {alert.id}
+                            </span>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full border capitalize ${
+                                severityBadge[alert.severity]
+                              }`}
+                            >
+                              {alert.severity}
+                            </span>
+                          </div>
+                          <p
+                            className={`font-medium ${
+                              isDarkMode ? "text-white" : "text-slate-900"
+                            }`}
+                          >
+                            {alert.message}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Alert Details */}
+                      <div className="flex flex-wrap items-center gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <UserIcon
+                            className={`w-4 h-4 ${
+                              isDarkMode ? "text-slate-500" : "text-slate-400"
+                            }`}
+                          />
+                          <span
+                            className={`text-sm ${
+                              isDarkMode ? "text-slate-300" : "text-slate-600"
+                            }`}
+                          >
+                            From:{" "}
+                            <span className="font-medium">{alert.from}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <ClockIcon
+                            className={`w-4 h-4 ${
+                              isDarkMode ? "text-slate-500" : "text-slate-400"
+                            }`}
+                          />
+                          <span
+                            className={`text-sm ${
+                              isDarkMode ? "text-slate-400" : "text-slate-500"
+                            }`}
+                          >
+                            {alert.timestamp}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Response Field */}
+                      <div>
+                        <label
+                          className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? "text-slate-300" : "text-slate-700"
+                          }`}
+                        >
+                          Response
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={alertResponses[alert.id] || ""}
+                            onChange={(e) =>
+                              setAlertResponses((prev) => ({
+                                ...prev,
+                                [alert.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter your response..."
+                            className={`
+                              flex-1 px-4 py-2.5 rounded-xl text-sm outline-none transition-all
+                              ${
+                                isDarkMode
+                                  ? "bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
+                                  : "bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500"
+                              }
+                            `}
+                          />
+                          <button
+                            className={`
+                              px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+                              bg-gradient-to-r from-blue-500 to-cyan-500 text-white
+                              hover:shadow-lg hover:shadow-blue-500/25
+                            `}
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

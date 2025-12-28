@@ -11,6 +11,7 @@ import {
   ClockIcon,
   EyeIcon,
   LocationIcon,
+  XMarkIcon,
 } from "../icons/Icons";
 
 // Pie Chart Component
@@ -216,9 +217,39 @@ const activeShipments = [
 
 const recentShipments = activeShipments.slice(0, 3);
 
+// Sample alerts data
+const alertsData = [
+  {
+    id: "ALT-001",
+    message: "Temperature exceeded threshold during transit",
+    from: "Transporter",
+    shipmentId: "SHP-001237",
+    timestamp: "2025-12-27 14:30:00",
+    severity: "high",
+  },
+  {
+    id: "ALT-002",
+    message: "Package seal integrity compromised",
+    from: "Warehouse",
+    shipmentId: "SHP-001234",
+    timestamp: "2025-12-27 10:15:00",
+    severity: "critical",
+  },
+  {
+    id: "ALT-003",
+    message: "Delivery delay due to weather conditions",
+    from: "Transporter",
+    shipmentId: "SHP-001237",
+    timestamp: "2025-12-26 18:45:00",
+    severity: "medium",
+  },
+];
+
 const ManufacturerDashboard = () => {
   const { isDarkMode } = useTheme();
   const [requestFilter, setRequestFilter] = useState("all");
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [alertResponses, setAlertResponses] = useState({});
 
   const handleViewShipment = (id) => {
     console.log("Viewing shipment:", id);
@@ -308,9 +339,261 @@ const ManufacturerDashboard = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {statsData.map((stat, index) => (
-          <StatsCard key={index} {...stat} />
+          <div key={index} className="relative">
+            <StatsCard {...stat} />
+            {stat.title === "Alerts" && (
+              <button
+                onClick={() => setShowAlertsModal(true)}
+                className={`
+                  absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                  transition-all duration-200
+                  ${
+                    isDarkMode
+                      ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"
+                      : "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                  }
+                `}
+              >
+                <EyeIcon className="w-3.5 h-3.5" />
+                View
+              </button>
+            )}
+          </div>
         ))}
       </div>
+
+      {/* Alerts Modal */}
+      {showAlertsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowAlertsModal(false)}
+          />
+
+          {/* Modal Content */}
+          <div
+            className={`
+              relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl
+              ${
+                isDarkMode
+                  ? "bg-slate-900 border border-slate-800"
+                  : "bg-white border border-slate-200 shadow-2xl"
+              }
+            `}
+          >
+            {/* Modal Header */}
+            <div
+              className={`
+                flex items-center justify-between px-6 py-4 border-b
+                ${isDarkMode ? "border-slate-800" : "border-slate-200"}
+              `}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center">
+                  <AlertIcon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3
+                    className={`font-semibold ${
+                      isDarkMode ? "text-white" : "text-slate-900"
+                    }`}
+                  >
+                    All Alerts
+                  </h3>
+                  <p
+                    className={`text-sm ${
+                      isDarkMode ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
+                    {alertsData.length} alerts require attention
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAlertsModal(false)}
+                className={`
+                  p-2 rounded-lg transition-colors
+                  ${
+                    isDarkMode
+                      ? "hover:bg-slate-800 text-slate-400 hover:text-white"
+                      : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                  }
+                `}
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto max-h-[calc(90vh-80px)] p-6 space-y-4">
+              {alertsData.map((alert) => {
+                const severityStyles = {
+                  critical: isDarkMode
+                    ? "border-l-red-500 bg-red-500/5"
+                    : "border-l-red-500 bg-red-50/50",
+                  high: isDarkMode
+                    ? "border-l-orange-500 bg-orange-500/5"
+                    : "border-l-orange-500 bg-orange-50/50",
+                  medium: isDarkMode
+                    ? "border-l-amber-500 bg-amber-500/5"
+                    : "border-l-amber-500 bg-amber-50/50",
+                  low: isDarkMode
+                    ? "border-l-blue-500 bg-blue-500/5"
+                    : "border-l-blue-500 bg-blue-50/50",
+                };
+
+                const severityBadge = {
+                  critical: isDarkMode
+                    ? "bg-red-500/10 text-red-400 border-red-500/30"
+                    : "bg-red-50 text-red-600 border-red-200",
+                  high: isDarkMode
+                    ? "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                    : "bg-orange-50 text-orange-600 border-orange-200",
+                  medium: isDarkMode
+                    ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                    : "bg-amber-50 text-amber-600 border-amber-200",
+                  low: isDarkMode
+                    ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                    : "bg-blue-50 text-blue-600 border-blue-200",
+                };
+
+                return (
+                  <div
+                    key={alert.id}
+                    className={`
+                      rounded-xl border-l-4 p-5
+                      ${severityStyles[alert.severity]}
+                      ${
+                        isDarkMode
+                          ? "border border-l-4 border-slate-800"
+                          : "border border-l-4 border-slate-200"
+                      }
+                    `}
+                  >
+                    {/* Alert Header */}
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className={`text-xs font-mono ${
+                              isDarkMode ? "text-slate-500" : "text-slate-400"
+                            }`}
+                          >
+                            {alert.id}
+                          </span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full border capitalize ${
+                              severityBadge[alert.severity]
+                            }`}
+                          >
+                            {alert.severity}
+                          </span>
+                        </div>
+                        <p
+                          className={`font-medium ${
+                            isDarkMode ? "text-white" : "text-slate-900"
+                          }`}
+                        >
+                          {alert.message}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Alert Details */}
+                    <div className="flex flex-wrap items-center gap-4 mb-4">
+                      <div className="flex items-center gap-2">
+                        <UserIcon
+                          className={`w-4 h-4 ${
+                            isDarkMode ? "text-slate-500" : "text-slate-400"
+                          }`}
+                        />
+                        <span
+                          className={`text-sm ${
+                            isDarkMode ? "text-slate-300" : "text-slate-600"
+                          }`}
+                        >
+                          From:{" "}
+                          <span className="font-medium">{alert.from}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <BoxIcon
+                          className={`w-4 h-4 ${
+                            isDarkMode ? "text-slate-500" : "text-slate-400"
+                          }`}
+                        />
+                        <span
+                          className={`text-sm ${
+                            isDarkMode ? "text-slate-300" : "text-slate-600"
+                          }`}
+                        >
+                          {alert.shipmentId}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ClockIcon
+                          className={`w-4 h-4 ${
+                            isDarkMode ? "text-slate-500" : "text-slate-400"
+                          }`}
+                        />
+                        <span
+                          className={`text-sm ${
+                            isDarkMode ? "text-slate-400" : "text-slate-500"
+                          }`}
+                        >
+                          {alert.timestamp}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Response Field */}
+                    <div>
+                      <label
+                        className={`block text-sm font-medium mb-2 ${
+                          isDarkMode ? "text-slate-300" : "text-slate-700"
+                        }`}
+                      >
+                        Response
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={alertResponses[alert.id] || ""}
+                          onChange={(e) =>
+                            setAlertResponses((prev) => ({
+                              ...prev,
+                              [alert.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter your response..."
+                          className={`
+                            flex-1 px-4 py-2.5 rounded-xl text-sm outline-none transition-all
+                            ${
+                              isDarkMode
+                                ? "bg-slate-800 border border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500"
+                                : "bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500"
+                            }
+                          `}
+                        />
+                        <button
+                          className={`
+                            px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+                            bg-gradient-to-r from-blue-500 to-cyan-500 text-white
+                            hover:shadow-lg hover:shadow-blue-500/25
+                          `}
+                        >
+                          Send
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Role Access Requests Table */}
       <div

@@ -1,88 +1,40 @@
 import { useState } from "react";
-import "./App.css";
-import {
-  ThemeProvider,
-  AdminLayout,
-  LoginPage,
-  ManufacturerDashboard,
-  ShipmentTrackingPage,
-  QRScanPage,
-  LiveDashboard,
-  CustomerVerificationPage,
-  UsersPage,
-} from "./components/Admin";
+import { AdminApp, ThemeProvider } from "./components/Admin";
+import { LoginPage } from "./components/Login";
+
+// Minimal App.jsx - Each team member's UI lives in their own component folder
+// e.g. components/Admin, components/Login, components/Transporter, etc.
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentRole, setCurrentRole] = useState(null);
-  const [currentPage, setCurrentPage] = useState("dashboard");
 
   const handleLogin = (role) => {
     setCurrentRole(role);
     setIsLoggedIn(true);
-    setCurrentPage("dashboard");
   };
 
-  const handleNavigate = (page) => {
-    if (page === "logout") {
-      setIsLoggedIn(false);
-      setCurrentRole(null);
-      setCurrentPage("dashboard");
-      return;
-    }
-    setCurrentPage(page);
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentRole(null);
   };
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case "dashboard":
-        return <ManufacturerDashboard />;
-      case "tracking":
-      case "shipments":
-        return <ShipmentTrackingPage />;
-      case "scan":
-        return <QRScanPage />;
-      case "live":
-        return <LiveDashboard />;
-      case "verification":
-        return <CustomerVerificationPage />;
-      case "users":
-        return <UsersPage />;
-      default:
-        return <ManufacturerDashboard />;
-    }
-  };
-
-  const getRoleTitle = () => {
-    switch (currentRole) {
-      case "manufacturer":
-        return "Manufacturer";
-      case "transporter":
-        return "Transporter";
-      case "warehouse":
-        return "Warehouse";
-      case "customer":
-        return "Customer";
-      default:
-        return "User";
-    }
-  };
-
-  return (
-    <ThemeProvider>
-      {!isLoggedIn ? (
+  if (!isLoggedIn) {
+    return (
+      <ThemeProvider>
         <LoginPage onLogin={handleLogin} />
-      ) : (
-        <AdminLayout
-          currentPage={currentPage}
-          onNavigate={handleNavigate}
-          currentRole={getRoleTitle()}
-        >
-          {renderPage()}
-        </AdminLayout>
-      )}
-    </ThemeProvider>
-  );
+      </ThemeProvider>
+    );
+  }
+
+  switch (currentRole) {
+    case "manufacturer":
+    case "admin":
+      return <AdminApp role={currentRole} onLogout={handleLogout} />;
+
+    default:
+      return <AdminApp role={currentRole} onLogout={handleLogout} />;
+  }
 }
 
 export default App;

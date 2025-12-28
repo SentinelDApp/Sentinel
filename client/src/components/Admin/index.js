@@ -1,3 +1,9 @@
+// Admin Styles
+import "./Admin.css";
+
+// Main Admin App Entry Point
+export { default as AdminApp } from "./AdminApp";
+
 // Layout Components
 export { default as AdminLayout } from "./layout/AdminLayout";
 export { default as Sidebar } from "./layout/Sidebar";
@@ -15,7 +21,6 @@ export { default as CreateShipmentCard } from "./components/CreateShipmentCard";
 export { default as ShipmentTimeline } from "./components/ShipmentTimeline";
 
 // Pages
-export { default as LoginPage } from "./pages/LoginPage";
 export { default as ManufacturerDashboard } from "./pages/ManufacturerDashboard";
 export { default as ShipmentTrackingPage } from "./pages/ShipmentTrackingPage";
 export { default as QRScanPage } from "./pages/QRScanPage";

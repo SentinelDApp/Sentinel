@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../Admin/context/ThemeContext";
 import {
   ShieldCheckIcon,
   FactoryIcon,
@@ -14,7 +14,7 @@ import {
   CheckCircleIcon,
   ChartIcon,
   ClockIcon,
-} from "../icons/Icons";
+} from "../Admin/icons/Icons";
 
 const roles = [
   {
