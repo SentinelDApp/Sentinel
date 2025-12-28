@@ -3,6 +3,9 @@ export { default as AdminLayout } from "./layout/AdminLayout";
 export { default as Sidebar } from "./layout/Sidebar";
 export { default as Header } from "./layout/Header";
 
+// Main Admin App
+export { default as AdminApp } from "./AdminApp";
+
 // Context
 export { ThemeProvider, useTheme } from "./context/ThemeContext";
 
