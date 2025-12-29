@@ -79,13 +79,13 @@ const LoginPage = () => {
       // Navigate to the appropriate dashboard based on selected role
       switch (selectedRole) {
         case 'manufacturer':
-          navigate('/admin/dashboard');
+          navigate('/supplier/dashboard');
           break;
         case 'transporter':
           navigate('/transporter/dashboard');
           break;
         case 'warehouse':
-          navigate('/supplier/dashboard');
+          navigate('/admin/dashboard');
           break;
         case 'retailer':
           navigate('/retailer/dashboard');

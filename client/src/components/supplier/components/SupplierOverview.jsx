@@ -1,48 +1,13 @@
 import { useState } from 'react';
-import { DEMO_SUPPLIER_WALLET, SHIPMENT_STATUSES, CONCERN_STATUS } from './supplier.constants';
+import { SHIPMENT_STATUSES, CONCERN_STATUS } from '../constants';
+import { 
+  BoxIcon, 
+  TruckIcon, 
+  CheckCircleIcon, 
+  AlertTriangleIcon, 
+  RefreshIcon 
+} from '../icons/Icons';
 
-// Icons
-const BoxIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-    <path d="m3.3 7 8.7 5 8.7-5" />
-    <path d="M12 22V12" />
-  </svg>
-);
-
-const TruckIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
-    <path d="M15 18H9" />
-    <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
-    <circle cx="17" cy="18" r="2" />
-    <circle cx="7" cy="18" r="2" />
-  </svg>
-);
-
-const CheckCircleIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <path d="m9 11 3 3L22 4" />
-  </svg>
-);
-
-const AlertTriangleIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-    <path d="M12 9v4" />
-    <path d="M12 17h.01" />
-  </svg>
-);
-
-const RefreshIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-    <path d="M21 3v5h-5" />
-    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-    <path d="M8 16H3v5" />
-  </svg>
-);
 
 const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);

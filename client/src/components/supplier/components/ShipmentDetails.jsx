@@ -5,7 +5,7 @@ import {
   CONCERN_STATUS,
   CONCERN_TYPE_LABELS,
   formatDate,
-} from './supplier.constants';
+} from '../constants';
 
 
 const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {

@@ -10,7 +10,7 @@ import Signup from "./components/signup/Signup";
 import LoginPage from "./components/Admin/pages/LoginPage";
 
 // Dashboard Pages
-import SupplierDashboard from "./components/supplier/SupplierDashboard";
+import { SupplierApp } from "./components/supplier";
 import RetailerDashboard from "./components/retailer/RetailerDashboard";
 import { TransporterApp } from "./components/Transporter";
 
@@ -53,7 +53,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/supplier/dashboard",
-    element: <SupplierDashboard />,
+    element: <SupplierApp />,
   },
 
   // ============================================
