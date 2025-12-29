@@ -6,7 +6,7 @@ import {
   CONCERN_TYPE_LABELS,
   CONCERN_STATUS_COLORS,
   formatDate,
-} from './supplier.constants';
+} from '../constants';
 
 const ShipmentActions = ({ 
   shipment, 

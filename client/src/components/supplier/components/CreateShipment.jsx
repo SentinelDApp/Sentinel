@@ -7,7 +7,7 @@ import {
   isBatchIdDuplicate,
   DEMO_SUPPLIER_WALLET,
   SHIPMENT_STATUSES 
-} from './supplier.constants';
+} from '../constants';
 import QRCodeDisplay from './QRCodeDisplay';
 
 
@@ -137,7 +137,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
       `}>
         {/* Success Header */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-linear-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -190,8 +190,8 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
         <div className={`
           border rounded-xl p-6 mb-6
           ${isDarkMode 
-            ? 'bg-gradient-to-br from-slate-900/80 to-slate-800/80 border-slate-700' 
-            : 'bg-gradient-to-br from-slate-50 to-white border-slate-200'
+            ? 'bg-linear-to-br from-slate-900/80 to-slate-800/80 border-slate-700' 
+            : 'bg-linear-to-br from-slate-50 to-white border-slate-200'
           }
         `}>
           <div className="text-center mb-4">
@@ -214,7 +214,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
             }
           `}>
             <div className="flex items-start gap-3">
-              <svg className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
@@ -430,7 +430,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
         <button
           type="submit"
           disabled={isSubmitting || !formData.productName || !formData.quantity || !formData.batchId || batchIdError}
-          className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          className="w-full py-3 bg-linear-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-2">

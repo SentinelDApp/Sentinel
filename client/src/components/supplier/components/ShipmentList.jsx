@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SHIPMENT_STATUSES, STATUS_COLORS, CONCERN_STATUS, formatDate } from './supplier.constants';
+import { SHIPMENT_STATUSES, STATUS_COLORS, CONCERN_STATUS, formatDate } from '../constants';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -57,7 +57,7 @@ const ShipmentList = ({ shipments, selectedShipment, onShipmentSelect, isDarkMod
                 onClick={() => handleFilterChange(value)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${
                   filter === value 
-                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25' 
+                    ? 'bg-linear-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25' 
                     : isDarkMode
                       ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -132,7 +132,7 @@ const ShipmentList = ({ shipments, selectedShipment, onShipmentSelect, isDarkMod
                         <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
                           {shipment.productName}
                         </p>
-                        <p className={`text-xs font-mono truncate max-w-[120px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} title={shipment.id}>
+                        <p className={`text-xs font-mono truncate max-w-30 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} title={shipment.id}>
                           {shipment.id.slice(0, 12)}...
                         </p>
                       </div>

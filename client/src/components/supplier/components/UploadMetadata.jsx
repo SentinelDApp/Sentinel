@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SHIPMENT_STATUSES } from './supplier.constants';
+import { SHIPMENT_STATUSES } from '../constants';
 
 const UploadMetadata = ({ shipment, onUploadComplete, isDarkMode = true }) => {
   const [files, setFiles] = useState([]);
@@ -109,7 +109,7 @@ const UploadMetadata = ({ shipment, onUploadComplete, isDarkMode = true }) => {
                   <div className="flex items-center gap-3">
                     <span className="text-lg">📄</span>
                     <div>
-                      <p className={`text-sm font-medium truncate max-w-[180px] ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                      <p className={`text-sm font-medium truncate max-w-45 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
                         {file.name}
                       </p>
                       <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -128,7 +128,7 @@ const UploadMetadata = ({ shipment, onUploadComplete, isDarkMode = true }) => {
               <button
                 onClick={handleUpload}
                 disabled={uploading}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100"
+                className="w-full py-3 bg-linear-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100"
               >
                 {uploading ? (
                   <span className="flex items-center justify-center gap-2">
