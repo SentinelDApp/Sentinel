@@ -125,10 +125,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onNavigate }) => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    onNavigate(item.id);
-                    onClose();
-                  }}
+                  onClick={() => onNavigate(item.id)}
                   onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={`
