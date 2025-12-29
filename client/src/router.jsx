@@ -12,7 +12,7 @@ import LoginPage from "./components/Admin/pages/LoginPage";
 // Dashboard Pages
 import SupplierDashboard from "./components/supplier/SupplierDashboard";
 import RetailerDashboard from "./components/retailer/RetailerDashboard";
-import TransporterDashboard from "./components/Transporter/TransporterDashboard";
+import { TransporterApp } from "./components/Transporter";
 
 // Admin App (includes layout with sidebar)
 import { AdminApp, ThemeProvider } from "./components/Admin";
@@ -77,7 +77,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/transporter/dashboard",
-    element: <TransporterDashboard />,
+    element: <TransporterApp />,
   },
 
   // ============================================
