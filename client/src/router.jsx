@@ -86,39 +86,18 @@ export const router = createBrowserRouter([
   // ============================================
   {
     path: "/admin",
-    element: <Navigate to="/admin/dashboard" replace />,
-  },
-  {
-    path: "/admin/dashboard",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/manufacturer",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/tracking",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/shipments",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/scan",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/live",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/verification",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/users",
-    element: <AdminApp />,
+    element: <AdminApp role="admin" />,
+    children: [
+      { index: true, element: null },
+      { path: "dashboard", element: null },
+      { path: "requests", element: null },
+      { path: "tracking", element: null },
+      { path: "shipments", element: null },
+      { path: "scan", element: null },
+      { path: "live", element: null },
+      { path: "verification", element: null },
+      { path: "users", element: null },
+    ],
   },
 
   // ============================================

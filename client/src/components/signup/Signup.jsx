@@ -195,19 +195,26 @@ export default function Signup() {
 
     setIsSubmitting(true);
     const formData = new FormData();
-    formData.append("wallet", wallet);
-    formData.append("name", name);
+    formData.append("walletAddress", wallet);
+    formData.append("fullName", name);
     formData.append("role", role);
-    formData.append("document", document);
+    formData.append("verificationDoc", document);
 
     try {
-      await fetch("http://localhost:5000/signup", {
+      const response = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         body: formData,
       });
-      alert("Signup submitted. Waiting for admin approval.");
+
+      if (response.ok) {
+        alert("Submitted! Wait for Admin Approval.");
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || "Registration failed. Please try again.");
+      }
     } catch (error) {
       console.error("Signup failed:", error);
+      alert("Network error. Please check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
