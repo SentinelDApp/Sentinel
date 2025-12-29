@@ -94,41 +94,6 @@ const roleAccessRequests = [
     timestamp: "2025-12-27 10:30:45",
     status: "pending",
   },
-  {
-    id: "REQ-002",
-    hashKey: "0x8b0g4c3d2e9f5g6b8c9d0e1f2a3b4c5d6e7f8g9b",
-    role: "Transporter",
-    timestamp: "2025-12-27 09:15:22",
-    status: "approved",
-  },
-  {
-    id: "REQ-003",
-    hashKey: "0x9c1h5d4e3f0g6h7c9d0e1f2g3a4b5c6d7e8f9g0c",
-    role: "Warehouse",
-    timestamp: "2025-12-26 16:45:10",
-    status: "pending",
-  },
-  {
-    id: "REQ-004",
-    hashKey: "0x0d2i6e5f4g1h7i8d0e1f2g3h4a5b6c7d8e9f0g1d",
-    role: "Retailer",
-    timestamp: "2025-12-26 14:20:33",
-    status: "rejected",
-  },
-  {
-    id: "REQ-005",
-    hashKey: "0x1e3j7f6g5h2i8j9e1f2g3h4i5a6b7c8d9e0f1g2e",
-    role: "Supplier",
-    timestamp: "2025-12-26 11:55:18",
-    status: "approved",
-  },
-  {
-    id: "REQ-006",
-    hashKey: "0x2f4k8g7h6i3j9k0f2g3h4i5j6a7b8c9d0e1f2g3f",
-    role: "Transporter",
-    timestamp: "2025-12-25 08:30:00",
-    status: "pending",
-  },
 ];
 
 // Sample data
