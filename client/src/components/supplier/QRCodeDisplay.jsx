@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 
 
-const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true }) => {
+const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode = true }) => {
   const qrRef = useRef(null);
 
   const generateQRPattern = (data) => {
@@ -129,7 +129,7 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true }) => {
   return (
     <div className="flex flex-col items-center">
       {/* QR Code SVG */}
-      <div className="bg-white p-4 rounded-xl">
+      <div className="bg-white p-4 rounded-xl shadow-md">
         <svg
           ref={qrRef}
           width={size}
@@ -153,8 +153,8 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true }) => {
 
       {/* Shipment ID Display */}
       <div className="mt-4 text-center">
-        <p className="text-xs text-slate-400 mb-1">Shipment Hash</p>
-        <code className="text-sm font-mono text-slate-200 bg-slate-700/50 px-3 py-1.5 rounded-lg">
+        <p className={`text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Shipment Hash</p>
+        <code className={`text-sm font-mono px-3 py-1.5 rounded-lg ${isDarkMode ? 'text-slate-200 bg-slate-700/50' : 'text-slate-700 bg-slate-200'}`}>
           {shipmentId}
         </code>
       </div>
@@ -164,7 +164,13 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true }) => {
         <div className="mt-4 flex gap-3">
           <button
             onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium rounded-lg transition-colors"
+            className={`
+              flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors
+              ${isDarkMode 
+                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' 
+                : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+              }
+            `}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -173,7 +179,13 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true }) => {
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium rounded-lg transition-colors"
+            className={`
+              flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors
+              ${isDarkMode 
+                ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' 
+                : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+              }
+            `}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
