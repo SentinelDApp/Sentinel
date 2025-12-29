@@ -11,7 +11,7 @@ import LoginPage from "./components/Admin/pages/LoginPage";
 
 // Dashboard Pages
 import { SupplierApp } from "./components/supplier";
-import RetailerDashboard from "./components/retailer/RetailerDashboard";
+import { RetailerApp } from "./components/retailer";
 import { TransporterApp } from "./components/Transporter";
 
 // Admin App (includes layout with sidebar)
@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/retailer/dashboard",
-    element: <RetailerDashboard />,
+    element: <RetailerApp />,
   },
 
   // ============================================
