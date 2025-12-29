@@ -14,6 +14,7 @@ const ShipmentActions = ({
   onMarkReady,
   onAcknowledgeConcern,
   onResolveConcern,
+  isDarkMode = true,
 }) => {
   const [selectedTransporter, setSelectedTransporter] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,9 +23,19 @@ const ShipmentActions = ({
 
   if (!shipment) {
     return (
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-slate-50 mb-4">Shipment Actions</h2>
-        <p className="text-center py-8 text-slate-400">Select a shipment to view actions</p>
+      <div className={`
+        border rounded-2xl p-6 transition-colors duration-200
+        ${isDarkMode 
+          ? 'bg-slate-900/50 border-slate-800' 
+          : 'bg-white border-slate-200 shadow-sm'
+        }
+      `}>
+        <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+          Shipment Actions
+        </h2>
+        <p className={`text-center py-8 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          Select a shipment to view actions
+        </p>
       </div>
     );
   }
@@ -70,24 +81,40 @@ const ShipmentActions = ({
   };
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 hover:border-slate-600 transition-all">
-      <h2 className="text-lg font-semibold text-slate-50 mb-4">Shipment Actions</h2>
+    <div className={`
+      border rounded-2xl p-6 transition-all duration-200
+      ${isDarkMode 
+        ? 'bg-slate-900/50 border-slate-800 hover:border-slate-700' 
+        : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+      }
+    `}>
+      <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+        Shipment Actions
+      </h2>
 
       {/* Shipment Info */}
-      <div className="bg-slate-700/50 border border-slate-600 rounded-xl p-4 mb-4">
-        <p className="font-semibold text-slate-50">{shipment.productName}</p>
+      <div className={`
+        border rounded-xl p-4 mb-4
+        ${isDarkMode 
+          ? 'bg-slate-800/50 border-slate-700' 
+          : 'bg-slate-50 border-slate-200'
+        }
+      `}>
+        <p className={`font-semibold ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+          {shipment.productName}
+        </p>
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs font-mono px-2 py-0.5 bg-slate-600 rounded text-slate-300">
+          <span className={`text-xs font-mono px-2 py-0.5 rounded ${isDarkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'}`}>
             {shipment.id}
           </span>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-slate-400">Batch:</span>
-          <span className="text-xs font-mono text-slate-300">{shipment.batchId}</span>
+          <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Batch:</span>
+          <span className={`text-xs font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{shipment.batchId}</span>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-slate-400">Quantity:</span>
-          <span className="text-xs text-slate-300">{shipment.quantity} {shipment.unit}</span>
+          <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Quantity:</span>
+          <span className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{shipment.quantity} {shipment.unit}</span>
         </div>
       </div>
 
@@ -96,20 +123,24 @@ const ShipmentActions = ({
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab('actions')}
-            className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all ${
+            className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all border ${
               activeTab === 'actions'
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                : 'bg-slate-700/50 text-slate-400 border border-slate-600 hover:border-slate-500'
+                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                : isDarkMode 
+                  ? 'bg-slate-800/50 text-slate-400 border-slate-700 hover:border-slate-600'
+                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300'
             }`}
           >
             Actions
           </button>
           <button
             onClick={() => setActiveTab('concerns')}
-            className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all relative ${
+            className={`flex-1 py-2 px-4 text-sm font-medium rounded-lg transition-all relative border ${
               activeTab === 'concerns'
-                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                : 'bg-slate-700/50 text-slate-400 border border-slate-600 hover:border-slate-500'
+                ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                : isDarkMode 
+                  ? 'bg-slate-800/50 text-slate-400 border-slate-700 hover:border-slate-600'
+                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300'
             }`}
           >
             Concerns
@@ -126,14 +157,20 @@ const ShipmentActions = ({
       {activeTab === 'actions' && (
         <>
           {!isCreated ? (
-            <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-4">
+            <div className={`
+              border rounded-xl p-4
+              ${isDarkMode 
+                ? 'bg-amber-500/20 border-amber-500/30' 
+                : 'bg-amber-50 border-amber-200'
+              }
+            `}>
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-5 h-5 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <p className="text-amber-400 text-sm font-medium">Shipment Locked</p>
+                <p className={`text-sm font-medium ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Shipment Locked</p>
               </div>
-              <p className="text-amber-400/70 text-xs mt-1">
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-amber-400/70' : 'text-amber-600'}`}>
                 Status: {shipment.status.replace(/_/g, ' ')}. Assignment changes not allowed.
               </p>
             </div>
@@ -141,14 +178,14 @@ const ShipmentActions = ({
             <div className="space-y-4">
               {/* Transporter Assignment */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                   Assign Transporter
                 </label>
                 {currentTransporter ? (
                   <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
                     <div>
                       <p className="font-medium text-emerald-400">{currentTransporter.name}</p>
-                      <p className="text-xs text-slate-500">{currentTransporter.specialization}</p>
+                      <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{currentTransporter.specialization}</p>
                     </div>
                     <span className="text-emerald-400 text-xl">✓</span>
                   </div>
@@ -157,11 +194,17 @@ const ShipmentActions = ({
                     <select
                       value={selectedTransporter}
                       onChange={(e) => setSelectedTransporter(e.target.value)}
-                      className="flex-1 bg-slate-700/50 border border-slate-600 rounded-xl py-2.5 px-4 text-slate-50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                      className={`
+                        flex-1 border rounded-xl py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all
+                        ${isDarkMode 
+                          ? 'bg-slate-800/50 border-slate-700 text-slate-50 focus:border-blue-500' 
+                          : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500'
+                        }
+                      `}
                     >
-                      <option value="" className="bg-slate-700">-- Select --</option>
+                      <option value="" className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>-- Select --</option>
                       {TRANSPORTER_AGENCIES.map(a => (
-                        <option key={a.id} value={a.id} className="bg-slate-700">
+                        <option key={a.id} value={a.id} className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>
                           {a.name}
                         </option>
                       ))}
@@ -169,7 +212,7 @@ const ShipmentActions = ({
                     <button
                       onClick={handleAssign}
                       disabled={!selectedTransporter || isProcessing}
-                      className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 transition-all"
+                      className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium rounded-xl hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 transition-all"
                     >
                       Assign
                     </button>
@@ -178,7 +221,7 @@ const ShipmentActions = ({
               </div>
 
               {/* Mark Ready Button */}
-              <div className="pt-4 border-t border-slate-700">
+              <div className={`pt-4 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                 <button
                   onClick={handleMarkReady}
                   disabled={!canMarkReady || isProcessing}
@@ -195,7 +238,7 @@ const ShipmentActions = ({
                   ) : '✓ Mark Ready for Dispatch'}
                 </button>
                 {!shipment.transporterId && (
-                  <p className="text-xs text-slate-500 mt-2 text-center">
+                  <p className={`text-xs mt-2 text-center ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                     Assign a transporter first
                   </p>
                 )}
@@ -220,12 +263,12 @@ const ShipmentActions = ({
                     {CONCERN_TYPE_LABELS[concern.type]}
                   </h4>
                 </div>
-                <span className="text-xs text-slate-500">
+                <span className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                   by {concern.raisedBy}
                 </span>
               </div>
-              <p className="text-sm text-slate-300 mb-3">{concern.description}</p>
-              <p className="text-xs text-slate-500 mb-3">
+              <p className={`text-sm mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{concern.description}</p>
+              <p className={`text-xs mb-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                 Raised: {formatDate(concern.raisedAt)}
               </p>
               <button
@@ -251,13 +294,19 @@ const ShipmentActions = ({
                   </h4>
                 </div>
               </div>
-              <p className="text-sm text-slate-300 mb-3">{concern.description}</p>
+              <p className={`text-sm mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{concern.description}</p>
               <div className="space-y-2">
                 <textarea
                   value={resolutionText}
                   onChange={(e) => setResolutionText(e.target.value)}
                   placeholder="Enter resolution details..."
-                  className="w-full bg-slate-700/50 border border-slate-600 rounded-lg py-2 px-3 text-slate-50 placeholder-slate-400 text-sm resize-none focus:outline-none focus:border-amber-500"
+                  className={`
+                    w-full border rounded-lg py-2 px-3 text-sm resize-none focus:outline-none
+                    ${isDarkMode 
+                      ? 'bg-slate-800/50 border-slate-700 text-slate-50 placeholder-slate-400 focus:border-amber-500' 
+                      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500'
+                    }
+                  `}
                   rows={2}
                 />
                 <button
@@ -286,9 +335,9 @@ const ShipmentActions = ({
                     </h4>
                   </div>
                 </div>
-                <p className="text-sm text-slate-400 mb-2">{concern.description}</p>
-                <div className="bg-slate-700/50 rounded-lg p-2 mt-2">
-                  <p className="text-xs text-slate-400">Resolution:</p>
+                <p className={`text-sm mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{concern.description}</p>
+                <div className={`rounded-lg p-2 mt-2 ${isDarkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                  <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Resolution:</p>
                   <p className="text-sm text-emerald-400">{concern.resolution}</p>
                 </div>
               </div>

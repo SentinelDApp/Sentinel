@@ -8,7 +8,7 @@ import {
 } from './supplier.constants';
 
 
-const ShipmentDetails = ({ shipment, onClose }) => {
+const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
   const [activeTab, setActiveTab] = useState('details'); // 'details' | 'qrcode' | 'concerns'
   
   if (!shipment) return null;
@@ -22,7 +22,6 @@ const ShipmentDetails = ({ shipment, onClose }) => {
     status,
     createdAt,
     transporterName,
-    supplierWallet,
     metadata,
     concerns = [],
   } = shipment;
@@ -41,38 +40,50 @@ const ShipmentDetails = ({ shipment, onClose }) => {
   ];
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
+    <div className={`
+      border rounded-2xl overflow-hidden transition-colors duration-200
+      ${isDarkMode 
+        ? 'bg-slate-900/50 border-slate-800' 
+        : 'bg-white border-slate-200 shadow-sm'
+      }
+    `}>
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-slate-700 p-4">
+      <div className={`
+        p-4 border-b
+        ${isDarkMode 
+          ? 'bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-slate-700' 
+          : 'bg-gradient-to-r from-blue-50 to-cyan-50 border-slate-200'
+        }
+      `}>
         <div className="flex items-center justify-between mb-3">
           <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} border`}>
             {statusStyle.label}
           </span>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
+            className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-200'}`}
           >
-            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`w-5 h-5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <h2 className="text-xl font-semibold text-slate-50 mb-1">{productName}</h2>
-        <code className="text-xs font-mono text-slate-400 bg-slate-700/50 px-2 py-1 rounded">
+        <h2 className={`text-xl font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{productName}</h2>
+        <code className={`text-xs font-mono px-2 py-1 rounded ${isDarkMode ? 'text-slate-400 bg-slate-700/50' : 'text-slate-500 bg-slate-200'}`}>
           {id}
         </code>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-700">
+      <div className={`flex border-b ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-3 px-4 text-sm font-medium transition-colors relative ${
               activeTab === tab.id 
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-900/30' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/30'
+                ? `text-blue-${isDarkMode ? '400' : '600'} border-b-2 border-blue-${isDarkMode ? '400' : '600'} ${isDarkMode ? 'bg-slate-900/30' : 'bg-blue-50/50'}` 
+                : `${isDarkMode ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/30' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`
             }`}
           >
             <span className="mr-1">{tab.icon}</span>
@@ -93,49 +104,81 @@ const ShipmentDetails = ({ shipment, onClose }) => {
           <div className="space-y-4">
             {/* Key Info Grid */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-3">
-                <span className="text-xs text-slate-400 block mb-1">Batch ID</span>
-                <span className="font-mono text-slate-50">{batchId}</span>
+              <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Batch ID</span>
+                <span className={`font-mono ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{batchId}</span>
               </div>
-              <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-3">
-                <span className="text-xs text-slate-400 block mb-1">Quantity</span>
-                <span className="text-slate-50 font-medium">{quantity} {unit}</span>
+              <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Quantity</span>
+                <span className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{quantity} {unit}</span>
               </div>
-              <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-3">
-                <span className="text-xs text-slate-400 block mb-1">Transporter</span>
-                <span className="text-slate-50">{transporterName || 'Not assigned'}</span>
+              <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Transporter</span>
+                <span className={isDarkMode ? 'text-slate-50' : 'text-slate-900'}>{transporterName || 'Not assigned'}</span>
               </div>
-              <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-3">
-                <span className="text-xs text-slate-400 block mb-1">Created</span>
-                <span className="text-slate-50">{formatDate(createdAt)}</span>
+              <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Created</span>
+                <span className={isDarkMode ? 'text-slate-50' : 'text-slate-900'}>{formatDate(createdAt)}</span>
               </div>
-            </div>
-
-            {/* Supplier Wallet */}
-            <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-3">
-              <span className="text-xs text-slate-400 block mb-1">Supplier Wallet</span>
-              <code className="font-mono text-slate-300 text-sm">{supplierWallet}</code>
             </div>
 
             {/* Supporting Documents */}
-            {metadata && (
-              <div className="bg-slate-900/50 border border-slate-700 rounded-xl p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs text-slate-400">Supporting Documents</span>
+            {metadata && metadata.documents?.length > 0 && (
+              <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Supporting Documents</span>
                   <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded">
                     Off-Chain
                   </span>
                 </div>
-                {metadata.documents?.map((doc, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-sm text-slate-300">
-                    <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    {doc.name}
-                  </div>
-                ))}
+                <div className="space-y-2">
+                  {metadata.documents.map((doc, idx) => {
+                    const docName = typeof doc === 'string' ? doc : doc.name;
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`
+                          flex items-center justify-between p-2.5 rounded-lg border transition-colors
+                          ${isDarkMode 
+                            ? 'bg-slate-800/50 border-slate-700 hover:border-slate-600' 
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`
+                            w-8 h-8 rounded-lg flex items-center justify-center
+                            ${isDarkMode ? 'bg-blue-500/20' : 'bg-blue-100'}
+                          `}>
+                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                            {docName}
+                          </span>
+                        </div>
+                        <button 
+                          className={`
+                            flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                            ${isDarkMode 
+                              ? 'text-blue-400 hover:bg-blue-500/20' 
+                              : 'text-blue-600 hover:bg-blue-50'
+                            }
+                          `}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          View
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
                 {metadata.notes && (
-                  <p className="text-sm text-slate-400 mt-2 italic">{metadata.notes}</p>
+                  <p className={`text-sm mt-3 italic ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{metadata.notes}</p>
                 )}
               </div>
             )}
@@ -146,29 +189,25 @@ const ShipmentDetails = ({ shipment, onClose }) => {
         {activeTab === 'qrcode' && (
           <div className="py-4">
             <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold text-slate-50 mb-1">Shipment QR Code</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>Shipment QR Code</h3>
+              <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 This QR code is permanently linked to this shipment and cannot be regenerated
               </p>
             </div>
 
-            <QRCodeDisplay shipmentId={id} size={200} showActions={true} />
+            <QRCodeDisplay shipmentId={id} size={200} showActions={true} isDarkMode={isDarkMode} />
 
             {/* QR Info */}
-            <div className="mt-6 p-4 bg-slate-900/50 border border-slate-700 rounded-xl">
-              <h4 className="text-sm font-medium text-slate-200 mb-3">QR Code Information</h4>
+            <div className={`mt-6 p-4 border rounded-xl ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+              <h4 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>QR Code Information</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Encoded Data:</span>
-                  <span className="text-slate-200">Shipment Hash Only</span>
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Encoded Data:</span>
+                  <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>Shipment Hash Only</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Generated:</span>
-                  <span className="text-slate-200">{formatDate(createdAt)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Regenerable:</span>
-                  <span className="text-red-400">No (One-time generation)</span>
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Generated:</span>
+                  <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>{formatDate(createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -180,12 +219,12 @@ const ShipmentDetails = ({ shipment, onClose }) => {
           <div className="space-y-4">
             {concerns.length === 0 ? (
               <div className="text-center py-8">
-                <div className="w-16 h-16 mx-auto mb-4 bg-slate-700 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                  <svg className={`w-8 h-8 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="text-slate-400">No concerns raised for this shipment</p>
+                <p className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>No concerns raised for this shipment</p>
               </div>
             ) : (
               <>
@@ -216,24 +255,24 @@ const ShipmentDetails = ({ shipment, onClose }) => {
                     };
                     
                     return (
-                      <div key={idx} className="bg-slate-900/50 border border-slate-700 rounded-xl p-4">
+                      <div key={idx} className={`border rounded-xl p-4 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">⚠️</span>
-                            <span className="font-medium text-slate-200">{concernLabel}</span>
+                            <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{concernLabel}</span>
                           </div>
                           <span className={`text-xs px-2 py-1 rounded-full border ${statusColors[concern.status]}`}>
                             {concern.status}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-400 mb-2">{concern.description}</p>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                        <p className={`text-sm mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{concern.description}</p>
+                        <div className={`flex items-center gap-4 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                           <span>Raised by: {concern.raisedBy}</span>
                           <span>{formatDate(concern.raisedAt)}</span>
                         </div>
                         {concern.resolution && (
-                          <div className="mt-3 pt-3 border-t border-slate-700">
-                            <p className="text-xs text-slate-400">
+                          <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+                            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                               <span className="text-green-400">Resolution:</span> {concern.resolution}
                             </p>
                           </div>

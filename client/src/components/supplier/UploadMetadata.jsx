@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SHIPMENT_STATUSES } from './supplier.constants';
 
-const UploadMetadata = ({ shipment, onUploadComplete }) => {
+const UploadMetadata = ({ shipment, onUploadComplete, isDarkMode = true }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
 
@@ -28,42 +28,93 @@ const UploadMetadata = ({ shipment, onUploadComplete }) => {
 
   if (!shipment) {
     return (
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-slate-50 mb-4">Supporting Documents (Optional)</h2>
-        <p className="text-center py-8 text-slate-400">Select a shipment to attach documents</p>
+      <div className={`
+        border rounded-2xl p-6 transition-colors duration-200
+        ${isDarkMode 
+          ? 'bg-slate-900/50 border-slate-800' 
+          : 'bg-white border-slate-200 shadow-sm'
+        }
+      `}>
+        <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+          Supporting Documents (Optional)
+        </h2>
+        <p className={`text-center py-8 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          Select a shipment to attach documents
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 hover:border-slate-600 transition-all">
-      <h2 className="text-lg font-semibold text-slate-50 mb-1">Supporting Documents (Optional)</h2>
-      <p className="text-sm text-slate-400 mb-4">Upload certificates, invoices, or images</p>
+    <div className={`
+      border rounded-2xl p-6 transition-all duration-200
+      ${isDarkMode 
+        ? 'bg-slate-900/50 border-slate-800 hover:border-slate-700' 
+        : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+      }
+    `}>
+      <h2 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+        Supporting Documents (Optional)
+      </h2>
+      <p className={`text-sm mb-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+        Upload certificates, invoices, or images
+      </p>
 
       {isLocked ? (
-        <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-4 text-center">
-          <p className="text-amber-400">🔒 Shipment is locked. Cannot add documents.</p>
+        <div className={`
+          border rounded-xl p-4 text-center
+          ${isDarkMode 
+            ? 'bg-amber-500/20 border-amber-500/30' 
+            : 'bg-amber-50 border-amber-200'
+          }
+        `}>
+          <p className={isDarkMode ? 'text-amber-400' : 'text-amber-700'}>
+            🔒 Shipment is locked. Cannot add documents.
+          </p>
         </div>
       ) : (
         <>
           {/* Upload Area */}
-          <label className="block border-2 border-dashed border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:border-blue-500 hover:bg-slate-700/50 transition-all">
+          <label className={`
+            block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all
+            ${isDarkMode 
+              ? 'border-slate-700 hover:border-blue-500 hover:bg-slate-800/50' 
+              : 'border-slate-200 hover:border-blue-500 hover:bg-slate-50'
+            }
+          `}>
             <input type="file" multiple onChange={handleFileChange} className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
             <span className="text-3xl">📎</span>
-            <p className="text-sm text-slate-300 mt-2">Click to upload files</p>
-            <p className="text-xs text-slate-500">PDF, DOC, JPG, PNG</p>
+            <p className={`text-sm mt-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              Click to upload files
+            </p>
+            <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              PDF, DOC, JPG, PNG
+            </p>
           </label>
 
           {/* Selected Files */}
           {files.length > 0 && (
             <div className="mt-4 space-y-2">
               {files.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-slate-700/50 border border-slate-600 rounded-xl">
+                <div 
+                  key={index} 
+                  className={`
+                    flex items-center justify-between p-3 border rounded-xl
+                    ${isDarkMode 
+                      ? 'bg-slate-800/50 border-slate-700' 
+                      : 'bg-slate-50 border-slate-200'
+                    }
+                  `}
+                >
                   <div className="flex items-center gap-3">
                     <span className="text-lg">📄</span>
                     <div>
-                      <p className="text-sm font-medium text-slate-200 truncate max-w-[180px]">{file.name}</p>
-                      <p className="text-xs text-slate-500">{formatSize(file.size)}</p>
+                      <p className={`text-sm font-medium truncate max-w-[180px] ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {file.name}
+                      </p>
+                      <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {formatSize(file.size)}
+                      </p>
                     </div>
                   </div>
                   <button 
@@ -77,7 +128,7 @@ const UploadMetadata = ({ shipment, onUploadComplete }) => {
               <button
                 onClick={handleUpload}
                 disabled={uploading}
-                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/25 disabled:opacity-50 disabled:hover:scale-100"
+                className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100"
               >
                 {uploading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -98,15 +149,22 @@ const UploadMetadata = ({ shipment, onUploadComplete }) => {
 
       {/* Existing Metadata */}
       {shipment.metadata?.documents?.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-slate-700">
-          <p className="text-sm font-medium text-slate-300 mb-2">Attached Files:</p>
+        <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+          <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Attached Files:
+          </p>
           {shipment.metadata.documents.map((fileName, index) => (
-            <div key={index} className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl mb-2">
+            <div 
+              key={index} 
+              className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl mb-2"
+            >
               <span className="text-emerald-400">✅</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-200 truncate">{fileName}</p>
+                <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                  {fileName}
+                </p>
               </div>
-              <span className="bg-slate-600 text-slate-200 text-xs px-2 py-1 rounded-full">
+              <span className={`text-xs px-2 py-1 rounded-full ${isDarkMode ? 'bg-slate-700 text-slate-200' : 'bg-slate-200 text-slate-600'}`}>
                 Off-Chain
               </span>
             </div>
