@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import ShipmentTimeline from "../components/ShipmentTimeline";
+import StatsCard from "../components/StatsCard";
 import {
   SearchIcon,
   ShieldCheckIcon,
@@ -14,6 +15,8 @@ import {
   QRCodeIcon,
   EyeIcon,
   DocumentIcon,
+  CheckCircleIcon,
+  AlertIcon,
 } from "../icons/Icons";
 
 // Sample shipment data
@@ -102,22 +105,22 @@ const ShipmentTrackingPage = () => {
           rounded-2xl p-6
           ${
             isDarkMode
-              ? "bg-gradient-to-r from-slate-900 to-slate-900/50 border border-slate-800/50"
-              : "bg-gradient-to-r from-white to-slate-50 border border-slate-200/50 shadow-sm"
+              ? "bg-slate-900/50 border border-slate-800/50"
+              : "bg-white border border-slate-200/50 shadow-sm"
           }
         `}
       >
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex-1">
             <h1
-              className={`text-2xl font-bold ${
+              className={`text-2xl font-bold tracking-tight ${
                 isDarkMode ? "text-white" : "text-slate-900"
               }`}
             >
               Shipment Tracking
             </h1>
             <p
-              className={`mt-1 ${
+              className={`mt-1 text-sm ${
                 isDarkMode ? "text-slate-400" : "text-slate-500"
               }`}
             >
@@ -127,17 +130,17 @@ const ShipmentTrackingPage = () => {
           <div className="flex items-center gap-3">
             <div
               className={`
-                flex items-center gap-2 px-4 py-2.5 rounded-xl w-full md:w-80
+                flex items-center gap-2 px-4 py-3 rounded-xl w-full md:w-80 transition-all duration-200
                 ${
                   isDarkMode
-                    ? "bg-slate-800/50 border border-slate-700/50"
-                    : "bg-slate-100 border border-slate-200"
+                    ? "bg-slate-800/80 border border-slate-600/50 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20"
+                    : "bg-white border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 shadow-sm"
                 }
               `}
             >
               <SearchIcon
                 className={`w-5 h-5 ${
-                  isDarkMode ? "text-slate-500" : "text-slate-400"
+                  isDarkMode ? "text-slate-400" : "text-slate-400"
                 }`}
               />
               <input
@@ -155,7 +158,7 @@ const ShipmentTrackingPage = () => {
                 `}
               />
             </div>
-            <button className="px-4 py-2.5 rounded-xl font-medium bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:shadow-blue-500/25 transition-all">
+            <button className="px-6 py-3 rounded-xl font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
               Track
             </button>
           </div>
@@ -184,14 +187,14 @@ const ShipmentTrackingPage = () => {
                 </div>
                 <div>
                   <h2
-                    className={`text-xl font-bold ${
+                    className={`text-2xl font-bold tracking-tight ${
                       isDarkMode ? "text-white" : "text-slate-900"
                     }`}
                   >
                     {shipmentDetails.id}
                   </h2>
                   <p
-                    className={`text-sm ${
+                    className={`text-sm mt-0.5 ${
                       isDarkMode ? "text-slate-400" : "text-slate-500"
                     }`}
                   >
@@ -412,36 +415,29 @@ const ShipmentTrackingPage = () => {
                     </div>
                   </div>
 
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { label: "Verified", value: 90, color: "green" },
-                      { label: "Pending", value: 5, color: "amber" },
-                      { label: "Not Scanned", value: 25, color: "slate" },
-                    ].map((stat, index) => (
-                      <div
-                        key={index}
-                        className={`
-                          p-4 rounded-xl text-center
-                          ${isDarkMode ? "bg-slate-800/50" : "bg-slate-50"}
-                        `}
-                      >
-                        <p
-                          className={`text-2xl font-bold ${
-                            isDarkMode ? "text-white" : "text-slate-900"
-                          }`}
-                        >
-                          {stat.value}
-                        </p>
-                        <p
-                          className={`text-xs mt-1 ${
-                            isDarkMode ? "text-slate-500" : "text-slate-500"
-                          }`}
-                        >
-                          {stat.label}
-                        </p>
-                      </div>
-                    ))}
+                  {/* Stats using StatsCard component */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <StatsCard
+                      title="Verified Boxes"
+                      value="90"
+                      subtitle="Successfully verified"
+                      icon={CheckCircleIcon}
+                      color="green"
+                    />
+                    <StatsCard
+                      title="Pending Verification"
+                      value="5"
+                      subtitle="Awaiting scan"
+                      icon={AlertIcon}
+                      color="amber"
+                    />
+                    <StatsCard
+                      title="Not Scanned"
+                      value="25"
+                      subtitle="Yet to be processed"
+                      icon={BoxIcon}
+                      color="blue"
+                    />
                   </div>
                 </div>
               )}
