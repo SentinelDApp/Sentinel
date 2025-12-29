@@ -3,7 +3,7 @@ import {
   TRANSPORTER_AGENCIES, 
   CONCERN_STATUS,
   formatDate,
-} from './supplier.constants';
+} from '../constants';
 
 
 const ShipmentCard = ({ shipment, onSelect, isSelected, isDarkMode = true }) => {
