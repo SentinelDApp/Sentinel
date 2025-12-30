@@ -11,6 +11,7 @@ import LoginPage from "./components/Admin/pages/LoginPage";
 
 // Dashboard Pages
 import { SupplierApp } from "./components/supplier";
+import { WarehouseApp } from "./components/warehouse";
 import { RetailerApp } from "./components/retailer";
 import { TransporterApp } from "./components/Transporter";
 
@@ -74,6 +75,18 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
+  // ============================================
+  // Warehouse Routes
+  // ============================================
+  {
+    path: "/warehouse",
+    element: <Navigate to="/warehouse/dashboard" replace />,
+  },
+  {
+    path: "/warehouse/dashboard",
+    element: <WarehouseApp />
+  },
 
   // ============================================
   // Retailer Routes
