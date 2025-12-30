@@ -19,7 +19,7 @@ export { default as ShipmentTimeline } from "./components/ShipmentTimeline";
 
 // Pages
 export { default as LoginPage } from "./pages/LoginPage";
-export { default as ManufacturerDashboard } from "./pages/ManufacturerDashboard";
+export { default as SupplierDashboard } from "./pages/SupplierDashboard";
 export { default as ShipmentTrackingPage } from "./pages/ShipmentTrackingPage";
 export { default as QRScanPage } from "./pages/QRScanPage";
 export { default as LiveDashboard } from "./pages/LiveDashboard";

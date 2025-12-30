@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Role is required'],
     enum: {
-      values: ['manufacturer','supplier', 'transporter', 'warehouse', 'retailer', 'admin'],
+      values: ['supplier', 'transporter', 'warehouse', 'retailer', 'admin'],
       message: 'Invalid role specified'
     },
     lowercase: true

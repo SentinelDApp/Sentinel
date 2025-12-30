@@ -17,7 +17,6 @@ import {
 const API_BASE_URL = "http://localhost:5000";
 
 const roleIcons = {
-  MANUFACTURER: BoxIcon,
   SUPPLIER: BoxIcon,
   TRANSPORTER: TruckIcon,
   WAREHOUSE: WarehouseIcon,
@@ -25,7 +24,6 @@ const roleIcons = {
 };
 
 const roleColors = {
-  MANUFACTURER: "from-blue-500 to-cyan-500",
   SUPPLIER: "from-blue-500 to-cyan-500",
   TRANSPORTER: "from-purple-500 to-pink-500",
   WAREHOUSE: "from-amber-500 to-orange-500",
@@ -141,9 +139,6 @@ const RequestsPage = () => {
 
   const getRoleBadge = (role) => {
     const colors = {
-      MANUFACTURER: isDarkMode
-        ? "bg-blue-500/10 text-blue-400"
-        : "bg-blue-50 text-blue-600",
       SUPPLIER: isDarkMode
         ? "bg-blue-500/10 text-blue-400"
         : "bg-blue-50 text-blue-600",
@@ -157,7 +152,7 @@ const RequestsPage = () => {
         ? "bg-green-500/10 text-green-400"
         : "bg-green-50 text-green-600",
     };
-    return colors[role] || colors.MANUFACTURER;
+    return colors[role] || colors.SUPPLIER;
   };
 
   const formatDate = (dateString) => {

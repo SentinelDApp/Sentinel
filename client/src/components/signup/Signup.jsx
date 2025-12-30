@@ -118,8 +118,8 @@ const UploadIcon = ({ className }) => (
 
 const roles = [
   {
-    id: "MANUFACTURER",
-    title: "Manufacturer",
+    id: "SUPPLIER",
+    title: "Supplier",
     description: "Create shipments, manage products, and track deliveries",
     icon: FactoryIcon,
     color: "from-blue-500 to-cyan-500",
@@ -427,7 +427,7 @@ export default function Signup() {
                 isDarkMode ? "text-slate-400" : "text-slate-600"
               }`}
             >
-              Register as Manufacturer, Transporter, Warehouse, or Retailer
+              Register as Supplier, Transporter, Warehouse, or Retailer
             </p>
           </div>
 

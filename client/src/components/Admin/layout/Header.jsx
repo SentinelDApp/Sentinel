@@ -10,7 +10,7 @@ import {
   ChevronDownIcon,
 } from "../icons/Icons";
 
-const Header = ({ onMenuClick, currentRole = "Manufacturer" }) => {
+const Header = ({ onMenuClick, currentRole = "Supplier" }) => {
   const { isDarkMode, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);

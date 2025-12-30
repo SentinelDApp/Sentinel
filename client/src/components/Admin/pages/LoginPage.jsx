@@ -20,15 +20,6 @@ import {
 
 // Role display configuration for the UI
 const roleDisplayConfig = {
-  manufacturer: {
-    title: "Manufacturer",
-    description: "Create shipments, manage products, and track deliveries",
-    icon: FactoryIcon,
-    color: "from-blue-500 to-cyan-500",
-    bgColor: "bg-blue-500/10",
-    borderColor: "border-blue-500/30",
-    dashboard: "/supplier/dashboard",
-  },
   supplier: {
     title: "Supplier",
     description: "Create shipments, manage products, and track deliveries",

@@ -181,7 +181,7 @@ const activeShipments = [
 
 const recentShipments = activeShipments.slice(0, 3);
 
-const ManufacturerDashboard = () => {
+const SupplierDashboard = () => {
   const { isDarkMode } = useTheme();
   const [requestFilter, setRequestFilter] = useState("all");
 
@@ -763,4 +763,4 @@ const ManufacturerDashboard = () => {
   );
 };
 
-export default ManufacturerDashboard;
+export default SupplierDashboard;
