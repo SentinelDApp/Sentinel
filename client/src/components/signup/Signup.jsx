@@ -160,6 +160,7 @@ export default function Signup() {
   const [wallet, setWallet] = useState("");
   const [name, setName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
+  const [address, setAddress] = useState("");
   const [role, setRole] = useState("");
   const [document, setDocument] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -199,6 +200,7 @@ export default function Signup() {
     formData.append("walletAddress", wallet);
     formData.append("fullName", name);
     formData.append("organizationName", organizationName);
+    formData.append("address", address);
     formData.append("requestedRole", role);
     formData.append("verificationDocument", document);
 
@@ -535,6 +537,31 @@ export default function Signup() {
               />
             </div>
 
+            {/* Address Input */}
+            <div>
+              <label
+                className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
+                Address
+              </label>
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Enter your complete address"
+                rows={3}
+                className={`
+                  w-full px-4 py-3 rounded-xl outline-none transition-all resize-none
+                  ${
+                    isDarkMode
+                      ? "bg-slate-800/50 border border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500"
+                      : "bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 shadow-sm"
+                  }
+                `}
+              />
+            </div>
+
             {/* Role Selection */}
             <div>
               <label
@@ -639,6 +666,7 @@ export default function Signup() {
               >
                 <input
                   type="file"
+                  accept="image/jpeg,image/jpg,image/png"
                   required
                   onChange={(e) => setDocument(e.target.files[0])}
                   className="hidden"
@@ -692,12 +720,31 @@ export default function Signup() {
                           isDarkMode ? "text-slate-500" : "text-slate-400"
                         }`}
                       >
-                        PDF, JPG, PNG up to 10MB
+                        JPG, PNG up to 1MB
                       </p>
                     </>
                   )}
                 </div>
               </label>
+              {/* Accepted Documents Info */}
+              <div className={`mt-3 p-3 rounded-xl ${
+                isDarkMode ? "bg-slate-800/50" : "bg-slate-50"
+              }`}>
+                <p className={`text-xs font-medium mb-2 ${
+                  isDarkMode ? "text-slate-300" : "text-slate-600"
+                }`}>
+                  Accepted documents:
+                </p>
+                <ul className={`text-xs space-y-1 ${
+                  isDarkMode ? "text-slate-400" : "text-slate-500"
+                }`}>
+                  <li>• Organization Registration Certificate</li>
+                  <li>• Aadhaar Card</li>
+                  <li>• PAN Card</li>
+                  <li>• Passport</li>
+                  <li>• Voter ID Card</li>
+                </ul>
+              </div>
             </div>
 
             {/* Submit Button */}

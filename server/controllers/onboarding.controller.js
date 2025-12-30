@@ -30,7 +30,7 @@ const VALID_ROLES = ['supplier', 'transporter', 'warehouse', 'retailer'];
  */
 const submitOnboardingRequest = async (req, res) => {
   try {
-    const { walletAddress, requestedRole, fullName, organizationName } = req.body;
+    const { walletAddress, requestedRole, fullName, organizationName, address } = req.body;
 
     // ========== VALIDATION ========== //
     
@@ -146,6 +146,7 @@ const submitOnboardingRequest = async (req, res) => {
       existingRequest.fullName = fullName.trim();
       existingRequest.requestedRole = normalizedRole;
       existingRequest.organizationName = organizationName?.trim() || '';
+      existingRequest.address = address?.trim() || '';
       existingRequest.verificationDocumentPath = verificationDocumentPath;
       existingRequest.status = 'PENDING';
       existingRequest.rejectionReason = null;
@@ -167,6 +168,7 @@ const submitOnboardingRequest = async (req, res) => {
       requestedRole: normalizedRole,
       fullName: fullName.trim(),
       organizationName: organizationName?.trim() || '',
+      address: address?.trim() || '',
       verificationDocumentPath: verificationDocumentPath,
       status: 'PENDING'
     });

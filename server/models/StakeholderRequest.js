@@ -57,6 +57,13 @@ const stakeholderRequestSchema = new mongoose.Schema({
     default: ''
   },
 
+  // Physical address
+  address: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+
   // Path to uploaded verification document
   verificationDocumentPath: {
     type: String,

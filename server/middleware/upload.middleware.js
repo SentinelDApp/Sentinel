@@ -6,8 +6,8 @@
  * and uploaded directly to Cloudinary.
  * 
  * SECURITY:
- * - File type validation (PDF, JPG, PNG only)
- * - File size limit (5MB)
+ * - File type validation (JPG, PNG only - NO PDFs)
+ * - File size limit (1MB)
  * - Memory storage prevents local file storage
  */
 
@@ -17,10 +17,9 @@ const multer = require('multer');
 // This is required for Cloudinary upload from buffer
 const storage = multer.memoryStorage();
 
-// File filter - only accept PDF, JPG, PNG
+// File filter - only accept images (JPG, PNG)
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
-    'application/pdf',
     'image/jpeg',
     'image/jpg',
     'image/png'
@@ -29,7 +28,7 @@ const fileFilter = (req, file, cb) => {
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true); // Accept file
   } else {
-    cb(new Error('Invalid file type. Only PDF, JPG, and PNG are allowed.'), false);
+    cb(new Error('Invalid file type. Only JPG and PNG images are allowed.'), false);
   }
 };
 
@@ -37,7 +36,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 1 * 1024 * 1024 // 1MB limit
   },
   fileFilter: fileFilter
 });
@@ -53,7 +52,7 @@ const handleUploadErrors = (err, req, res, next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'File too large. Maximum size is 5MB.'
+        message: 'File too large. Maximum size is 1MB.'
       });
     }
     return res.status(400).json({

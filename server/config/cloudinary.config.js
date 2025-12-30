@@ -29,15 +29,8 @@ cloudinary.config({
  */
 const uploadToCloudinary = (fileBuffer, options = {}, mimeType = '') => {
   return new Promise((resolve, reject) => {
-    // Determine resource type based on file type
-    // PDFs must be uploaded as 'raw' for proper access
-    // Images can use 'image' type
-    let resourceType = 'auto';
-    if (mimeType === 'application/pdf') {
-      resourceType = 'raw';
-    } else if (mimeType.startsWith('image/')) {
-      resourceType = 'image';
-    }
+    // All uploads are images (JPG, PNG only)
+    const resourceType = 'image';
 
     // Default options for verification documents
     const uploadOptions = {
