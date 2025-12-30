@@ -163,8 +163,18 @@ export default function Signup() {
   const [address, setAddress] = useState("");
   const [role, setRole] = useState("");
   const [document, setDocument] = useState(null);
+  const [documentType, setDocumentType] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Document types for verification
+  const documentTypes = [
+    { id: "org_certificate", label: "Organization Registration Certificate" },
+    { id: "aadhaar", label: "Aadhaar Card" },
+    { id: "pan", label: "PAN Card" },
+    { id: "passport", label: "Passport" },
+    { id: "voter_id", label: "Voter ID Card" },
+  ];
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -202,6 +212,7 @@ export default function Signup() {
     formData.append("organizationName", organizationName);
     formData.append("address", address);
     formData.append("requestedRole", role);
+    formData.append("documentType", documentType);
     formData.append("verificationDocument", document);
 
     try {
@@ -726,36 +737,48 @@ export default function Signup() {
                   )}
                 </div>
               </label>
-              {/* Accepted Documents Info */}
-              <div className={`mt-3 p-3 rounded-xl ${
-                isDarkMode ? "bg-slate-800/50" : "bg-slate-50"
-              }`}>
-                <p className={`text-xs font-medium mb-2 ${
-                  isDarkMode ? "text-slate-300" : "text-slate-600"
-                }`}>
-                  Accepted documents:
-                </p>
-                <ul className={`text-xs space-y-1 ${
-                  isDarkMode ? "text-slate-400" : "text-slate-500"
-                }`}>
-                  <li>• Organization Registration Certificate</li>
-                  <li>• Aadhaar Card</li>
-                  <li>• PAN Card</li>
-                  <li>• Passport</li>
-                  <li>• Voter ID Card</li>
-                </ul>
+              
+              {/* Document Type Dropdown */}
+              <div className="mt-3">
+                <label
+                  className={`block text-sm font-medium mb-2 ${
+                    isDarkMode ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
+                  Uploaded Document Type
+                </label>
+                <select
+                  value={documentType}
+                  onChange={(e) => setDocumentType(e.target.value)}
+                  required
+                  className={`
+                    w-full px-4 py-3 rounded-xl outline-none transition-all cursor-pointer
+                    ${isDarkMode
+                      ? "bg-slate-800/50 border border-slate-700/50 text-white focus:border-blue-500"
+                      : "bg-white border border-slate-200 text-slate-900 focus:border-blue-500 shadow-sm"
+                    }
+                    ${!documentType && (isDarkMode ? "text-slate-500" : "text-slate-400")}
+                  `}
+                >
+                  <option value="" disabled>Select document type</option>
+                  {documentTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!wallet || !role || isSubmitting}
+              disabled={!wallet || !role || !documentType || isSubmitting}
               className={`
                 w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2
                 transition-all duration-200
                 ${
-                  wallet && role
+                  wallet && role && documentType
                     ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:shadow-blue-500/25"
                     : isDarkMode
                     ? "bg-slate-800 text-slate-500 cursor-not-allowed"

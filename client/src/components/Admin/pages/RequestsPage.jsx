@@ -30,6 +30,15 @@ const roleColors = {
   RETAILER: "from-green-500 to-emerald-500",
 };
 
+// Document type labels for display
+const documentTypeLabels = {
+  org_certificate: "Organization Registration Certificate",
+  aadhaar: "Aadhaar Card",
+  pan: "PAN Card",
+  passport: "Passport",
+  voter_id: "Voter ID Card",
+};
+
 const RequestsPage = () => {
   const { isDarkMode } = useTheme();
   const { authFetch, getAuthHeaders } = useAuth();
@@ -648,9 +657,22 @@ const RequestsPage = () => {
                   Verification Document
                 </h3>
                 {previewRequest && (
-                  <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                    {previewRequest.fullName} • {previewRequest.organizationName || 'No Organization'}
-                  </p>
+                  <>
+                    <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      {previewRequest.fullName} • {previewRequest.organizationName || 'No Organization'}
+                    </p>
+                    <div className={`
+                      inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg
+                      ${isDarkMode ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600"}
+                    `}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm font-medium">
+                        {documentTypeLabels[previewRequest.documentType] || previewRequest.documentType || 'Unknown Document'}
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
               <button

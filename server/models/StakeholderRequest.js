@@ -64,6 +64,16 @@ const stakeholderRequestSchema = new mongoose.Schema({
     default: ''
   },
 
+  // Type of verification document uploaded
+  documentType: {
+    type: String,
+    enum: {
+      values: ['org_certificate', 'aadhaar', 'pan', 'passport', 'voter_id'],
+      message: 'Invalid document type'
+    },
+    required: [true, 'Document type is required']
+  },
+
   // Path to uploaded verification document
   verificationDocumentPath: {
     type: String,

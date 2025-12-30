@@ -67,6 +67,13 @@ const userSchema = new mongoose.Schema({
     default: ''
   },
 
+  // Physical address (copied from request)
+  address: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+
   // Nonce for wallet signature verification (prevents replay attacks)
   nonce: {
     type: String,

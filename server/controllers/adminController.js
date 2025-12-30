@@ -143,6 +143,7 @@ exports.approveRequest = async (req, res) => {
       status: 'ACTIVE',
       fullName: request.fullName,
       organizationName: request.organizationName || '',
+      address: request.address || '',
       stakeholderRequestId: request._id,
       approvedAt: new Date(),
       approvedBy: adminWallet
