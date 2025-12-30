@@ -13,6 +13,7 @@ const User = require('./models/User');
 // Routes
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const onboardingRoutes = require('./routes/onboarding.routes');
 
 const app = express();
 
@@ -61,7 +62,10 @@ app.use('/api/auth', authRoutes);
 // Admin routes (protected)
 app.use('/api/admin', adminRoutes);
 
-// ================= REGISTRATION ENDPOINT ================= //
+// Onboarding routes (Cloudinary-based document upload)
+app.use('/api/onboarding', onboardingRoutes);
+
+// ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**
  * STAKEHOLDER REGISTRATION
  * 

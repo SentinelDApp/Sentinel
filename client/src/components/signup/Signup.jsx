@@ -159,6 +159,7 @@ export default function Signup() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [wallet, setWallet] = useState("");
   const [name, setName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
   const [role, setRole] = useState("");
   const [document, setDocument] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -197,11 +198,12 @@ export default function Signup() {
     const formData = new FormData();
     formData.append("walletAddress", wallet);
     formData.append("fullName", name);
-    formData.append("role", role);
-    formData.append("verificationDoc", document);
+    formData.append("organizationName", organizationName);
+    formData.append("requestedRole", role);
+    formData.append("verificationDocument", document);
 
     try {
-      const response = await fetch("http://localhost:5000/api/register", {
+      const response = await fetch("http://localhost:5000/api/onboarding/request", {
         method: "POST",
         body: formData,
       });
@@ -497,6 +499,31 @@ export default function Signup() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your full name"
                 required
+                className={`
+                  w-full px-4 py-3 rounded-xl outline-none transition-all
+                  ${
+                    isDarkMode
+                      ? "bg-slate-800/50 border border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500"
+                      : "bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 shadow-sm"
+                  }
+                `}
+              />
+            </div>
+
+            {/* Organization Name Input */}
+            <div>
+              <label
+                className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
+                Organization Name
+              </label>
+              <input
+                type="text"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                placeholder="Enter your organization/company name"
                 className={`
                   w-full px-4 py-3 rounded-xl outline-none transition-all
                   ${
