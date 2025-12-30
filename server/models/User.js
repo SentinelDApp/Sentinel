@@ -61,6 +61,14 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
 
+  // User's email for notifications (copied from request)
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    trim: true,
+    lowercase: true
+  },
+
   // Organization name (copied from request)
   organizationName: {
     type: String,

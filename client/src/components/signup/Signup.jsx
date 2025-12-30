@@ -159,6 +159,7 @@ export default function Signup() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [wallet, setWallet] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [address, setAddress] = useState("");
   const [role, setRole] = useState("");
@@ -205,10 +206,16 @@ export default function Signup() {
       return;
     }
 
+    if (!email) {
+      alert("Email is required for notifications");
+      return;
+    }
+
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("walletAddress", wallet);
     formData.append("fullName", name);
+    formData.append("email", email);
     formData.append("organizationName", organizationName);
     formData.append("address", address);
     formData.append("requestedRole", role);
@@ -222,7 +229,7 @@ export default function Signup() {
       });
 
       if (response.ok) {
-        alert("Submitted! Wait for Admin Approval.");
+        alert("Submitted! You will receive an email when your request is processed.");
       } else {
         const errorData = await response.json();
         alert(errorData.message || "Registration failed. Please try again.");
@@ -521,6 +528,35 @@ export default function Signup() {
                   }
                 `}
               />
+            </div>
+
+            {/* Email Input */}
+            <div>
+              <label
+                className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
+                Email Address 
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                required
+                className={`
+                  w-full px-4 py-3 rounded-xl outline-none transition-all
+                  ${
+                    isDarkMode
+                      ? "bg-slate-800/50 border border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500"
+                      : "bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 shadow-sm"
+                  }
+                `}
+              />
+              <p className={`mt-1 text-xs ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                You'll receive approval/rejection updates on this email
+              </p>
             </div>
 
             {/* Organization Name Input */}

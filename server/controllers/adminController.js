@@ -1,6 +1,7 @@
 const StakeholderRequest = require('../models/StakeholderRequest');
 const User = require('../models/User');
 const { deleteFromCloudinary, extractPublicIdFromUrl } = require('../config/cloudinary.config');
+const { sendApprovalEmail, sendRejectionEmail } = require('../utils/emailService');
 
 /**
  * ADMIN CONTROLLER
@@ -142,6 +143,7 @@ exports.approveRequest = async (req, res) => {
       role: request.requestedRole,
       status: 'ACTIVE',
       fullName: request.fullName,
+      email: request.email,
       organizationName: request.organizationName || '',
       address: request.address || '',
       stakeholderRequestId: request._id,
@@ -156,6 +158,20 @@ exports.approveRequest = async (req, res) => {
     request.processedBy = adminWallet;
     request.processedAt = new Date();
     await request.save();
+
+    // Send approval email notification
+    try {
+      await sendApprovalEmail({
+        to: request.email,
+        fullName: request.fullName,
+        role: request.requestedRole,
+        walletAddress: request.walletAddress
+      });
+      console.log('📧 Approval email sent to:', request.email);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send approval email:', emailError);
+      // Continue even if email fails - user is still approved
+    }
 
     res.json({
       success: true,
@@ -248,11 +264,26 @@ exports.rejectRequest = async (req, res) => {
     const rejectionInfo = {
       walletAddress: request.walletAddress,
       fullName: request.fullName,
+      email: request.email,
       requestedRole: request.requestedRole,
       rejectionReason: reason.trim(),
       rejectedBy: adminWallet,
       rejectedAt: new Date()
     };
+
+    // Send rejection email notification BEFORE deleting the request
+    try {
+      await sendRejectionEmail({
+        to: request.email,
+        fullName: request.fullName,
+        role: request.requestedRole,
+        reason: reason.trim()
+      });
+      console.log('📧 Rejection email sent to:', request.email);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send rejection email:', emailError);
+      // Continue even if email fails
+    }
 
     // Delete the StakeholderRequest document from database
     await StakeholderRequest.findByIdAndDelete(requestId);
