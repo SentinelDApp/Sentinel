@@ -40,6 +40,23 @@ const RequestsPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [processingId, setProcessingId] = useState(null);
+  
+  // Rejection modal state
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectingRequest, setRejectingRequest] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
+
+  // Common rejection reasons
+  const commonReasons = [
+    "Invalid or unclear verification document",
+    "Document does not match provided information",
+    "Incomplete application details",
+    "Suspicious or fraudulent activity detected",
+    "Organization not verified",
+    "Duplicate registration attempt",
+    "Other (specify below)"
+  ];
 
   // Fetch requests from backend with authentication
   const fetchRequests = async () => {
@@ -91,6 +108,11 @@ const RequestsPage = () => {
 
   // Handle reject action
   const handleReject = async (id, reason = "") => {
+    if (!reason.trim()) {
+      alert("Rejection reason is required");
+      return;
+    }
+    
     try {
       setProcessingId(id);
       const response = await authFetch(`${API_BASE_URL}/api/admin/reject/${id}`, {
@@ -106,11 +128,42 @@ const RequestsPage = () => {
       // Refresh the list
       await fetchRequests();
       setSelectedRequest(null);
+      closeRejectModal();
     } catch (err) {
       alert(err.message);
     } finally {
       setProcessingId(null);
     }
+  };
+
+  // Open rejection modal
+  const openRejectModal = (request) => {
+    setRejectingRequest(request);
+    setRejectionReason("");
+    setCustomReason("");
+    setShowRejectModal(true);
+  };
+
+  // Close rejection modal
+  const closeRejectModal = () => {
+    setShowRejectModal(false);
+    setRejectingRequest(null);
+    setRejectionReason("");
+    setCustomReason("");
+  };
+
+  // Submit rejection
+  const submitRejection = () => {
+    const finalReason = rejectionReason === "Other (specify below)" 
+      ? customReason 
+      : rejectionReason;
+    
+    if (!finalReason.trim()) {
+      alert("Please select or enter a rejection reason");
+      return;
+    }
+    
+    handleReject(rejectingRequest._id, finalReason);
   };
 
   // Filter requests by search
@@ -518,7 +571,7 @@ const RequestsPage = () => {
                                 </button>
                                 <button
                                   onClick={() =>
-                                    handleReject(request._id)
+                                    openRejectModal(request)
                                   }
                                   disabled={processingId === request._id}
                                   className={`
@@ -555,6 +608,145 @@ const RequestsPage = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {showRejectModal && rejectingRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={closeRejectModal}
+          />
+          
+          {/* Modal */}
+          <div className={`
+            relative w-full max-w-md rounded-2xl p-6 shadow-xl
+            ${isDarkMode ? "bg-slate-900 border border-slate-800" : "bg-white"}
+          `}>
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <XCircleIcon className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className={`text-lg font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>
+                  Reject Request
+                </h3>
+                <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  {rejectingRequest.fullName}
+                </p>
+              </div>
+            </div>
+
+            {/* Common Reasons */}
+            <div className="space-y-2 mb-4">
+              <label className={`block text-sm font-medium ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}>
+                Select a reason
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {commonReasons.map((reason, index) => (
+                  <label
+                    key={index}
+                    className={`
+                      flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all
+                      ${rejectionReason === reason 
+                        ? isDarkMode 
+                          ? "bg-red-500/10 border border-red-500/30" 
+                          : "bg-red-50 border border-red-200"
+                        : isDarkMode 
+                          ? "bg-slate-800/50 border border-slate-700 hover:border-slate-600" 
+                          : "bg-slate-50 border border-slate-200 hover:border-slate-300"
+                      }
+                    `}
+                  >
+                    <input
+                      type="radio"
+                      name="rejectionReason"
+                      value={reason}
+                      checked={rejectionReason === reason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      className="w-4 h-4 text-red-500 focus:ring-red-500"
+                    />
+                    <span className={`text-sm ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}>
+                      {reason}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Reason Input */}
+            {rejectionReason === "Other (specify below)" && (
+              <div className="mb-4">
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}>
+                  Custom reason
+                </label>
+                <textarea
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Enter your rejection reason..."
+                  rows={3}
+                  className={`
+                    w-full px-4 py-3 rounded-xl transition-all resize-none
+                    ${isDarkMode 
+                      ? "bg-slate-800 border border-slate-700 text-white placeholder-slate-500" 
+                      : "bg-white border border-slate-200 text-slate-900 placeholder-slate-400"
+                    }
+                    focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500
+                  `}
+                />
+              </div>
+            )}
+
+            {/* Warning */}
+            <div className={`
+              flex items-start gap-3 p-3 rounded-xl mb-6
+              ${isDarkMode ? "bg-amber-500/10" : "bg-amber-50"}
+            `}>
+              <ClockIcon className={`w-5 h-5 mt-0.5 ${isDarkMode ? "text-amber-400" : "text-amber-500"}`} />
+              <p className={`text-sm ${isDarkMode ? "text-amber-400" : "text-amber-600"}`}>
+                This will permanently delete the request and uploaded document. The user can re-apply later.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={closeRejectModal}
+                className={`
+                  flex-1 py-3 rounded-xl font-medium transition-all
+                  ${isDarkMode 
+                    ? "bg-slate-800 text-slate-300 hover:bg-slate-700" 
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }
+                `}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRejection}
+                disabled={processingId === rejectingRequest._id || (!rejectionReason || (rejectionReason === "Other (specify below)" && !customReason.trim()))}
+                className={`
+                  flex-1 py-3 rounded-xl font-medium transition-all
+                  ${processingId === rejectingRequest._id || (!rejectionReason || (rejectionReason === "Other (specify below)" && !customReason.trim()))
+                    ? "bg-red-500/50 text-white/50 cursor-not-allowed"
+                    : "bg-red-500 text-white hover:bg-red-600"
+                  }
+                `}
+              >
+                {processingId === rejectingRequest._id ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    Rejecting...
+                  </span>
+                ) : (
+                  "Reject Request"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
 const StakeholderRequest = require('../models/StakeholderRequest');
 const User = require('../models/User');
+const { deleteFromCloudinary, extractPublicIdFromUrl } = require('../config/cloudinary.config');
 
 /**
  * ADMIN CONTROLLER
@@ -187,11 +188,12 @@ exports.approveRequest = async (req, res) => {
 /**
  * REJECT REQUEST
  * 
- * Marks a request as REJECTED with optional reason
+ * Marks a request as REJECTED with reason, deletes document from Cloudinary,
+ * and removes the StakeholderRequest from database
  * User can re-apply with a new request
  * 
  * @route POST /api/admin/reject/:requestId
- * @body reason - Optional rejection reason
+ * @body reason - Rejection reason (required)
  * @protected - Requires admin role
  */
 exports.rejectRequest = async (req, res) => {
@@ -199,6 +201,14 @@ exports.rejectRequest = async (req, res) => {
     const { requestId } = req.params;
     const { reason } = req.body;
     const adminWallet = req.user.walletAddress;
+
+    // Validate rejection reason
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejection reason is required'
+      });
+    }
 
     // Find the request
     const request = await StakeholderRequest.findById(requestId);
@@ -218,21 +228,40 @@ exports.rejectRequest = async (req, res) => {
       });
     }
 
-    // Update request status to REJECTED
-    request.status = 'REJECTED';
-    request.rejectionReason = reason || 'No reason provided';
-    request.processedBy = adminWallet;
-    request.processedAt = new Date();
-    await request.save();
+    // Delete document from Cloudinary if it's a Cloudinary URL
+    if (request.verificationDocumentPath?.includes('cloudinary.com')) {
+      try {
+        const cloudinaryInfo = extractPublicIdFromUrl(request.verificationDocumentPath);
+        if (cloudinaryInfo) {
+          console.log('🗑️ Deleting document from Cloudinary:', cloudinaryInfo.publicId);
+          await deleteFromCloudinary(cloudinaryInfo.publicId, cloudinaryInfo.resourceType);
+          console.log('✅ Document deleted from Cloudinary');
+        }
+      } catch (cloudinaryError) {
+        console.error('⚠️ Failed to delete from Cloudinary:', cloudinaryError);
+        // Continue with rejection even if Cloudinary delete fails
+      }
+    }
+
+    // Store rejection info for logging before deletion
+    const rejectionInfo = {
+      walletAddress: request.walletAddress,
+      fullName: request.fullName,
+      requestedRole: request.requestedRole,
+      rejectionReason: reason.trim(),
+      rejectedBy: adminWallet,
+      rejectedAt: new Date()
+    };
+
+    // Delete the StakeholderRequest document from database
+    await StakeholderRequest.findByIdAndDelete(requestId);
+
+    console.log('🗑️ StakeholderRequest deleted:', rejectionInfo.walletAddress);
 
     res.json({
       success: true,
-      message: 'Request rejected',
-      request: {
-        walletAddress: request.walletAddress,
-        status: request.status,
-        rejectionReason: request.rejectionReason
-      }
+      message: 'Request rejected and removed from system',
+      rejection: rejectionInfo
     });
 
   } catch (error) {
