@@ -32,7 +32,7 @@ const shipmentDetails = {
   estimatedDelivery: "2024-12-28T15:00:00",
   transporter: "Global Express Logistics",
   blockchainTx: "0x7a8b9c...3f4e5d",
-  manufacturer: "TechCorp Inc.",
+  supplier: "TechCorp Inc.",
 };
 
 const timelineEvents = [

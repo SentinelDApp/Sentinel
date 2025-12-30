@@ -45,7 +45,6 @@ const ProtectedRoute = ({
       // User doesn't have required role - redirect to their dashboard
       const dashboardRoutes = {
         admin: '/admin/dashboard',
-        manufacturer: '/supplier/dashboard',
         supplier: '/supplier/dashboard',
         transporter: '/transporter/dashboard',
         warehouse: '/admin/dashboard',

@@ -15,18 +15,11 @@ import {
 // Users by role data
 const usersByRole = [
   {
-    role: "Manufacturer",
-    count: 24,
+    role: "Supplier",
+    count: 113,
     icon: BoxIcon,
     color: "from-blue-500 to-cyan-500",
     bgColor: "bg-blue-500",
-  },
-  {
-    role: "Supplier",
-    count: 89,
-    icon: ChartIcon,
-    color: "from-purple-500 to-pink-500",
-    bgColor: "bg-purple-500",
   },
   {
     role: "Transporter",
@@ -81,12 +74,9 @@ const UsersPage = () => {
 
   const getRoleBadge = (role) => {
     const colors = {
-      Manufacturer: isDarkMode
+      Supplier: isDarkMode
         ? "bg-blue-500/10 text-blue-400"
         : "bg-blue-50 text-blue-600",
-      Supplier: isDarkMode
-        ? "bg-purple-500/10 text-purple-400"
-        : "bg-purple-50 text-purple-600",
       Transporter: isDarkMode
         ? "bg-amber-500/10 text-amber-400"
         : "bg-amber-50 text-amber-600",

@@ -69,7 +69,7 @@ export const router = createBrowserRouter([
       {
         path: "/supplier/dashboard",
         element: (
-          <ProtectedRoute allowedRoles={['supplier', 'manufacturer']}>
+          <ProtectedRoute allowedRoles={['supplier']}>
             <SupplierApp />
           </ProtectedRoute>
         ),
@@ -104,7 +104,7 @@ export const router = createBrowserRouter([
       },
 
       // ============================================
-      // Admin/Manufacturer Routes (Protected)
+      // Admin/Supplier Routes (Protected)
       // All admin routes use AdminApp which includes the sidebar layout
       // ============================================
       {

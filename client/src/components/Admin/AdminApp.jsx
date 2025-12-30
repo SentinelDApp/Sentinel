@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import AdminLayout from "./layout/AdminLayout";
-import ManufacturerDashboard from "./pages/ManufacturerDashboard";
+import SupplierDashboard from "./pages/SupplierDashboard";
 import ShipmentTrackingPage from "./pages/ShipmentTrackingPage";
 import QRScanPage from "./pages/QRScanPage";
 import LiveDashboard from "./pages/LiveDashboard";
@@ -62,7 +62,7 @@ function AdminApp({ role = "admin" }) {
   const renderPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return <ManufacturerDashboard />;
+        return <SupplierDashboard />;
       case "tracking":
       case "shipments":
         return <ShipmentTrackingPage />;
@@ -77,14 +77,14 @@ function AdminApp({ role = "admin" }) {
       case "requests":
         return <RequestsPage />;
       default:
-        return <ManufacturerDashboard />;
+        return <SupplierDashboard />;
     }
   };
 
   const getRoleTitle = () => {
     switch (role) {
-      case "manufacturer":
-        return "Manufacturer";
+      case "supplier":
+        return "Supplier";
       case "transporter":
         return "Transporter";
       case "warehouse":

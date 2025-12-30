@@ -20,8 +20,8 @@ const verificationStates = {
 const mockProductData = {
   id: "PRD-78234",
   name: "Premium Wireless Headphones",
-  manufacturer: "TechCorp Electronics",
-  manufacturerVerified: true,
+  supplier: "TechCorp Electronics",
+  supplierVerified: true,
   batchNumber: "BATCH-2024-1234",
   manufactureDate: "Oct 15, 2024",
   status: "Delivered",
@@ -207,7 +207,7 @@ const CustomerVerificationPage = () => {
                     isDarkMode ? "text-slate-400" : "text-slate-500"
                   }`}
                 >
-                  {productData.manufacturer}
+                  {productData.supplier}
                 </p>
               </div>
             </div>
