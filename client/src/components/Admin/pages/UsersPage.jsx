@@ -12,49 +12,40 @@ import {
   ClockIcon,
 } from "../icons/Icons";
 
-// Users by role data
+// Users by role data - empty values (will be populated from API)
 const usersByRole = [
   {
     role: "Supplier",
-    count: 113,
+    count: 0,
     icon: BoxIcon,
     color: "from-blue-500 to-cyan-500",
     bgColor: "bg-blue-500",
   },
   {
     role: "Transporter",
-    count: 156,
+    count: 0,
     icon: TruckIcon,
     color: "from-amber-500 to-orange-500",
     bgColor: "bg-amber-500",
   },
   {
     role: "Warehouse",
-    count: 67,
+    count: 0,
     icon: WarehouseIcon,
     color: "from-emerald-500 to-teal-500",
     bgColor: "bg-emerald-500",
   },
   {
     role: "Retailer",
-    count: 312,
+    count: 0,
     icon: ShieldCheckIcon,
     color: "from-rose-500 to-red-500",
     bgColor: "bg-rose-500",
   },
 ];
 
-// Recently joined approved users
-const recentlyJoinedUsers = [
-  {
-    id: "USR-001",
-    name: "John Smith",
-    hashId: "0x7a9f3b2c1d8e4f5a6b7c8d9e0f1a2b3c",
-    role: "Supplier",
-    joinedAt: "2025-12-27 14:30:00",
-    status: "approved",
-  },
-];
+// Empty recently joined users array (will be populated from API)
+const recentlyJoinedUsers = [];
 
 const UsersPage = () => {
   const { isDarkMode } = useTheme();

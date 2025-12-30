@@ -19,71 +19,27 @@ import {
   AlertIcon,
 } from "../icons/Icons";
 
-// Sample shipment data
+// Empty shipment data (will be populated from API or search)
 const shipmentDetails = {
-  id: "SHP-001234",
-  product: "Premium Electronics Package",
-  origin: "Shanghai, China",
-  destination: "New York, USA",
-  status: "in-transit",
-  totalBoxes: 120,
-  scannedBoxes: 95,
-  createdAt: "2024-12-20T10:30:00",
-  estimatedDelivery: "2024-12-28T15:00:00",
-  transporter: "Global Express Logistics",
-  blockchainTx: "0x7a8b9c...3f4e5d",
-  supplier: "TechCorp Inc.",
+  id: "---",
+  product: "No shipment selected",
+  origin: "---",
+  destination: "---",
+  status: "pending",
+  totalBoxes: 0,
+  scannedBoxes: 0,
+  createdAt: null,
+  estimatedDelivery: null,
+  transporter: "---",
+  blockchainTx: "---",
+  supplier: "---",
 };
 
-const timelineEvents = [
-  {
-    type: "scan",
-    title: "Box #95 scanned",
-    description: "Scanned by John D. at Distribution Center",
-    time: "2 hours ago",
-  },
-  {
-    type: "location",
-    title: "Location updated",
-    description: "Shipment arrived at Los Angeles Port",
-    time: "5 hours ago",
-  },
-  {
-    type: "scan",
-    title: "20 boxes verified",
-    description: "Batch verification completed",
-    time: "1 day ago",
-  },
-  {
-    type: "status",
-    title: "Status changed to In Transit",
-    description: "Shipment departed from Shanghai",
-    time: "3 days ago",
-  },
-];
+// Empty timeline events (will be populated from API)
+const timelineEvents = [];
 
-const boxList = [
-  {
-    id: "BOX-001",
-    status: "verified",
-    scannedBy: "John D.",
-    scannedAt: "2 hours ago",
-  },
-  {
-    id: "BOX-002",
-    status: "verified",
-    scannedBy: "Sarah M.",
-    scannedAt: "2 hours ago",
-  },
-  {
-    id: "BOX-003",
-    status: "verified",
-    scannedBy: "John D.",
-    scannedAt: "3 hours ago",
-  },
-  { id: "BOX-004", status: "pending", scannedBy: null, scannedAt: null },
-  { id: "BOX-005", status: "pending", scannedBy: null, scannedAt: null },
-];
+// Empty box list (will be populated from API)
+const boxList = [];
 
 const ShipmentTrackingPage = () => {
   const { isDarkMode } = useTheme();
@@ -245,7 +201,7 @@ const ShipmentTrackingPage = () => {
                 },
                 {
                   label: "Est. Delivery",
-                  value: "Dec 28, 2024",
+                  value: "---",
                   icon: ClockIcon,
                 },
               ].map((item, index) => {
@@ -419,21 +375,21 @@ const ShipmentTrackingPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <StatsCard
                       title="Verified Boxes"
-                      value="90"
+                      value="0"
                       subtitle="Successfully verified"
                       icon={CheckCircleIcon}
                       color="green"
                     />
                     <StatsCard
                       title="Pending Verification"
-                      value="5"
+                      value="0"
                       subtitle="Awaiting scan"
                       icon={AlertIcon}
                       color="amber"
                     />
                     <StatsCard
                       title="Not Scanned"
-                      value="25"
+                      value="0"
                       subtitle="Yet to be processed"
                       icon={BoxIcon}
                       color="blue"
@@ -623,7 +579,7 @@ const ShipmentTrackingPage = () => {
                             isDarkMode ? "text-slate-500" : "text-slate-500"
                           }`}
                         >
-                          PDF • 2.4 MB
+                          No file uploaded
                         </p>
                       </div>
                     </div>
