@@ -8,6 +8,7 @@ import QRScanPage from "./pages/QRScanPage";
 import LiveDashboard from "./pages/LiveDashboard";
 import CustomerVerificationPage from "./pages/CustomerVerificationPage";
 import UsersPage from "./pages/UsersPage";
+import RequestsPage from "./pages/RequestsPage";
 
 // Main Admin App - Contains all admin-specific logic
 function AdminApp({ role = "admin" }) {
@@ -22,18 +23,14 @@ function AdminApp({ role = "admin" }) {
     if (path.includes('/live')) return 'live';
     if (path.includes('/verification')) return 'verification';
     if (path.includes('/users')) return 'users';
+    if (path.includes('/requests')) return 'requests';
     return 'dashboard';
   };
   
   const [currentPage, setCurrentPage] = useState(getCurrentPage());
 
   const handleNavigate = (page) => {
-    if (page === "logout") {
-      navigate('/login');
-      return;
-    }
     setCurrentPage(page);
-    // Navigate to the appropriate route
     switch (page) {
       case 'dashboard':
         navigate('/admin/dashboard');
@@ -53,6 +50,9 @@ function AdminApp({ role = "admin" }) {
         break;
       case 'users':
         navigate('/admin/users');
+        break;
+      case 'requests':
+        navigate('/admin/requests');
         break;
       default:
         navigate('/admin/dashboard');
@@ -74,6 +74,8 @@ function AdminApp({ role = "admin" }) {
         return <CustomerVerificationPage />;
       case "users":
         return <UsersPage />;
+      case "requests":
+        return <RequestsPage />;
       default:
         return <ManufacturerDashboard />;
     }

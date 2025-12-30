@@ -25,6 +25,7 @@ export { default as QRScanPage } from "./pages/QRScanPage";
 export { default as LiveDashboard } from "./pages/LiveDashboard";
 export { default as CustomerVerificationPage } from "./pages/CustomerVerificationPage";
 export { default as UsersPage } from "./pages/UsersPage";
+export { default as RequestsPage } from "./pages/RequestsPage";
 
 // Icons
 export * from "./icons/Icons";

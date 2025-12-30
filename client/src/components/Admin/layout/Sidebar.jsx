@@ -12,10 +12,17 @@ import {
   BlockchainIcon,
   WarehouseIcon,
   UsersIcon,
+  ClockIcon,
 } from "../icons/Icons";
 
 const menuItems = [
   { id: "dashboard", label: "Dashboard", icon: HomeIcon, path: "/admin" },
+  {
+    id: "requests",
+    label: "Requests",
+    icon: ClockIcon,
+    path: "/admin/requests",
+  },
   {
     id: "shipments",
     label: "Shipments",

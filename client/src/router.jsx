@@ -3,7 +3,7 @@
  * Defines all routes for the application
  */
 
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
 // Auth Pages
 import Signup from "./components/signup/Signup";
@@ -17,6 +17,17 @@ import { TransporterApp } from "./components/Transporter";
 // Admin App (includes layout with sidebar)
 import { AdminApp, ThemeProvider } from "./components/Admin";
 
+// Auth & Protected Routes
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/shared/ProtectedRoute";
+
+// Root layout that wraps all routes with AuthProvider
+const RootLayout = () => (
+  <AuthProvider>
+    <Outlet />
+  </AuthProvider>
+);
+
 // Wrapper component for non-admin routes that need ThemeProvider
 const AdminWrapper = ({ children }) => (
   <ThemeProvider>{children}</ThemeProvider>
@@ -24,37 +35,45 @@ const AdminWrapper = ({ children }) => (
 
 // Router configuration
 export const router = createBrowserRouter([
-  // ============================================
-  // Public Routes
-  // ============================================
   {
-    path: "/",
-    element: <Navigate to="/login" replace />,
-  },
-  {
-    path: "/login",
-    element: (
-      <AdminWrapper>
-        <LoginPage />
-      </AdminWrapper>
-    ),
-  },
-  {
-    path: "/signup",
-    element: <Signup />,
-  },
+    // Root element wraps everything with AuthProvider
+    element: <RootLayout />,
+    children: [
+      // ============================================
+      // Public Routes
+      // ============================================
+      {
+        path: "/",
+        element: <Navigate to="/login" replace />,
+      },
+      {
+        path: "/login",
+        element: (
+          <AdminWrapper>
+            <LoginPage />
+          </AdminWrapper>
+        ),
+      },
+      {
+        path: "/signup",
+        element: <Signup />,
+      },
 
-  // ============================================
-  // Supplier Routes
-  // ============================================
-  {
-    path: "/supplier",
-    element: <Navigate to="/supplier/dashboard" replace />,
-  },
-  {
-    path: "/supplier/dashboard",
-    element: <SupplierApp />,
-  },
+      // ============================================
+      // Supplier Routes (Protected)
+      // ============================================
+      {
+        path: "/supplier",
+        element: <Navigate to="/supplier/dashboard" replace />,
+      },
+      {
+        path: "/supplier/dashboard",
+        element: (
+          <ProtectedRoute allowedRoles={['supplier', 'manufacturer']}>
+            <SupplierApp />
+          </ProtectedRoute>
+        ),
+      },
 
   // ============================================
   // Retailer Routes
@@ -68,65 +87,54 @@ export const router = createBrowserRouter([
     element: <RetailerApp />,
   },
 
-  // ============================================
-  // Transporter Routes
-  // ============================================
-  {
-    path: "/transporter",
-    element: <Navigate to="/transporter/dashboard" replace />,
-  },
-  {
-    path: "/transporter/dashboard",
-    element: <TransporterApp />,
-  },
+      // ============================================
+      // Transporter Routes (Protected)
+      // ============================================
+      {
+        path: "/transporter",
+        element: <Navigate to="/transporter/dashboard" replace />,
+      },
+      {
+        path: "/transporter/dashboard",
+        element: (
+          <ProtectedRoute allowedRoles={['transporter']}>
+            <TransporterApp />
+          </ProtectedRoute>
+        ),
+      },
 
-  // ============================================
-  // Admin/Manufacturer Routes
-  // All admin routes use AdminApp which includes the sidebar layout
-  // ============================================
-  {
-    path: "/admin",
-    element: <Navigate to="/admin/dashboard" replace />,
-  },
-  {
-    path: "/admin/dashboard",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/manufacturer",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/tracking",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/shipments",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/scan",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/live",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/verification",
-    element: <AdminApp />,
-  },
-  {
-    path: "/admin/users",
-    element: <AdminApp />,
-  },
+      // ============================================
+      // Admin/Manufacturer Routes (Protected)
+      // All admin routes use AdminApp which includes the sidebar layout
+      // ============================================
+      {
+        path: "/admin",
+        element: (
+          <ProtectedRoute allowedRoles={['admin', 'warehouse']}>
+            <AdminApp role="admin" />
+          </ProtectedRoute>
+        ),
+        children: [
+          { index: true, element: null },
+          { path: "dashboard", element: null },
+          { path: "requests", element: null },
+          { path: "tracking", element: null },
+          { path: "shipments", element: null },
+          { path: "scan", element: null },
+          { path: "live", element: null },
+          { path: "verification", element: null },
+          { path: "users", element: null },
+        ],
+      },
 
-  // ============================================
-  // Catch-all / 404
-  // ============================================
-  {
-    path: "*",
-    element: <NotFoundPage />,
+      // ============================================
+      // Catch-all / 404
+      // ============================================
+      {
+        path: "*",
+        element: <NotFoundPage />,
+      },
+    ],
   },
 ]);
 
