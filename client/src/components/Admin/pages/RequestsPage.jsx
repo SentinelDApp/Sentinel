@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
   UsersIcon,
   CheckCircleIcon,
@@ -17,6 +18,7 @@ const API_BASE_URL = "http://localhost:5000";
 
 const roleIcons = {
   MANUFACTURER: BoxIcon,
+  SUPPLIER: BoxIcon,
   TRANSPORTER: TruckIcon,
   WAREHOUSE: WarehouseIcon,
   RETAILER: ShieldCheckIcon,
@@ -24,6 +26,7 @@ const roleIcons = {
 
 const roleColors = {
   MANUFACTURER: "from-blue-500 to-cyan-500",
+  SUPPLIER: "from-blue-500 to-cyan-500",
   TRANSPORTER: "from-purple-500 to-pink-500",
   WAREHOUSE: "from-amber-500 to-orange-500",
   RETAILER: "from-green-500 to-emerald-500",
@@ -31,6 +34,7 @@ const roleColors = {
 
 const RequestsPage = () => {
   const { isDarkMode } = useTheme();
+  const { authFetch, getAuthHeaders } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,16 +43,19 @@ const RequestsPage = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [processingId, setProcessingId] = useState(null);
 
-  // Fetch requests from backend
+  // Fetch requests from backend with authentication
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/api/admin/requests?status=${statusFilter}`
       );
-      if (!response.ok) throw new Error("Failed to fetch requests");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch requests");
+      }
       const data = await response.json();
-      setRequests(data);
+      setRequests(data.requests || []);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -61,17 +68,42 @@ const RequestsPage = () => {
     fetchRequests();
   }, [statusFilter]);
 
-  // Handle approve/reject
-  const handleAction = async (id, status) => {
+  // Handle approve action
+  const handleApprove = async (id) => {
     try {
       setProcessingId(id);
-      const response = await fetch(`${API_BASE_URL}/api/admin/request/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, approvedBy: "Admin" }),
+      const response = await authFetch(`${API_BASE_URL}/api/admin/approve/${id}`, {
+        method: "POST",
       });
 
-      if (!response.ok) throw new Error("Failed to update request");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to approve request");
+      }
+
+      // Refresh the list
+      await fetchRequests();
+      setSelectedRequest(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Handle reject action
+  const handleReject = async (id, reason = "") => {
+    try {
+      setProcessingId(id);
+      const response = await authFetch(`${API_BASE_URL}/api/admin/reject/${id}`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to reject request");
+      }
 
       // Refresh the list
       await fetchRequests();
@@ -86,29 +118,33 @@ const RequestsPage = () => {
   // Filter requests by search
   const filteredRequests = requests.filter(
     (req) =>
-      req.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      req.walletAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      req.role.toLowerCase().includes(searchQuery.toLowerCase())
+      req.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      req.walletAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      req.requestedRole?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getStatusBadge = (status) => {
+    const normalizedStatus = status?.toUpperCase();
     const styles = {
-      Pending: isDarkMode
+      PENDING: isDarkMode
         ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
         : "bg-amber-50 text-amber-600 border-amber-200",
-      Approved: isDarkMode
+      APPROVED: isDarkMode
         ? "bg-green-500/10 text-green-400 border-green-500/30"
         : "bg-green-50 text-green-600 border-green-200",
-      Rejected: isDarkMode
+      REJECTED: isDarkMode
         ? "bg-red-500/10 text-red-400 border-red-500/30"
         : "bg-red-50 text-red-600 border-red-200",
     };
-    return styles[status] || styles.Pending;
+    return styles[normalizedStatus] || styles.PENDING;
   };
 
   const getRoleBadge = (role) => {
     const colors = {
       MANUFACTURER: isDarkMode
+        ? "bg-blue-500/10 text-blue-400"
+        : "bg-blue-50 text-blue-600",
+      SUPPLIER: isDarkMode
         ? "bg-blue-500/10 text-blue-400"
         : "bg-blue-50 text-blue-600",
       TRANSPORTER: isDarkMode
@@ -371,7 +407,8 @@ const RequestsPage = () => {
               >
                 {filteredRequests.length > 0 ? (
                   filteredRequests.map((request) => {
-                    const RoleIcon = roleIcons[request.role] || BoxIcon;
+                    const roleKey = request.requestedRole?.toUpperCase();
+                    const RoleIcon = roleIcons[roleKey] || BoxIcon;
                     return (
                       <tr
                         key={request._id}
@@ -388,7 +425,7 @@ const RequestsPage = () => {
                           <div className="flex items-center gap-3">
                             <div
                               className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${
-                                roleColors[request.role] ||
+                                roleColors[roleKey] ||
                                 "from-slate-500 to-slate-600"
                               }`}
                             >
@@ -418,10 +455,10 @@ const RequestsPage = () => {
                         <td className="px-6 py-4">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleBadge(
-                              request.role
+                              roleKey
                             )}`}
                           >
-                            {request.role}
+                            {request.requestedRole?.toUpperCase()}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -430,7 +467,7 @@ const RequestsPage = () => {
                               isDarkMode ? "text-slate-400" : "text-slate-500"
                             }`}
                           >
-                            {formatDate(request.requestDate)}
+                            {formatDate(request.createdAt)}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -446,7 +483,7 @@ const RequestsPage = () => {
                           <div className="flex items-center justify-end gap-2">
                             {/* View Document */}
                             <a
-                              href={`${API_BASE_URL}/${request.documentPath}`}
+                              href={`${API_BASE_URL}/${request.verificationDocumentPath}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={`
@@ -463,11 +500,11 @@ const RequestsPage = () => {
                             </a>
 
                             {/* Actions for Pending */}
-                            {request.status === "Pending" && (
+                            {request.status === "PENDING" && (
                               <>
                                 <button
                                   onClick={() =>
-                                    handleAction(request._id, "Approved")
+                                    handleApprove(request._id)
                                   }
                                   disabled={processingId === request._id}
                                   className={`
@@ -484,7 +521,7 @@ const RequestsPage = () => {
                                 </button>
                                 <button
                                   onClick={() =>
-                                    handleAction(request._id, "Rejected")
+                                    handleReject(request._id)
                                   }
                                   disabled={processingId === request._id}
                                   className={`
