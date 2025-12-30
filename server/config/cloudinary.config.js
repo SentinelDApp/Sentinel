@@ -24,15 +24,26 @@ cloudinary.config({
  * Upload a buffer to Cloudinary
  * @param {Buffer} fileBuffer - The file buffer to upload
  * @param {Object} options - Upload options
+ * @param {string} mimeType - The MIME type of the file
  * @returns {Promise<Object>} - Cloudinary upload result with secure_url and public_id
  */
-const uploadToCloudinary = (fileBuffer, options = {}) => {
+const uploadToCloudinary = (fileBuffer, options = {}, mimeType = '') => {
   return new Promise((resolve, reject) => {
+    // Determine resource type based on file type
+    // PDFs must be uploaded as 'raw' for proper access
+    // Images can use 'image' type
+    let resourceType = 'auto';
+    if (mimeType === 'application/pdf') {
+      resourceType = 'raw';
+    } else if (mimeType.startsWith('image/')) {
+      resourceType = 'image';
+    }
+
     // Default options for verification documents
     const uploadOptions = {
       folder: 'sentinel/verification-documents', // Organized folder structure
-      resource_type: 'auto', // Auto-detect file type (image/pdf)
-      allowed_formats: ['pdf', 'jpg', 'jpeg', 'png'], // Restrict file types
+      resource_type: resourceType,
+      access_mode: 'public', // Make files publicly accessible
       ...options
     };
 

@@ -121,12 +121,16 @@ const submitOnboardingRequest = async (req, res) => {
 
     console.log('📤 Uploading verification document to Cloudinary...');
 
-    // Upload file buffer to Cloudinary
-    const cloudinaryResult = await uploadToCloudinary(req.file.buffer, {
-      // Use wallet address as part of filename for easy identification
-      public_id: `verification_${normalizedWallet}_${Date.now()}`,
-      folder: 'sentinel/verification-documents'
-    });
+    // Upload file buffer to Cloudinary with MIME type for proper resource handling
+    const cloudinaryResult = await uploadToCloudinary(
+      req.file.buffer,
+      {
+        // Use wallet address as part of filename for easy identification
+        public_id: `verification_${normalizedWallet}_${Date.now()}`,
+        folder: 'sentinel/verification-documents'
+      },
+      req.file.mimetype // Pass MIME type for proper resource_type handling
+    );
 
     console.log('✅ Document uploaded to Cloudinary:', cloudinaryResult.public_id);
 
