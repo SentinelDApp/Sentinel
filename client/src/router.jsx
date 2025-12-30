@@ -11,7 +11,7 @@ import LoginPage from "./components/Admin/pages/LoginPage";
 
 // Dashboard Pages
 import { SupplierApp } from "./components/supplier";
-import RetailerDashboard from "./components/retailer/RetailerDashboard";
+import { RetailerApp } from "./components/retailer";
 import { TransporterApp } from "./components/Transporter";
 
 // Admin App (includes layout with sidebar)
@@ -75,21 +75,17 @@ export const router = createBrowserRouter([
         ),
       },
 
-      // ============================================
-      // Retailer Routes (Protected)
-      // ============================================
-      {
-        path: "/retailer",
-        element: <Navigate to="/retailer/dashboard" replace />,
-      },
-      {
-        path: "/retailer/dashboard",
-        element: (
-          <ProtectedRoute allowedRoles={['retailer']}>
-            <RetailerDashboard />
-          </ProtectedRoute>
-        ),
-      },
+  // ============================================
+  // Retailer Routes
+  // ============================================
+  {
+    path: "/retailer",
+    element: <Navigate to="/retailer/dashboard" replace />,
+  },
+  {
+    path: "/retailer/dashboard",
+    element: <RetailerApp />,
+  },
 
       // ============================================
       // Transporter Routes (Protected)
