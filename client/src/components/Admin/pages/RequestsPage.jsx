@@ -478,7 +478,9 @@ const RequestsPage = () => {
                           <div className="flex items-center justify-end gap-2">
                             {/* View Document */}
                             <a
-                              href={`${API_BASE_URL}/${request.verificationDocumentPath}`}
+                              href={request.verificationDocumentPath?.startsWith('http') 
+                                ? request.verificationDocumentPath 
+                                : `${API_BASE_URL}/${request.verificationDocumentPath}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={`
