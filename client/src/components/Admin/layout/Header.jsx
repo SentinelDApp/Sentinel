@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
   MenuIcon,
   SunIcon,
@@ -12,6 +14,8 @@ import {
 
 const Header = ({ onMenuClick, currentRole = "Supplier" }) => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -337,6 +341,10 @@ const Header = ({ onMenuClick, currentRole = "Supplier" }) => {
                 `}
                 >
                   <button
+                    onClick={() => {
+                      logout();
+                      navigate('/login');
+                    }}
                     className={`
                     w-full text-left px-3 py-2 rounded-lg text-sm transition-colors
                     ${

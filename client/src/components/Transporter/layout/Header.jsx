@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTransporterTheme } from "../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
   SunIcon,
   MoonIcon,
@@ -15,6 +16,7 @@ import { DEMO_NOTIFICATIONS } from "../constants/transporter.constants";
 
 const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
   const { isDarkMode, toggleTheme } = useTransporterTheme();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -242,7 +244,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                 </div>
                 <div className={`p-2 border-t ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
                   <button
-                    onClick={() => navigate("/login")}
+                    onClick={() => {
+                      logout();
+                      navigate("/login");
+                    }}
                     className={`
                       w-full text-left px-3 py-2 rounded-lg text-sm transition-colors
                       ${isDarkMode ? "text-red-400 hover:bg-red-500/10" : "text-red-600 hover:bg-red-50"}
