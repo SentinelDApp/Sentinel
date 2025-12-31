@@ -208,6 +208,7 @@ const seedAdmin = async () => {
         role: 'admin',
         status: 'ACTIVE',
         fullName: 'System Administrator',
+        email: process.env.ADMIN_EMAIL || 'admin@sentinel.app',
         organizationName: 'Sentinel',
         approvedBy: 'system'
       });
