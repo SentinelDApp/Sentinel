@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRetailerTheme } from "../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
   SunIcon,
   MoonIcon,
@@ -21,6 +22,7 @@ import { DEMO_NOTIFICATIONS, STORE_INFO } from "../constants";
 
 const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
   const { isDarkMode, toggleTheme } = useRetailerTheme();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -275,7 +277,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                     Store Settings
                   </button>
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={() => {
+                      logout();
+                      navigate('/login');
+                    }}
                     className={`
                       w-full text-left px-4 py-2 text-sm transition-colors
                       ${isDarkMode

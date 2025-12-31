@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSupplierTheme } from '../context/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
 import { 
   SunIcon, 
   MoonIcon, 
@@ -14,6 +15,7 @@ import {
 const Header = ({ searchQuery, setSearchQuery }) => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useSupplierTheme();
+  const { logout } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
@@ -206,7 +208,10 @@ const Header = ({ searchQuery, setSearchQuery }) => {
                 </div>
                 <div className={`p-2 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={() => {
+                      logout();
+                      navigate('/login');
+                    }}
                     className={`
                       w-full text-left px-3 py-2 rounded-lg text-sm transition-colors
                       ${isDarkMode ? 'text-red-400 hover:bg-red-500/10' : 'text-red-600 hover:bg-red-50'}
