@@ -20,8 +20,11 @@ const Header = ({ searchQuery, setSearchQuery }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
-  // Empty notifications - will be populated from real data
-  const notifications = [];
+  const notifications = [
+    { id: 1, title: 'Shipment SHP-W001 arriving soon', time: '5 min ago', type: 'info' },
+    { id: 2, title: 'Concern raised on SHP-W005', time: '1 hour ago', type: 'warning' },
+    { id: 3, title: 'SHP-W004 stored in Zone B-1', time: '3 hours ago', type: 'success' },
+  ];
 
   return (
     <header className={`

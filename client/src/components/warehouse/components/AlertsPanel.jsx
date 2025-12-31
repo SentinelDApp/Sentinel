@@ -4,8 +4,53 @@ import { ExclamationTriangleIcon, XCircleIcon, DocumentDuplicateIcon, BoxIcon } 
 const AlertsPanel = () => {
   const { isDarkMode } = useTheme();
 
-  // Empty array - no dummy data
-  const alerts = [];
+  const alerts = [
+    {
+      id: 1,
+      type: "missing",
+      severity: "high",
+      title: "Missing Items Detected",
+      description: "Shipment SHP-2024-003 is missing 15 units from manifest",
+      timestamp: "10 min ago",
+      shipmentId: "SHP-2024-003",
+    },
+    {
+      id: 2,
+      type: "unauthorized",
+      severity: "high",
+      title: "Unauthorized Scan Attempt",
+      description: "Unknown device attempted to scan QR code QR-789-2024",
+      timestamp: "25 min ago",
+      shipmentId: "QR-789-2024",
+    },
+    {
+      id: 3,
+      type: "duplicate",
+      severity: "medium",
+      title: "Duplicate QR Scan",
+      description: "QR code QR-456-2024 was scanned multiple times",
+      timestamp: "1 hour ago",
+      shipmentId: "QR-456-2024",
+    },
+    {
+      id: 4,
+      type: "missing",
+      severity: "low",
+      title: "Minor Quantity Discrepancy",
+      description: "Shipment SHP-2024-008 has 2 units less than expected",
+      timestamp: "2 hours ago",
+      shipmentId: "SHP-2024-008",
+    },
+    {
+      id: 5,
+      type: "duplicate",
+      severity: "medium",
+      title: "Potential Duplicate Entry",
+      description: "Similar shipment details detected for SHP-2024-010",
+      timestamp: "3 hours ago",
+      shipmentId: "SHP-2024-010",
+    },
+  ];
 
   const getAlertIcon = (type) => {
     switch (type) {
@@ -111,14 +156,7 @@ const AlertsPanel = () => {
 
       {/* Alert List */}
       <div className="max-h-96 overflow-y-auto">
-        {alerts.length === 0 ? (
-          <div className={`p-12 text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
-            <ExclamationTriangleIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-1">No alerts</p>
-            <p className="text-sm">All systems are running smoothly</p>
-          </div>
-        ) : (
-        alerts.map((alert) => {
+        {alerts.map((alert) => {
           const Icon = getAlertIcon(alert.type);
           const styles = getSeverityStyles(alert.severity);
 
@@ -160,8 +198,7 @@ const AlertsPanel = () => {
               </div>
             </div>
           );
-        })
-        )}
+        })}
       </div>
 
       {/* View All Link */}

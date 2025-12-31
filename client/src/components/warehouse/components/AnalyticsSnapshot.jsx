@@ -5,29 +5,29 @@ const AnalyticsSnapshot = () => {
   const { isDarkMode } = useTheme();
 
   const stats = {
-    processedToday: 0,
-    avgVerificationTime: "0 min",
-    pendingCount: 0,
-    completedCount: 0,
+    processedToday: 47,
+    avgVerificationTime: "4.2 min",
+    pendingCount: 12,
+    completedCount: 35,
   };
 
   // Simple donut chart data
-  const total = stats.pendingCount + stats.completedCount || 1; // Avoid division by zero
-  const completedPercentage = total > 0 ? (stats.completedCount / total) * 100 : 0;
+  const total = stats.pendingCount + stats.completedCount;
+  const completedPercentage = (stats.completedCount / total) * 100;
   const circumference = 2 * Math.PI * 40; // radius = 40
   const completedDash = (completedPercentage / 100) * circumference;
 
-  // Empty weekly data
+  // Bar chart data for weekly shipments
   const weeklyData = [
-    { day: "Mon", value: 0 },
-    { day: "Tue", value: 0 },
-    { day: "Wed", value: 0 },
-    { day: "Thu", value: 0 },
-    { day: "Fri", value: 0 },
-    { day: "Sat", value: 0 },
-    { day: "Sun", value: 0 },
+    { day: "Mon", value: 35 },
+    { day: "Tue", value: 42 },
+    { day: "Wed", value: 38 },
+    { day: "Thu", value: 55 },
+    { day: "Fri", value: 48 },
+    { day: "Sat", value: 25 },
+    { day: "Sun", value: 47 },
   ];
-  const maxValue = Math.max(...weeklyData.map(d => d.value)) || 1;
+  const maxValue = Math.max(...weeklyData.map(d => d.value));
 
   return (
     <div

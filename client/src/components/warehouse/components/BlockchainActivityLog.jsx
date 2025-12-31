@@ -12,8 +12,62 @@ import {
 const BlockchainActivityLog = () => {
   const { isDarkMode } = useTheme();
 
-  // Empty array - no dummy data
-  const activities = [];
+  const activities = [
+    {
+      id: 1,
+      type: "verification",
+      icon: ShieldCheckIcon,
+      title: "Shipment Verified",
+      description: "SHP-2024-001 verified and recorded on blockchain",
+      timestamp: "2024-12-30 12:45:22",
+      txHash: "0x7a3f...8b2c",
+    },
+    {
+      id: 2,
+      type: "scan",
+      icon: QRCodeIcon,
+      title: "QR Code Scanned",
+      description: "QR-001-2024 authenticated successfully",
+      timestamp: "2024-12-30 12:30:15",
+      txHash: "0x9c2e...4d1f",
+    },
+    {
+      id: 3,
+      type: "dispatch",
+      icon: ArrowUpTrayIcon,
+      title: "Shipment Dispatched",
+      description: "SHP-2024-005 dispatched to QuickShip Transport",
+      timestamp: "2024-12-30 11:55:08",
+      txHash: "0x3b7a...9e5c",
+    },
+    {
+      id: 4,
+      type: "arrival",
+      icon: TruckIcon,
+      title: "Shipment Arrived",
+      description: "SHP-2024-001 arrived from Delhi Manufacturing Hub",
+      timestamp: "2024-12-30 11:20:33",
+      txHash: "0x5d4c...2a8f",
+    },
+    {
+      id: 5,
+      type: "inventory",
+      icon: BoxIcon,
+      title: "Inventory Updated",
+      description: "150 units added to warehouse inventory",
+      timestamp: "2024-12-30 10:45:11",
+      txHash: "0x1e9b...6c3d",
+    },
+    {
+      id: 6,
+      type: "verification",
+      icon: CheckCircleIcon,
+      title: "Quality Check Passed",
+      description: "Batch QC-2024-089 passed all verification checks",
+      timestamp: "2024-12-30 10:15:45",
+      txHash: "0x8f2d...7a1e",
+    },
+  ];
 
   const getTypeColor = (type) => {
     switch (type) {
@@ -69,13 +123,6 @@ const BlockchainActivityLog = () => {
 
       {/* Timeline */}
       <div className="p-4 max-h-[500px] overflow-y-auto">
-        {activities.length === 0 ? (
-          <div className={`p-12 text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
-            <BlockchainIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-1">No activity yet</p>
-            <p className="text-sm">Blockchain transactions will appear here</p>
-          </div>
-        ) : (
         <div className="relative">
           {/* Timeline line */}
           <div
@@ -144,7 +191,6 @@ const BlockchainActivityLog = () => {
             })}
           </div>
         </div>
-        )}
       </div>
 
       {/* Footer */}

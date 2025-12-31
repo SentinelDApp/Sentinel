@@ -20,8 +20,8 @@ const WarehouseLayout = ({ children, currentPage, onNavigate }) => {
         <div className="flex-1 min-h-screen flex flex-col lg:ml-0">
           <Header
             onMenuClick={() => setSidebarOpen(true)}
-            warehouseName="Warehouse Dashboard"
-            warehouseLocation=""
+            warehouseName="Central Warehouse"
+            warehouseLocation="Mumbai, India"
           />
 
           <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>

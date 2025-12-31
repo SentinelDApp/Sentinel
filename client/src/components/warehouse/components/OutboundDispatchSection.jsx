@@ -15,8 +15,35 @@ const OutboundDispatchSection = () => {
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [isDispatching, setIsDispatching] = useState(false);
 
-  // Empty array - no dummy data
-  const verifiedShipments = [];
+  const verifiedShipments = [
+    {
+      id: "SHP-2024-001",
+      product: "Electronic Components Batch A",
+      quantity: 150,
+      nextStakeholder: "QuickShip Transport",
+      stakeholderType: "Transporter",
+      destination: "Pune Distribution Center",
+      verifiedAt: "2024-12-30 10:30",
+    },
+    {
+      id: "SHP-2024-006",
+      product: "Pharmaceutical Supplies",
+      quantity: 200,
+      nextStakeholder: "MediDist Pvt Ltd",
+      stakeholderType: "Distributor",
+      destination: "Chennai Medical Hub",
+      verifiedAt: "2024-12-30 11:15",
+    },
+    {
+      id: "SHP-2024-007",
+      product: "Industrial Equipment",
+      quantity: 75,
+      nextStakeholder: "FastMove Logistics",
+      stakeholderType: "Transporter",
+      destination: "Bangalore Factory",
+      verifiedAt: "2024-12-30 12:00",
+    },
+  ];
 
   const handleDispatch = (shipment) => {
     setSelectedShipment(shipment);
@@ -72,14 +99,7 @@ const OutboundDispatchSection = () => {
 
         {/* Shipment Cards */}
         <div className="p-4 space-y-3">
-          {verifiedShipments.length === 0 ? (
-            <div className={`p-12 text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
-              <ArrowUpTrayIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-1">No shipments ready</p>
-              <p className="text-sm">Verified shipments will appear here for dispatch</p>
-            </div>
-          ) : (
-          verifiedShipments.map((shipment) => (
+          {verifiedShipments.map((shipment) => (
             <div
               key={shipment.id}
               className={`
@@ -164,8 +184,7 @@ const OutboundDispatchSection = () => {
                 Dispatch Shipment
               </button>
             </div>
-          ))
-          )}
+          ))}
         </div>
       </div>
 
