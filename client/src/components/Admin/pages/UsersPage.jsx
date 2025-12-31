@@ -1,87 +1,205 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
   UsersIcon,
   BoxIcon,
   TruckIcon,
   WarehouseIcon,
   ShieldCheckIcon,
-  ChartIcon,
   SearchIcon,
   EyeIcon,
   ClockIcon,
+  CopyIcon,
+  CheckIcon,
 } from "../icons/Icons";
 
-// Users by role data - empty values (will be populated from API)
-const usersByRole = [
-  {
-    role: "Supplier",
-    count: 0,
-    icon: BoxIcon,
-    color: "from-blue-500 to-cyan-500",
-    bgColor: "bg-blue-500",
-  },
-  {
-    role: "Transporter",
-    count: 0,
-    icon: TruckIcon,
-    color: "from-amber-500 to-orange-500",
-    bgColor: "bg-amber-500",
-  },
-  {
-    role: "Warehouse",
-    count: 0,
-    icon: WarehouseIcon,
-    color: "from-emerald-500 to-teal-500",
-    bgColor: "bg-emerald-500",
-  },
-  {
-    role: "Retailer",
-    count: 0,
-    icon: ShieldCheckIcon,
-    color: "from-rose-500 to-red-500",
-    bgColor: "bg-rose-500",
-  },
-];
-
-// Empty recently joined users array (will be populated from API)
-const recentlyJoinedUsers = [];
+const API_BASE_URL = "http://localhost:5000";
 
 const UsersPage = () => {
   const { isDarkMode } = useTheme();
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [copiedAddress, setCopiedAddress] = useState(null);
+
+  // Copy wallet address to clipboard
+  const copyToClipboard = async (address) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  // Role configuration
+  const roleConfig = {
+    supplier: {
+      label: "Supplier",
+      icon: BoxIcon,
+      color: "from-blue-500 to-cyan-500",
+      bgColor: "bg-blue-500",
+    },
+    transporter: {
+      label: "Transporter",
+      icon: TruckIcon,
+      color: "from-amber-500 to-orange-500",
+      bgColor: "bg-amber-500",
+    },
+    warehouse: {
+      label: "Warehouse",
+      icon: WarehouseIcon,
+      color: "from-emerald-500 to-teal-500",
+      bgColor: "bg-emerald-500",
+    },
+    retailer: {
+      label: "Retailer",
+      icon: ShieldCheckIcon,
+      color: "from-rose-500 to-red-500",
+      bgColor: "bg-rose-500",
+    },
+  };
+
+  // Fetch users from API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch users");
+        }
+
+        const data = await response.json();
+
+        // Filter out admin users
+        const nonAdminUsers = data.users.filter(
+          (user) => user.role !== "admin"
+        );
+        setUsers(nonAdminUsers);
+      } catch (err) {
+        console.error("Error fetching users:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchUsers();
+    }
+  }, [token]);
+
+  // Calculate role counts
+  const getRoleCounts = () => {
+    const counts = {
+      supplier: 0,
+      transporter: 0,
+      warehouse: 0,
+      retailer: 0,
+    };
+
+    users.forEach((user) => {
+      if (counts.hasOwnProperty(user.role)) {
+        counts[user.role]++;
+      }
+    });
+
+    return Object.entries(roleConfig).map(([role, config]) => ({
+      role: config.label,
+      roleKey: role,
+      count: counts[role],
+      icon: config.icon,
+      color: config.color,
+      bgColor: config.bgColor,
+    }));
+  };
+
+  const usersByRole = getRoleCounts();
+  const totalUsers = users.length;
 
   const handleViewActivity = (userId) => {
     console.log("Viewing activity for user:", userId);
     // Handle navigation to user activity
   };
 
-  const filteredUsers = recentlyJoinedUsers.filter(
+  const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.hashId.toLowerCase().includes(searchQuery.toLowerCase())
+      user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.walletAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.organizationName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getRoleBadge = (role) => {
     const colors = {
-      Supplier: isDarkMode
+      supplier: isDarkMode
         ? "bg-blue-500/10 text-blue-400"
         : "bg-blue-50 text-blue-600",
-      Transporter: isDarkMode
+      transporter: isDarkMode
         ? "bg-amber-500/10 text-amber-400"
         : "bg-amber-50 text-amber-600",
-      Warehouse: isDarkMode
+      warehouse: isDarkMode
         ? "bg-emerald-500/10 text-emerald-400"
         : "bg-emerald-50 text-emerald-600",
-      Retailer: isDarkMode
+      retailer: isDarkMode
         ? "bg-rose-500/10 text-rose-400"
         : "bg-rose-50 text-rose-600",
     };
-    return colors[role] || colors.Supplier;
+    return colors[role] || colors.supplier;
   };
 
-  const totalUsers = usersByRole.reduce((sum, r) => sum + r.count, 0);
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const truncateAddress = (address) => {
+    if (!address) return "N/A";
+    return `${address.slice(0, 8)}...${address.slice(-6)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className={`rounded-2xl p-6 ${
+          isDarkMode
+            ? "bg-red-900/20 border border-red-800"
+            : "bg-red-50 border border-red-200"
+        }`}
+      >
+        <p className={isDarkMode ? "text-red-400" : "text-red-600"}>
+          Error loading users: {error}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -124,7 +242,7 @@ const UsersPage = () => {
           />
           <input
             type="text"
-            placeholder="Search user by name or ID..."
+            placeholder="Search user by name, email, wallet address or organization..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`
@@ -197,10 +315,13 @@ const UsersPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {usersByRole.map((roleData, index) => {
             const IconComponent = roleData.icon;
-            const percentage = ((roleData.count / totalUsers) * 100).toFixed(1);
+            const percentage =
+              totalUsers > 0
+                ? ((roleData.count / totalUsers) * 100).toFixed(1)
+                : "0.0";
 
             return (
               <div
@@ -253,7 +374,7 @@ const UsersPage = () => {
         </div>
       </div>
 
-      {/* Recently Joined Approved Users Table */}
+      {/* All Network Users Table */}
       <div
         className={`
           rounded-2xl p-6
@@ -280,14 +401,15 @@ const UsersPage = () => {
                   isDarkMode ? "text-white" : "text-slate-900"
                 }`}
               >
-                Recently Joined Users
+                All Network Users
               </h3>
               <p
                 className={`text-sm ${
                   isDarkMode ? "text-slate-400" : "text-slate-500"
                 }`}
               >
-                Approved users in the network
+                {filteredUsers.length} users{" "}
+                {searchQuery && `matching "${searchQuery}"`}
               </p>
             </div>
           </div>
@@ -303,19 +425,24 @@ const UsersPage = () => {
                   ${isDarkMode ? "text-slate-400" : "text-slate-500"}
                 `}
               >
-                <th className="pb-4 pr-4">User ID</th>
                 <th className="pb-4 pr-4">Name</th>
-                <th className="pb-4 pr-4">Hash ID</th>
+                <th className="pb-4 pr-4">Organization</th>
+                <th className="pb-4 pr-4">Wallet Address</th>
                 <th className="pb-4 pr-4">Role</th>
+                <th className="pb-4 pr-4">Status</th>
                 <th className="pb-4 pr-4">Joined At</th>
                 <th className="pb-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/30">
+            <tbody
+              className={`divide-y ${
+                isDarkMode ? "divide-slate-700/30" : "divide-slate-200"
+              }`}
+            >
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
                   <tr
-                    key={user.id}
+                    key={user._id || user.walletAddress}
                     className={`
                       transition-colors
                       ${
@@ -327,45 +454,11 @@ const UsersPage = () => {
                   >
                     <td className="py-4 pr-4">
                       <span
-                        className={`font-mono text-sm font-medium ${
-                          isDarkMode ? "text-white" : "text-slate-900"
-                        }`}
-                      >
-                        {user.id}
-                      </span>
-                    </td>
-                    <td className="py-4 pr-4">
-                      <span
                         className={`text-sm font-medium ${
                           isDarkMode ? "text-white" : "text-slate-900"
                         }`}
                       >
-                        {user.name}
-                      </span>
-                    </td>
-                    <td className="py-4 pr-4">
-                      <span
-                        className={`
-                          font-mono text-xs px-2 py-1 rounded-lg truncate max-w-[150px] inline-block
-                          ${
-                            isDarkMode
-                              ? "bg-slate-800 text-slate-300"
-                              : "bg-slate-100 text-slate-700"
-                          }
-                        `}
-                        title={user.hashId}
-                      >
-                        {user.hashId.slice(0, 10)}...{user.hashId.slice(-6)}
-                      </span>
-                    </td>
-                    <td className="py-4 pr-4">
-                      <span
-                        className={`
-                          px-3 py-1 rounded-full text-xs font-medium
-                          ${getRoleBadge(user.role)}
-                        `}
-                      >
-                        {user.role}
+                        {user.fullName || "N/A"}
                       </span>
                     </td>
                     <td className="py-4 pr-4">
@@ -374,12 +467,94 @@ const UsersPage = () => {
                           isDarkMode ? "text-slate-300" : "text-slate-600"
                         }`}
                       >
-                        {user.joinedAt}
+                        {user.organizationName || "N/A"}
+                      </span>
+                    </td>
+                    <td className="py-4 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`
+                            font-mono text-xs px-2 py-1 rounded-lg
+                            ${
+                              isDarkMode
+                                ? "bg-slate-800 text-slate-300"
+                                : "bg-slate-100 text-slate-700"
+                            }
+                          `}
+                          title={user.walletAddress}
+                        >
+                          {truncateAddress(user.walletAddress)}
+                        </span>
+                        {user.walletAddress && (
+                          <button
+                            onClick={() => copyToClipboard(user.walletAddress)}
+                            className={`
+                              p-1.5 rounded-lg transition-all duration-200
+                              ${
+                                copiedAddress === user.walletAddress
+                                  ? isDarkMode
+                                    ? "bg-green-500/20 text-green-400"
+                                    : "bg-green-100 text-green-600"
+                                  : isDarkMode
+                                  ? "bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-300"
+                                  : "bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-700"
+                              }
+                            `}
+                            title={
+                              copiedAddress === user.walletAddress
+                                ? "Copied!"
+                                : "Copy address"
+                            }
+                          >
+                            {copiedAddress === user.walletAddress ? (
+                              <CheckIcon className="w-3.5 h-3.5" />
+                            ) : (
+                              <CopyIcon className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 pr-4">
+                      <span
+                        className={`
+                          px-3 py-1 rounded-full text-xs font-medium capitalize
+                          ${getRoleBadge(user.role)}
+                        `}
+                      >
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="py-4 pr-4">
+                      <span
+                        className={`
+                          px-3 py-1 rounded-full text-xs font-medium
+                          ${
+                            user.status === "ACTIVE"
+                              ? isDarkMode
+                                ? "bg-green-500/10 text-green-400"
+                                : "bg-green-50 text-green-600"
+                              : isDarkMode
+                              ? "bg-red-500/10 text-red-400"
+                              : "bg-red-50 text-red-600"
+                          }
+                        `}
+                      >
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="py-4 pr-4">
+                      <span
+                        className={`text-sm ${
+                          isDarkMode ? "text-slate-300" : "text-slate-600"
+                        }`}
+                      >
+                        {formatDate(user.approvedAt || user.createdAt)}
                       </span>
                     </td>
                     <td className="py-4 text-right">
                       <button
-                        onClick={() => handleViewActivity(user.id)}
+                        onClick={() => handleViewActivity(user._id)}
                         className={`
                           inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
                           transition-all duration-200
@@ -391,20 +566,22 @@ const UsersPage = () => {
                         `}
                       >
                         <EyeIcon className="w-4 h-4" />
-                        View Activity
+                        View
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center">
+                  <td colSpan="7" className="py-8 text-center">
                     <p
                       className={`${
                         isDarkMode ? "text-slate-400" : "text-slate-500"
                       }`}
                     >
-                      No users found matching your search.
+                      {searchQuery
+                        ? "No users found matching your search."
+                        : "No users found in the network."}
                     </p>
                   </td>
                 </tr>
