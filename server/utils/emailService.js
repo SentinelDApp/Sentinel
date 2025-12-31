@@ -4,16 +4,31 @@ const nodemailer = require('nodemailer');
  * EMAIL SERVICE
  * 
  * Handles sending approval/rejection emails to stakeholders
- * Uses Nodemailer with Gmail or SMTP configuration
+ * Uses Nodemailer with Gmail SMTP configuration
  */
+
+// Check if email credentials are configured
+const isEmailConfigured = () => {
+  return !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+};
 
 // Create transporter based on environment configuration
 const createTransporter = () => {
+  if (!isEmailConfigured()) {
+    console.warn('⚠️ Email not configured. Set EMAIL_USER and EMAIL_PASS in .env');
+    return null;
+  }
+
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // true for 465, false for other ports
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS // App password for Gmail
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   });
 };
@@ -29,6 +44,12 @@ const createTransporter = () => {
  */
 exports.sendApprovalEmail = async ({ to, fullName, role, walletAddress }) => {
   const transporter = createTransporter();
+
+  // Skip email if not configured
+  if (!transporter) {
+    console.log('📧 Email skipped (not configured) for:', to);
+    return { skipped: true, reason: 'Email not configured' };
+  }
 
   const roleDisplayName = role.charAt(0).toUpperCase() + role.slice(1);
 
@@ -128,6 +149,12 @@ exports.sendApprovalEmail = async ({ to, fullName, role, walletAddress }) => {
  */
 exports.sendRejectionEmail = async ({ to, fullName, role, reason }) => {
   const transporter = createTransporter();
+
+  // Skip email if not configured
+  if (!transporter) {
+    console.log('📧 Email skipped (not configured) for:', to);
+    return { skipped: true, reason: 'Email not configured' };
+  }
 
   const roleDisplayName = role.charAt(0).toUpperCase() + role.slice(1);
 
