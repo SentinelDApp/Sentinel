@@ -4,14 +4,8 @@ import { BoxIcon, SearchIcon } from "../icons/Icons";
 const InventoryPage = () => {
   const { isDarkMode } = useTheme();
 
-  const inventoryItems = [
-    { id: "INV-001", name: "Electronic Components Batch A", quantity: 450, location: "Zone A-1", status: "In Stock" },
-    { id: "INV-002", name: "Pharmaceutical Supplies", quantity: 200, location: "Zone B-2", status: "In Stock" },
-    { id: "INV-003", name: "Industrial Parts Kit", quantity: 75, location: "Zone A-3", status: "Low Stock" },
-    { id: "INV-004", name: "Consumer Electronics", quantity: 320, location: "Zone C-1", status: "In Stock" },
-    { id: "INV-005", name: "Medical Equipment", quantity: 15, location: "Zone D-1", status: "Low Stock" },
-    { id: "INV-006", name: "Automotive Parts", quantity: 580, location: "Zone B-1", status: "In Stock" },
-  ];
+  // Empty array - no dummy data
+  const inventoryItems = [];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -80,6 +74,13 @@ const InventoryPage = () => {
         `}
       >
         <div className="overflow-x-auto">
+          {inventoryItems.length === 0 ? (
+            <div className={`p-12 text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+              <BoxIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium mb-1">No inventory items</p>
+              <p className="text-sm">Items will appear here when added to the warehouse</p>
+            </div>
+          ) : (
           <table className="w-full">
             <thead>
               <tr className={isDarkMode ? "bg-slate-800/50" : "bg-slate-50"}>
@@ -135,6 +136,7 @@ const InventoryPage = () => {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </div>
     </div>
