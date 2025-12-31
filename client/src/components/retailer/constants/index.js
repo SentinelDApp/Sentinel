@@ -2,8 +2,7 @@
 
 // Navigation Tabs
 export const NAVIGATION_TABS = [
-  { id: 'dashboard', label: 'Dashboard', icon: '�' },
-  { id: 'inventory', label: 'Inventory', icon: '🗃️' },
+  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'orders', label: 'Orders', icon: '📋' },
   { id: 'shipments', label: 'Shipments', icon: '🚛' },
 ];
@@ -78,17 +77,8 @@ export const SHIPMENT_STATUS_COLORS = {
   },
 };
 
-// Sample Orders Data
-export const DEMO_ORDERS = [
-  { id: 'ORD-1045', customerName: 'Ayesha Khan', product: 'Basmati Rice (5kg)', status: ORDER_STATUSES.PENDING, date: 'Today' },
-  { id: 'ORD-1044', customerName: 'Rohit Sharma', product: 'Sunflower Oil (1L)', status: ORDER_STATUSES.IN_DELIVERY, date: 'Today' },
-  { id: 'ORD-1043', customerName: 'Meera Patel', product: 'Toothpaste', status: ORDER_STATUSES.DELIVERED, date: 'Today' },
-  { id: 'ORD-1042', customerName: 'Arjun Singh', product: 'Tea Pack (500g)', status: ORDER_STATUSES.DELIVERED, date: 'Yesterday' },
-  { id: 'ORD-1041', customerName: 'Sara Ali', product: 'Hand Soap', status: ORDER_STATUSES.DELIVERED, date: 'Yesterday' },
-  { id: 'ORD-1040', customerName: 'Vikram Mehta', product: 'Coffee Powder', status: ORDER_STATUSES.DELIVERED, date: '2 days ago' },
-  { id: 'ORD-1039', customerName: 'Priya Nair', product: 'Sugar (1kg)', status: ORDER_STATUSES.DELIVERED, date: '2 days ago' },
-  { id: 'ORD-1038', customerName: 'Anil Kumar', product: 'Milk Powder', status: ORDER_STATUSES.DELIVERED, date: '3 days ago' },
-];
+// Sample Orders Data (empty - will be populated from API)
+export const DEMO_ORDERS = [];
 
 // Store Stats Configuration
 export const STORE_STATS = [
@@ -96,28 +86,28 @@ export const STORE_STATS = [
     id: 'products',
     title: 'Total Products',
     description: 'Items available in your shop',
-    value: '248',
+    value: '0',
     iconPath: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
   },
   {
     id: 'stock',
     title: 'Stock Available',
     description: 'Total quantity in store',
-    value: '1,920',
+    value: '0',
     iconPath: 'M3 7h18M3 12h18M3 17h18',
   },
   {
     id: 'orders',
     title: 'Orders Pending',
     description: 'Orders waiting to be delivered',
-    value: '17',
+    value: '0',
     iconPath: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
   },
   {
     id: 'shipments',
     title: 'Shipments Coming',
     description: 'Products arriving soon',
-    value: '6',
+    value: '0',
     iconPath: 'M9 17a2 2 0 104 0m-4 0a2 2 0 114 0m6-10l2 2v6a2 2 0 01-2 2h-1m-6-1h6M3 5h11a2 2 0 012 2v10H3V5z',
   },
 ];

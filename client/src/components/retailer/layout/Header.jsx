@@ -18,14 +18,18 @@ import {
   ShieldCheckIcon,
   MenuIcon,
 } from "../icons/Icons";
-import { DEMO_NOTIFICATIONS, STORE_INFO } from "../constants";
+import { DEMO_NOTIFICATIONS } from "../constants";
 
 const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
   const { isDarkMode, toggleTheme } = useRetailerTheme();
-  const { logout } = useAuth();
+  const { logout, user, walletAddress } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+
+  // Get user display info from auth context
+  const displayName = user?.fullName || user?.businessName || 'Retailer';
+  const displayId = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '';
 
   return (
     <header
@@ -247,10 +251,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
               >
                 <div className={`px-4 py-3 border-b ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
                   <p className={`font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>
-                    {STORE_INFO.name}
+                    {displayName}
                   </p>
                   <p className={`text-xs mt-0.5 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
-                    {STORE_INFO.id}
+                    {displayId}
                   </p>
                 </div>
                 <div className="py-2">
