@@ -88,12 +88,6 @@ const userSchema = new mongoose.Schema({
     default: () => Math.floor(Math.random() * 1000000).toString()
   },
 
-  // Reference to original request
-  stakeholderRequestId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'StakeholderRequest'
-  },
-
   // Approval metadata
   approvedAt: {
     type: Date,

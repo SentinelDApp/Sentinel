@@ -278,19 +278,19 @@ const RequestsPage = () => {
           },
           {
             label: "Pending",
-            value: requests.filter((r) => r.status === "Pending").length,
+            value: requests.filter((r) => r.status?.toUpperCase() === "PENDING").length,
             color: "from-amber-500 to-orange-500",
             icon: ClockIcon,
           },
           {
             label: "Approved",
-            value: requests.filter((r) => r.status === "Approved").length,
+            value: requests.filter((r) => r.status?.toUpperCase() === "APPROVED").length,
             color: "from-green-500 to-emerald-500",
             icon: CheckCircleIcon,
           },
           {
             label: "Rejected",
-            value: requests.filter((r) => r.status === "Rejected").length,
+            value: requests.filter((r) => r.status?.toUpperCase() === "REJECTED").length,
             color: "from-red-500 to-rose-500",
             icon: XCircleIcon,
           },
@@ -543,28 +543,30 @@ const RequestsPage = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
-                            {/* View Document */}
-                            <button
-                              onClick={() => {
-                                const imageUrl = request.verificationDocumentPath?.startsWith('http') 
-                                  ? request.verificationDocumentPath 
-                                  : `${API_BASE_URL}/${request.verificationDocumentPath}`;
-                                setPreviewImage(imageUrl);
-                                setPreviewRequest(request);
-                                setShowImageModal(true);
-                              }}
-                              className={`
-                                p-2 rounded-lg transition-all
-                                ${
-                                  isDarkMode
-                                    ? "text-slate-400 hover:text-white hover:bg-slate-800"
-                                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                                }
-                              `}
-                              title="View Document"
-                            >
-                              <EyeIcon className="w-5 h-5" />
-                            </button>
+                            {/* View Document - Only show for pending requests with documents */}
+                            {request.verificationDocumentPath && (
+                              <button
+                                onClick={() => {
+                                  const imageUrl = request.verificationDocumentPath?.startsWith('http') 
+                                    ? request.verificationDocumentPath 
+                                    : `${API_BASE_URL}/${request.verificationDocumentPath}`;
+                                  setPreviewImage(imageUrl);
+                                  setPreviewRequest(request);
+                                  setShowImageModal(true);
+                                }}
+                                className={`
+                                  p-2 rounded-lg transition-all
+                                  ${
+                                    isDarkMode
+                                      ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                                  }
+                                `}
+                                title="View Document"
+                              >
+                                <EyeIcon className="w-5 h-5" />
+                              </button>
+                            )}
 
                             {/* Actions for Pending */}
                             {request.status === "PENDING" && (
