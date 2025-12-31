@@ -29,15 +29,8 @@ cloudinary.config({
  */
 const uploadToCloudinary = (fileBuffer, options = {}, mimeType = '') => {
   return new Promise((resolve, reject) => {
-    // Determine resource type based on file type
-    // PDFs must be uploaded as 'raw' for proper access
-    // Images can use 'image' type
-    let resourceType = 'auto';
-    if (mimeType === 'application/pdf') {
-      resourceType = 'raw';
-    } else if (mimeType.startsWith('image/')) {
-      resourceType = 'image';
-    }
+    // All uploads are images (JPG, PNG only)
+    const resourceType = 'image';
 
     // Default options for verification documents
     const uploadOptions = {
@@ -68,11 +61,15 @@ const uploadToCloudinary = (fileBuffer, options = {}, mimeType = '') => {
 /**
  * Delete a file from Cloudinary
  * @param {string} publicId - The public_id of the file to delete
+ * @param {string} resourceType - The resource type ('image', 'raw', 'video')
  * @returns {Promise<Object>} - Cloudinary delete result
  */
-const deleteFromCloudinary = async (publicId) => {
+const deleteFromCloudinary = async (publicId, resourceType = 'raw') => {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+      invalidate: true
+    });
     return result;
   } catch (error) {
     console.error('Cloudinary delete error:', error);
@@ -80,8 +77,47 @@ const deleteFromCloudinary = async (publicId) => {
   }
 };
 
+/**
+ * Extract public_id from Cloudinary URL
+ * @param {string} url - The Cloudinary secure_url
+ * @returns {Object} - { publicId, resourceType }
+ */
+const extractPublicIdFromUrl = (url) => {
+  try {
+    if (!url || !url.includes('cloudinary.com')) {
+      return null;
+    }
+    
+    // Check if it's a raw resource (PDFs)
+    const isRaw = url.includes('/raw/upload/');
+    const resourceType = isRaw ? 'raw' : 'image';
+    
+    // Extract public_id from URL
+    // Format: https://res.cloudinary.com/{cloud}/[image|raw]/upload/v{version}/{folder}/{filename}
+    const uploadIndex = url.indexOf('/upload/');
+    if (uploadIndex === -1) return null;
+    
+    // Get everything after /upload/v{version}/
+    const afterUpload = url.substring(uploadIndex + 8); // '/upload/' is 8 chars
+    const versionEnd = afterUpload.indexOf('/');
+    const publicIdWithExt = afterUpload.substring(versionEnd + 1);
+    
+    // Remove file extension for raw files
+    const publicId = isRaw 
+      ? publicIdWithExt // Keep extension for raw
+      : publicIdWithExt.replace(/\.[^/.]+$/, ''); // Remove extension for images
+    
+    return { publicId, resourceType };
+  } catch (error) {
+    console.error('Error extracting public_id:', error);
+    return null;
+  }
+};
+
 module.exports = {
   cloudinary,
   uploadToCloudinary,
-  deleteFromCloudinary
+  deleteFromCloudinary,
+  extractPublicIdFromUrl
 };
+  

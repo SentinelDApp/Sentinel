@@ -50,11 +50,42 @@ const stakeholderRequestSchema = new mongoose.Schema({
     minlength: [2, 'Name must be at least 2 characters']
   },
 
+  // User's email for notifications (approval/rejection)
+  email: {
+    type: String,
+    required: [true, 'Email is required for notifications'],
+    trim: true,
+    lowercase: true,
+    validate: {
+      validator: function(v) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      },
+      message: 'Invalid email format'
+    }
+  },
+
   // Organization/Company name (optional but recommended)
   organizationName: {
     type: String,
     trim: true,
     default: ''
+  },
+
+  // Physical address
+  address: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+
+  // Type of verification document uploaded
+  documentType: {
+    type: String,
+    enum: {
+      values: ['org_certificate', 'aadhaar', 'pan', 'passport', 'voter_id'],
+      message: 'Invalid document type'
+    },
+    required: [true, 'Document type is required']
   },
 
   // Path to uploaded verification document

@@ -1,5 +1,7 @@
 const StakeholderRequest = require('../models/StakeholderRequest');
 const User = require('../models/User');
+const { deleteFromCloudinary, extractPublicIdFromUrl } = require('../config/cloudinary.config');
+const { sendApprovalEmail, sendRejectionEmail } = require('../utils/emailService');
 
 /**
  * ADMIN CONTROLLER
@@ -141,7 +143,9 @@ exports.approveRequest = async (req, res) => {
       role: request.requestedRole,
       status: 'ACTIVE',
       fullName: request.fullName,
+      email: request.email,
       organizationName: request.organizationName || '',
+      address: request.address || '',
       stakeholderRequestId: request._id,
       approvedAt: new Date(),
       approvedBy: adminWallet
@@ -154,6 +158,20 @@ exports.approveRequest = async (req, res) => {
     request.processedBy = adminWallet;
     request.processedAt = new Date();
     await request.save();
+
+    // Send approval email notification
+    try {
+      await sendApprovalEmail({
+        to: request.email,
+        fullName: request.fullName,
+        role: request.requestedRole,
+        walletAddress: request.walletAddress
+      });
+      console.log('📧 Approval email sent to:', request.email);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send approval email:', emailError);
+      // Continue even if email fails - user is still approved
+    }
 
     res.json({
       success: true,
@@ -187,11 +205,12 @@ exports.approveRequest = async (req, res) => {
 /**
  * REJECT REQUEST
  * 
- * Marks a request as REJECTED with optional reason
+ * Marks a request as REJECTED with reason, deletes document from Cloudinary,
+ * and removes the StakeholderRequest from database
  * User can re-apply with a new request
  * 
  * @route POST /api/admin/reject/:requestId
- * @body reason - Optional rejection reason
+ * @body reason - Rejection reason (required)
  * @protected - Requires admin role
  */
 exports.rejectRequest = async (req, res) => {
@@ -199,6 +218,14 @@ exports.rejectRequest = async (req, res) => {
     const { requestId } = req.params;
     const { reason } = req.body;
     const adminWallet = req.user.walletAddress;
+
+    // Validate rejection reason
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejection reason is required'
+      });
+    }
 
     // Find the request
     const request = await StakeholderRequest.findById(requestId);
@@ -218,21 +245,55 @@ exports.rejectRequest = async (req, res) => {
       });
     }
 
-    // Update request status to REJECTED
-    request.status = 'REJECTED';
-    request.rejectionReason = reason || 'No reason provided';
-    request.processedBy = adminWallet;
-    request.processedAt = new Date();
-    await request.save();
+    // Delete document from Cloudinary if it's a Cloudinary URL
+    if (request.verificationDocumentPath?.includes('cloudinary.com')) {
+      try {
+        const cloudinaryInfo = extractPublicIdFromUrl(request.verificationDocumentPath);
+        if (cloudinaryInfo) {
+          console.log('🗑️ Deleting document from Cloudinary:', cloudinaryInfo.publicId);
+          await deleteFromCloudinary(cloudinaryInfo.publicId, cloudinaryInfo.resourceType);
+          console.log('✅ Document deleted from Cloudinary');
+        }
+      } catch (cloudinaryError) {
+        console.error('⚠️ Failed to delete from Cloudinary:', cloudinaryError);
+        // Continue with rejection even if Cloudinary delete fails
+      }
+    }
+
+    // Store rejection info for logging before deletion
+    const rejectionInfo = {
+      walletAddress: request.walletAddress,
+      fullName: request.fullName,
+      email: request.email,
+      requestedRole: request.requestedRole,
+      rejectionReason: reason.trim(),
+      rejectedBy: adminWallet,
+      rejectedAt: new Date()
+    };
+
+    // Send rejection email notification BEFORE deleting the request
+    try {
+      await sendRejectionEmail({
+        to: request.email,
+        fullName: request.fullName,
+        role: request.requestedRole,
+        reason: reason.trim()
+      });
+      console.log('📧 Rejection email sent to:', request.email);
+    } catch (emailError) {
+      console.error('⚠️ Failed to send rejection email:', emailError);
+      // Continue even if email fails
+    }
+
+    // Delete the StakeholderRequest document from database
+    await StakeholderRequest.findByIdAndDelete(requestId);
+
+    console.log('🗑️ StakeholderRequest deleted:', rejectionInfo.walletAddress);
 
     res.json({
       success: true,
-      message: 'Request rejected',
-      request: {
-        walletAddress: request.walletAddress,
-        status: request.status,
-        rejectionReason: request.rejectionReason
-      }
+      message: 'Request rejected and removed from system',
+      rejection: rejectionInfo
     });
 
   } catch (error) {

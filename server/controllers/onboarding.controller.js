@@ -30,7 +30,7 @@ const VALID_ROLES = ['supplier', 'transporter', 'warehouse', 'retailer'];
  */
 const submitOnboardingRequest = async (req, res) => {
   try {
-    const { walletAddress, requestedRole, fullName, organizationName } = req.body;
+    const { walletAddress, requestedRole, fullName, email, organizationName, address, documentType } = req.body;
 
     // ========== VALIDATION ========== //
     
@@ -53,6 +53,22 @@ const submitOnboardingRequest = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Full name is required'
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required for notifications'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format'
       });
     }
 
@@ -144,8 +160,11 @@ const submitOnboardingRequest = async (req, res) => {
       console.log('📝 Updating rejected request for resubmission...');
       
       existingRequest.fullName = fullName.trim();
+      existingRequest.email = email.toLowerCase().trim();
       existingRequest.requestedRole = normalizedRole;
       existingRequest.organizationName = organizationName?.trim() || '';
+      existingRequest.address = address?.trim() || '';
+      existingRequest.documentType = documentType;
       existingRequest.verificationDocumentPath = verificationDocumentPath;
       existingRequest.status = 'PENDING';
       existingRequest.rejectionReason = null;
@@ -157,7 +176,7 @@ const submitOnboardingRequest = async (req, res) => {
 
       return res.status(201).json({
         success: true,
-        message: 'Signup request submitted successfully. Wait for admin approval.'
+        message: 'Signup request submitted successfully. You will receive an email when processed.'
       });
     }
 
@@ -166,7 +185,10 @@ const submitOnboardingRequest = async (req, res) => {
       walletAddress: normalizedWallet,
       requestedRole: normalizedRole,
       fullName: fullName.trim(),
+      email: email.toLowerCase().trim(),
       organizationName: organizationName?.trim() || '',
+      address: address?.trim() || '',
+      documentType: documentType,
       verificationDocumentPath: verificationDocumentPath,
       status: 'PENDING'
     });

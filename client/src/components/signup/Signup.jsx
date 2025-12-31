@@ -159,11 +159,23 @@ export default function Signup() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [wallet, setWallet] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [organizationName, setOrganizationName] = useState("");
+  const [address, setAddress] = useState("");
   const [role, setRole] = useState("");
   const [document, setDocument] = useState(null);
+  const [documentType, setDocumentType] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Document types for verification
+  const documentTypes = [
+    { id: "org_certificate", label: "Organization Registration Certificate" },
+    { id: "aadhaar", label: "Aadhaar Card" },
+    { id: "pan", label: "PAN Card" },
+    { id: "passport", label: "Passport" },
+    { id: "voter_id", label: "Voter ID Card" },
+  ];
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
@@ -194,12 +206,20 @@ export default function Signup() {
       return;
     }
 
+    if (!email) {
+      alert("Email is required for notifications");
+      return;
+    }
+
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("walletAddress", wallet);
     formData.append("fullName", name);
+    formData.append("email", email);
     formData.append("organizationName", organizationName);
+    formData.append("address", address);
     formData.append("requestedRole", role);
+    formData.append("documentType", documentType);
     formData.append("verificationDocument", document);
 
     try {
@@ -209,7 +229,7 @@ export default function Signup() {
       });
 
       if (response.ok) {
-        alert("Submitted! Wait for Admin Approval.");
+        alert("Submitted! You will receive an email when your request is processed.");
       } else {
         const errorData = await response.json();
         alert(errorData.message || "Registration failed. Please try again.");
@@ -510,6 +530,35 @@ export default function Signup() {
               />
             </div>
 
+            {/* Email Input */}
+            <div>
+              <label
+                className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
+                Email Address 
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                required
+                className={`
+                  w-full px-4 py-3 rounded-xl outline-none transition-all
+                  ${
+                    isDarkMode
+                      ? "bg-slate-800/50 border border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500"
+                      : "bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 shadow-sm"
+                  }
+                `}
+              />
+              <p className={`mt-1 text-xs ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                You'll receive approval/rejection updates on this email
+              </p>
+            </div>
+
             {/* Organization Name Input */}
             <div>
               <label
@@ -526,6 +575,31 @@ export default function Signup() {
                 placeholder="Enter your organization/company name"
                 className={`
                   w-full px-4 py-3 rounded-xl outline-none transition-all
+                  ${
+                    isDarkMode
+                      ? "bg-slate-800/50 border border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500"
+                      : "bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 shadow-sm"
+                  }
+                `}
+              />
+            </div>
+
+            {/* Address Input */}
+            <div>
+              <label
+                className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-slate-300" : "text-slate-700"
+                }`}
+              >
+                Address
+              </label>
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Enter your complete address"
+                rows={3}
+                className={`
+                  w-full px-4 py-3 rounded-xl outline-none transition-all resize-none
                   ${
                     isDarkMode
                       ? "bg-slate-800/50 border border-slate-700/50 text-white placeholder:text-slate-500 focus:border-blue-500"
@@ -639,6 +713,7 @@ export default function Signup() {
               >
                 <input
                   type="file"
+                  accept="image/jpeg,image/jpg,image/png"
                   required
                   onChange={(e) => setDocument(e.target.files[0])}
                   className="hidden"
@@ -692,23 +767,54 @@ export default function Signup() {
                           isDarkMode ? "text-slate-500" : "text-slate-400"
                         }`}
                       >
-                        PDF, JPG, PNG up to 10MB
+                        JPG, PNG up to 1MB
                       </p>
                     </>
                   )}
                 </div>
               </label>
+              
+              {/* Document Type Dropdown */}
+              <div className="mt-3">
+                <label
+                  className={`block text-sm font-medium mb-2 ${
+                    isDarkMode ? "text-slate-300" : "text-slate-700"
+                  }`}
+                >
+                  Uploaded Document Type
+                </label>
+                <select
+                  value={documentType}
+                  onChange={(e) => setDocumentType(e.target.value)}
+                  required
+                  className={`
+                    w-full px-4 py-3 rounded-xl outline-none transition-all cursor-pointer
+                    ${isDarkMode
+                      ? "bg-slate-800/50 border border-slate-700/50 text-white focus:border-blue-500"
+                      : "bg-white border border-slate-200 text-slate-900 focus:border-blue-500 shadow-sm"
+                    }
+                    ${!documentType && (isDarkMode ? "text-slate-500" : "text-slate-400")}
+                  `}
+                >
+                  <option value="" disabled>Select document type</option>
+                  {documentTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!wallet || !role || isSubmitting}
+              disabled={!wallet || !role || !documentType || isSubmitting}
               className={`
                 w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2
                 transition-all duration-200
                 ${
-                  wallet && role
+                  wallet && role && documentType
                     ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-lg hover:shadow-blue-500/25"
                     : isDarkMode
                     ? "bg-slate-800 text-slate-500 cursor-not-allowed"
