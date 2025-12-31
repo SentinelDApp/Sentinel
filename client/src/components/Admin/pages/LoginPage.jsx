@@ -45,7 +45,7 @@ const roleDisplayConfig = {
     color: "from-amber-500 to-orange-500",
     bgColor: "bg-amber-500/10",
     borderColor: "border-amber-500/30",
-    dashboard: "/admin/dashboard",
+    dashboard: "/warehouse/dashboard",
   },
   retailer: {
     title: "Retailer",

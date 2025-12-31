@@ -85,7 +85,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/warehouse/dashboard",
-    element: <WarehouseApp />
+    element: (
+      <ProtectedRoute allowedRoles={['warehouse']}>
+        <WarehouseApp />
+      </ProtectedRoute>
+    )
   },
 
   // ============================================

@@ -47,7 +47,7 @@ const ProtectedRoute = ({
         admin: '/admin/dashboard',
         supplier: '/supplier/dashboard',
         transporter: '/transporter/dashboard',
-        warehouse: '/admin/dashboard',
+        warehouse: '/warehouse/dashboard',
         retailer: '/retailer/dashboard'
       };
       
