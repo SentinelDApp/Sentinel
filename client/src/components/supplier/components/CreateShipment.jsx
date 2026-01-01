@@ -7,6 +7,15 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import QRCodeDisplay from './QRCodeDisplay';
 
+// Mock warehouse data
+const WAREHOUSES = [
+  { warehouseId: "WH-01", name: "Mumbai Warehouse", status: "AVAILABLE", address: "Andheri East" },
+  { warehouseId: "WH-02", name: "Delhi Warehouse", status: "NOT_AVAILABLE", unavailableReason: "Full capacity" },
+  { warehouseId: "WH-03", name: "Bengaluru Warehouse", status: "AVAILABLE", address: "Whitefield" },
+  { warehouseId: "WH-04", name: "Chennai Warehouse", status: "NOT_AVAILABLE", unavailableReason: "Maintenance" },
+  { warehouseId: "WH-05", name: "Pune Warehouse", status: "AVAILABLE", address: "Hinjewadi" }
+];
+
 
 const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   const { user } = useAuth();
@@ -16,6 +25,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
     quantity: '',
     unit: 'units',
     transporterId: '',
+    warehouseId: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdShipment, setCreatedShipment] = useState(null); // Holds shipment data after creation
@@ -27,7 +37,12 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.productName || !formData.quantity || !formData.batchId) return;
+    // Validate required fields including warehouse selection
+    if (!formData.productName || !formData.quantity || !formData.batchId || !formData.warehouseId) return;
+    
+    // Ensure selected warehouse is available
+    const selectedWarehouse = WAREHOUSES.find(w => w.warehouseId === formData.warehouseId);
+    if (!selectedWarehouse || selectedWarehouse.status !== 'AVAILABLE') return;
 
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -39,7 +54,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
       formData.batchId, 
       supplierWallet
     );
-
+    
     const newShipment = {
       id: shipmentId,
       batchId: formData.batchId,
@@ -50,6 +65,9 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
       transporterName: formData.transporterId 
         ? TRANSPORTER_AGENCIES.find(t => t.id === formData.transporterId)?.name 
         : null,
+      warehouseId: formData.warehouseId,
+      warehouseName: selectedWarehouse?.name || null,
+      warehouseAddress: selectedWarehouse?.address || null,
       supplierWallet: supplierWallet,
       status: SHIPMENT_STATUSES.CREATED,
       createdAt: Date.now(),
@@ -65,7 +83,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   // Reset form to create another shipment
   const handleCreateAnother = () => {
     setCreatedShipment(null);
-    setFormData({ productName: '', batchId: '', quantity: '', unit: 'units', transporterId: '' });
+    setFormData({ productName: '', batchId: '', quantity: '', unit: 'units', transporterId: '', warehouseId: '' });
   };
 
   const inputClass = `w-full border rounded-xl py-3 px-4 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
@@ -279,6 +297,39 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
           </div>
         </div>
 
+        {/* Warehouse Selection */}
+        <div>
+          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Destination Warehouse <span className="text-red-400">*</span>
+          </label>
+          <select
+            name="warehouseId"
+            value={formData.warehouseId}
+            onChange={(e) => {
+              const warehouse = WAREHOUSES.find(w => w.warehouseId === e.target.value);
+              // Only allow selection of available warehouses
+              if (!warehouse || warehouse.status === 'AVAILABLE') {
+                handleChange(e);
+              }
+            }}
+            required
+            className={inputClass}
+          >
+            <option value="" className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>-- Select Warehouse --</option>
+            {WAREHOUSES.map(warehouse => (
+              <option 
+                key={warehouse.warehouseId} 
+                value={warehouse.warehouseId} 
+                disabled={warehouse.status === 'NOT_AVAILABLE'}
+                className={`${isDarkMode ? 'bg-slate-800' : 'bg-white'} ${warehouse.status === 'NOT_AVAILABLE' ? 'text-red-400' : 'text-green-400'}`}
+              >
+              {warehouse.name} • {warehouse.address || 'N/A'}
+                {warehouse.status === 'NOT_AVAILABLE' ? ` (${warehouse.unavailableReason})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Transporter Selection */}
         <div>
           <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -322,7 +373,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
 
         <button
           type="submit"
-          disabled={isSubmitting || !formData.productName || !formData.quantity || !formData.batchId}
+          disabled={isSubmitting || !formData.productName || !formData.quantity || !formData.batchId || !formData.warehouseId}
           className="w-full py-3 bg-linear-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
