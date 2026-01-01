@@ -28,16 +28,19 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
   const [showProfile, setShowProfile] = useState(false);
 
   // Get user display info from auth context
-  const displayName = user?.fullName || user?.businessName || 'Retailer';
-  const displayId = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '';
+  const displayName = user?.fullName || user?.businessName || "Retailer";
+  const displayId = walletAddress
+    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    : "";
 
   return (
     <header
       className={`
         backdrop-blur-xl border-b sticky top-0 z-30 px-4 lg:px-6 py-4 transition-colors duration-200
-        ${isDarkMode
-          ? "bg-slate-900/80 border-slate-700/50"
-          : "bg-white/80 border-slate-200"
+        ${
+          isDarkMode
+            ? "bg-slate-900/80 border-slate-700/50"
+            : "bg-white/80 border-slate-200"
         }
       `}
     >
@@ -49,9 +52,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
             onClick={onMenuClick}
             className={`
               lg:hidden p-2 rounded-xl transition-colors
-              ${isDarkMode
-                ? "text-slate-400 hover:text-white hover:bg-slate-800"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              ${
+                isDarkMode
+                  ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               }
             `}
           >
@@ -69,32 +73,42 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
             <div
               className={`
                 flex items-center gap-2 px-4 py-2.5 rounded-xl w-80
-                ${isDarkMode
-                  ? "bg-slate-800/50 border border-slate-700/50"
-                  : "bg-slate-100 border border-slate-200"
+                ${
+                  isDarkMode
+                    ? "bg-slate-800/50 border border-slate-700/50"
+                    : "bg-slate-100 border border-slate-200"
                 }
               `}
             >
               <SearchIcon
-                className={`w-5 h-5 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+                className={`w-5 h-5 ${
+                  isDarkMode ? "text-slate-500" : "text-slate-400"
+                }`}
               />
               <input
                 type="text"
                 placeholder="Search shipments, products..."
                 value={searchQuery || ""}
-                onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
+                onChange={(e) =>
+                  setSearchQuery && setSearchQuery(e.target.value)
+                }
                 className={`
                   bg-transparent outline-none w-full text-sm
-                  ${isDarkMode
-                    ? "text-white placeholder:text-slate-500"
-                    : "text-slate-900 placeholder:text-slate-400"
+                  ${
+                    isDarkMode
+                      ? "text-white placeholder:text-slate-500"
+                      : "text-slate-900 placeholder:text-slate-400"
                   }
                 `}
               />
               <kbd
                 className={`
                   hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded text-xs
-                  ${isDarkMode ? "bg-slate-700 text-slate-400" : "bg-slate-200 text-slate-500"}
+                  ${
+                    isDarkMode
+                      ? "bg-slate-700 text-slate-400"
+                      : "bg-slate-200 text-slate-500"
+                  }
                 `}
               >
                 ⌘K
@@ -109,9 +123,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
           <div
             className={`
               hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium
-              ${isDarkMode
-                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
-                : "bg-cyan-50 text-cyan-600 border border-cyan-200"
+              ${
+                isDarkMode
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
+                  : "bg-cyan-50 text-cyan-600 border border-cyan-200"
               }
             `}
           >
@@ -124,13 +139,18 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
             onClick={toggleTheme}
             className={`
               p-2.5 rounded-xl transition-all duration-200
-              ${isDarkMode
-                ? "text-slate-400 hover:text-yellow-400 hover:bg-slate-800"
-                : "text-slate-600 hover:text-amber-500 hover:bg-slate-100"
+              ${
+                isDarkMode
+                  ? "text-slate-400 hover:text-yellow-400 hover:bg-slate-800"
+                  : "text-slate-600 hover:text-amber-500 hover:bg-slate-100"
               }
             `}
           >
-            {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+            {isDarkMode ? (
+              <SunIcon className="w-5 h-5" />
+            ) : (
+              <MoonIcon className="w-5 h-5" />
+            )}
           </button>
 
           {/* Notifications */}
@@ -142,9 +162,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
               }}
               className={`
                 relative p-2.5 rounded-xl transition-all duration-200
-                ${isDarkMode
-                  ? "text-slate-400 hover:text-white hover:bg-slate-800"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                ${
+                  isDarkMode
+                    ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 }
               `}
             >
@@ -161,16 +182,23 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
               <div
                 className={`
                   absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl border overflow-hidden z-50
-                  ${isDarkMode
-                    ? "bg-slate-800 border-slate-700"
-                    : "bg-white border-slate-200"
+                  ${
+                    isDarkMode
+                      ? "bg-slate-800 border-slate-700"
+                      : "bg-white border-slate-200"
                   }
                 `}
               >
                 <div
-                  className={`px-4 py-3 border-b ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}
+                  className={`px-4 py-3 border-b ${
+                    isDarkMode ? "border-slate-700" : "border-slate-200"
+                  }`}
                 >
-                  <h3 className={`font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>
+                  <h3
+                    className={`font-semibold ${
+                      isDarkMode ? "text-white" : "text-slate-900"
+                    }`}
+                  >
                     Notifications
                   </h3>
                 </div>
@@ -180,27 +208,40 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                       key={notification.id}
                       className={`
                         px-4 py-3 border-b last:border-0 cursor-pointer transition-colors
-                        ${isDarkMode
-                          ? "border-slate-700/50 hover:bg-slate-700/50"
-                          : "border-slate-100 hover:bg-slate-50"
+                        ${
+                          isDarkMode
+                            ? "border-slate-700/50 hover:bg-slate-700/50"
+                            : "border-slate-100 hover:bg-slate-50"
                         }
                       `}
                     >
-                      <p className={`text-sm ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                      <p
+                        className={`text-sm ${
+                          isDarkMode ? "text-slate-200" : "text-slate-700"
+                        }`}
+                      >
                         {notification.title}
                       </p>
-                      <p className={`text-xs mt-1 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                      <p
+                        className={`text-xs mt-1 ${
+                          isDarkMode ? "text-slate-500" : "text-slate-400"
+                        }`}
+                      >
                         {notification.time}
                       </p>
                     </div>
                   ))}
                 </div>
                 <div
-                  className={`px-4 py-2 border-t ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}
+                  className={`px-4 py-2 border-t ${
+                    isDarkMode ? "border-slate-700" : "border-slate-200"
+                  }`}
                 >
                   <button
                     className={`w-full text-center text-sm font-medium py-1 ${
-                      isDarkMode ? "text-cyan-400 hover:text-cyan-300" : "text-cyan-600 hover:text-cyan-700"
+                      isDarkMode
+                        ? "text-cyan-400 hover:text-cyan-300"
+                        : "text-cyan-600 hover:text-cyan-700"
                     }`}
                   >
                     View all notifications
@@ -219,10 +260,7 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
               }}
               className={`
                 flex items-center gap-2 p-1.5 pr-3 rounded-xl transition-all duration-200
-                ${isDarkMode
-                  ? "hover:bg-slate-800"
-                  : "hover:bg-slate-100"
-                }
+                ${isDarkMode ? "hover:bg-slate-800" : "hover:bg-slate-100"}
               `}
             >
               <div
@@ -231,10 +269,16 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                   ${isDarkMode ? "bg-slate-700" : "bg-blue-100"}
                 `}
               >
-                <UserIcon className={`w-5 h-5 ${isDarkMode ? "text-slate-300" : "text-blue-600"}`} />
+                <UserIcon
+                  className={`w-5 h-5 ${
+                    isDarkMode ? "text-slate-300" : "text-blue-600"
+                  }`}
+                />
               </div>
               <ChevronDownIcon
-                className={`w-4 h-4 hidden sm:block ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+                className={`w-4 h-4 hidden sm:block ${
+                  isDarkMode ? "text-slate-500" : "text-slate-400"
+                }`}
               />
             </button>
 
@@ -243,27 +287,45 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
               <div
                 className={`
                   absolute right-0 mt-2 w-56 rounded-2xl shadow-2xl border overflow-hidden z-50
-                  ${isDarkMode
-                    ? "bg-slate-800 border-slate-700"
-                    : "bg-white border-slate-200"
+                  ${
+                    isDarkMode
+                      ? "bg-slate-800 border-slate-700"
+                      : "bg-white border-slate-200"
                   }
                 `}
               >
-                <div className={`px-4 py-3 border-b ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
-                  <p className={`font-semibold ${isDarkMode ? "text-white" : "text-slate-900"}`}>
+                <div
+                  className={`px-4 py-3 border-b ${
+                    isDarkMode ? "border-slate-700" : "border-slate-200"
+                  }`}
+                >
+                  <p
+                    className={`font-semibold ${
+                      isDarkMode ? "text-white" : "text-slate-900"
+                    }`}
+                  >
                     {displayName}
                   </p>
-                  <p className={`text-xs mt-0.5 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                  <p
+                    className={`text-xs mt-0.5 ${
+                      isDarkMode ? "text-slate-500" : "text-slate-400"
+                    }`}
+                  >
                     {displayId}
                   </p>
                 </div>
                 <div className="py-2">
                   <button
+                    onClick={() => {
+                      navigate("/retailer/profile-settings");
+                      setShowProfile(false);
+                    }}
                     className={`
                       w-full text-left px-4 py-2 text-sm transition-colors
-                      ${isDarkMode
-                        ? "text-slate-300 hover:bg-slate-700/50"
-                        : "text-slate-700 hover:bg-slate-50"
+                      ${
+                        isDarkMode
+                          ? "text-slate-300 hover:bg-slate-700/50"
+                          : "text-slate-700 hover:bg-slate-50"
                       }
                     `}
                   >
@@ -272,9 +334,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                   <button
                     className={`
                       w-full text-left px-4 py-2 text-sm transition-colors
-                      ${isDarkMode
-                        ? "text-slate-300 hover:bg-slate-700/50"
-                        : "text-slate-700 hover:bg-slate-50"
+                      ${
+                        isDarkMode
+                          ? "text-slate-300 hover:bg-slate-700/50"
+                          : "text-slate-700 hover:bg-slate-50"
                       }
                     `}
                   >
@@ -283,13 +346,14 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                   <button
                     onClick={() => {
                       logout();
-                      navigate('/login');
+                      navigate("/login");
                     }}
                     className={`
                       w-full text-left px-4 py-2 text-sm transition-colors
-                      ${isDarkMode
-                        ? "text-red-400 hover:bg-slate-700/50"
-                        : "text-red-600 hover:bg-slate-50"
+                      ${
+                        isDarkMode
+                          ? "text-red-400 hover:bg-slate-700/50"
+                          : "text-red-600 hover:bg-slate-50"
                       }
                     `}
                   >
