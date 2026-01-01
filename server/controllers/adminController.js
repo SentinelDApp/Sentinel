@@ -16,31 +16,82 @@ const { sendApprovalEmail, sendRejectionEmail } = require('../utils/emailService
 /**
  * GET ALL REQUESTS
  * 
- * Fetches all stakeholder requests for admin dashboard
- * Supports filtering by status
+ * Fetches stakeholder requests for admin dashboard:
+ * - PENDING requests from StakeholderRequests model
+ * - APPROVED users from Users model (excluding admins)
  * 
  * @route GET /api/admin/requests
- * @query status - Filter by: PENDING, APPROVED, REJECTED, or all
+ * @query status - Filter by: PENDING, APPROVED, or all
  * @protected - Requires admin role
  */
 exports.getAllRequests = async (req, res) => {
   try {
     const { status } = req.query;
+    const normalizedStatus = status?.toUpperCase();
     
-    // Build filter
-    const filter = {};
-    if (status && status !== 'all') {
-      filter.status = status.toUpperCase();
+    let results = [];
+
+    // Fetch PENDING requests from StakeholderRequests
+    if (!status || status === 'all' || normalizedStatus === 'PENDING') {
+      const pendingRequests = await StakeholderRequest.find({ status: 'PENDING' })
+        .sort({ createdAt: -1 })
+        .select('-__v');
+      
+      // Map to consistent format
+      const formattedPending = pendingRequests.map(req => ({
+        _id: req._id,
+        walletAddress: req.walletAddress,
+        requestedRole: req.requestedRole,
+        fullName: req.fullName,
+        email: req.email,
+        organizationName: req.organizationName,
+        address: req.address,
+        documentType: req.documentType,
+        verificationDocumentPath: req.verificationDocumentPath,
+        status: 'PENDING',
+        createdAt: req.createdAt,
+        updatedAt: req.updatedAt,
+        source: 'stakeholderRequest'
+      }));
+      
+      results = [...results, ...formattedPending];
     }
 
-    const requests = await StakeholderRequest.find(filter)
-      .sort({ createdAt: -1 })
-      .select('-__v');
+    // Fetch APPROVED users from Users model (excluding admins)
+    if (!status || status === 'all' || normalizedStatus === 'APPROVED') {
+      const approvedUsers = await User.find({ 
+        role: { $ne: 'admin' },
+        status: 'ACTIVE'
+      })
+        .sort({ approvedAt: -1 })
+        .select('-nonce -__v');
+      
+      // Map to consistent format matching request structure
+      const formattedApproved = approvedUsers.map(user => ({
+        _id: user._id,
+        walletAddress: user.walletAddress,
+        requestedRole: user.role,
+        fullName: user.fullName,
+        email: user.email,
+        organizationName: user.organizationName,
+        address: user.address,
+        status: 'APPROVED',
+        createdAt: user.approvedAt || user.createdAt,
+        approvedAt: user.approvedAt,
+        approvedBy: user.approvedBy,
+        source: 'user'
+      }));
+      
+      results = [...results, ...formattedApproved];
+    }
+
+    // Sort combined results by date (newest first)
+    results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({
       success: true,
-      count: requests.length,
-      requests
+      count: results.length,
+      requests: results
     });
 
   } catch (error) {
@@ -146,20 +197,13 @@ exports.approveRequest = async (req, res) => {
       email: request.email,
       organizationName: request.organizationName || '',
       address: request.address || '',
-      stakeholderRequestId: request._id,
       approvedAt: new Date(),
       approvedBy: adminWallet
     });
 
     await newUser.save();
 
-    // Update request status to APPROVED
-    request.status = 'APPROVED';
-    request.processedBy = adminWallet;
-    request.processedAt = new Date();
-    await request.save();
-
-    // Send approval email notification
+    // Send approval email notification before deleting the request
     try {
       await sendApprovalEmail({
         to: request.email,
@@ -172,6 +216,10 @@ exports.approveRequest = async (req, res) => {
       console.error('⚠️ Failed to send approval email:', emailError);
       // Continue even if email fails - user is still approved
     }
+
+    // Delete the StakeholderRequest since user is now in Users model
+    await StakeholderRequest.findByIdAndDelete(requestId);
+    console.log('✅ StakeholderRequest removed after approval:', request.walletAddress);
 
     res.json({
       success: true,
@@ -309,17 +357,22 @@ exports.rejectRequest = async (req, res) => {
  * GET DASHBOARD STATS
  * 
  * Returns statistics for admin dashboard
+ * - Pending requests from StakeholderRequests
+ * - Approved count from Users model (non-admin)
  * 
  * @route GET /api/admin/stats
  * @protected - Requires admin role
  */
 exports.getStats = async (req, res) => {
   try {
-    // Request stats
-    const totalRequests = await StakeholderRequest.countDocuments();
+    // Pending requests from StakeholderRequests (only pending are stored here now)
     const pendingRequests = await StakeholderRequest.countDocuments({ status: 'PENDING' });
-    const approvedRequests = await StakeholderRequest.countDocuments({ status: 'APPROVED' });
-    const rejectedRequests = await StakeholderRequest.countDocuments({ status: 'REJECTED' });
+    
+    // Approved users from Users model (excluding admins)
+    const approvedUsers = await User.countDocuments({ role: { $ne: 'admin' } });
+    
+    // Total = pending + approved (rejected are removed from system)
+    const totalRequests = pendingRequests + approvedUsers;
 
     // User stats
     const totalUsers = await User.countDocuments();
@@ -333,11 +386,30 @@ exports.getStats = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
-    // Recent requests (last 5)
-    const recentRequests = await StakeholderRequest.find()
+    // Recent activity: combine pending requests and recent approvals
+    const recentPending = await StakeholderRequest.find({ status: 'PENDING' })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('walletAddress fullName requestedRole status createdAt');
+    
+    const recentApproved = await User.find({ role: { $ne: 'admin' } })
+      .sort({ approvedAt: -1 })
+      .limit(5)
+      .select('walletAddress fullName role approvedAt');
+    
+    // Format recent approved to match request structure
+    const formattedApproved = recentApproved.map(user => ({
+      walletAddress: user.walletAddress,
+      fullName: user.fullName,
+      requestedRole: user.role,
+      status: 'APPROVED',
+      createdAt: user.approvedAt
+    }));
+    
+    // Combine and sort by date
+    const recentRequests = [...recentPending.map(r => r.toObject()), ...formattedApproved]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5);
 
     res.json({
       success: true,
@@ -345,8 +417,8 @@ exports.getStats = async (req, res) => {
         requests: {
           total: totalRequests,
           pending: pendingRequests,
-          approved: approvedRequests,
-          rejected: rejectedRequests
+          approved: approvedUsers,
+          rejected: 0 // Rejected requests are deleted from system
         },
         users: {
           total: totalUsers,
