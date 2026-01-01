@@ -6,43 +6,8 @@ const IncomingShipmentsTable = ({ onSelectShipment }) => {
   const { isDarkMode } = useTheme();
   const [selectedRow, setSelectedRow] = useState(null);
 
-  const shipments = [
-    {
-      id: "SHP-2024-001",
-      source: "Delhi Manufacturing Hub",
-      transporter: "FastTrack Logistics",
-      eta: "2024-12-30 14:30",
-      status: "Arrived",
-    },
-    {
-      id: "SHP-2024-002",
-      source: "Gujarat Factory",
-      transporter: "SpeedLine Transport",
-      eta: "2024-12-30 16:00",
-      status: "Pending",
-    },
-    {
-      id: "SHP-2024-003",
-      source: "Bangalore Production",
-      transporter: "SecureMove Ltd",
-      eta: "2024-12-30 18:30",
-      status: "Delayed",
-    },
-    {
-      id: "SHP-2024-004",
-      source: "Chennai Supplier",
-      transporter: "QuickShip Express",
-      eta: "2024-12-31 09:00",
-      status: "Pending",
-    },
-    {
-      id: "SHP-2024-005",
-      source: "Pune Distribution",
-      transporter: "TrustFreight Inc",
-      eta: "2024-12-31 11:30",
-      status: "Pending",
-    },
-  ];
+  // Empty array - no dummy data
+  const shipments = [];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -111,6 +76,13 @@ const IncomingShipmentsTable = ({ onSelectShipment }) => {
 
       {/* Table */}
       <div className="overflow-x-auto">
+        {shipments.length === 0 ? (
+          <div className={`p-12 text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+            <TruckIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-1">No incoming shipments</p>
+            <p className="text-sm">Shipments will appear here when they are in transit</p>
+          </div>
+        ) : (
         <table className="w-full">
           <thead>
             <tr className={isDarkMode ? "bg-slate-800/50" : "bg-slate-50"}>
@@ -201,6 +173,7 @@ const IncomingShipmentsTable = ({ onSelectShipment }) => {
             ))}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );

@@ -16,12 +16,10 @@ const QRScanner = ({ onScanComplete, isDarkMode }) => {
 
   const simulateScan = () => {
     setIsScanning(true);
-    // Simulate scanning delay
+    // Simulate scanning delay - in production this will use actual QR scanner
     setTimeout(() => {
-      const mockShipmentIds = ['SHP-W001', 'SHP-W002', 'SHP-W003', 'SHP-W004', 'SHP-W005'];
-      const randomId = mockShipmentIds[Math.floor(Math.random() * mockShipmentIds.length)];
-      setScanResult(randomId);
-      onScanComplete?.(randomId);
+      // Return empty result - actual scanning will provide real shipment IDs
+      setScanResult(null);
       setIsScanning(false);
     }, 1500);
   };
