@@ -1,17 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   TRANSPORTER_AGENCIES, 
-  PRODUCT_SUGGESTIONS,
   generateShipmentId, 
-  suggestNextBatchId,
-  isBatchIdDuplicate,
-  DEMO_SUPPLIER_WALLET,
   SHIPMENT_STATUSES 
 } from '../constants';
+import { useAuth } from '../../../context/AuthContext';
 import QRCodeDisplay from './QRCodeDisplay';
 
 
 const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     productName: '',
     batchId: '',
@@ -19,66 +17,27 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
     unit: 'units',
     transporterId: '',
   });
-  const [suggestedBatchId, setSuggestedBatchId] = useState('');
-  const [batchIdError, setBatchIdError] = useState('');
-  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdShipment, setCreatedShipment] = useState(null); // Holds shipment data after creation
-
-  // Update batch ID suggestion when product changes
-  useEffect(() => {
-    if (formData.productName) {
-      const suggestion = suggestNextBatchId(formData.productName);
-      setSuggestedBatchId(suggestion);
-    } else {
-      setSuggestedBatchId('');
-    }
-  }, [formData.productName]);
-
-  // Validate batch ID for duplicates
-  useEffect(() => {
-    if (formData.batchId && formData.productName) {
-      if (isBatchIdDuplicate(formData.productName, formData.batchId)) {
-        setBatchIdError('This Batch ID already exists for this product');
-      } else {
-        setBatchIdError('');
-      }
-    } else {
-      setBatchIdError('');
-    }
-  }, [formData.batchId, formData.productName]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (name === 'productName') {
-      setShowProductSuggestions(true);
-    }
-  };
-
-  const handleProductSelect = (productName) => {
-    setFormData(prev => ({ ...prev, productName }));
-    setShowProductSuggestions(false);
-  };
-
-  const useSuggestedBatchId = () => {
-    setFormData(prev => ({ ...prev, batchId: suggestedBatchId }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.productName || !formData.quantity || !formData.batchId) return;
-    if (batchIdError) return;
 
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Generate cryptographic shipment ID
+    const supplierWallet = user?.walletAddress || user?.id || 'supplier';
     const shipmentId = generateShipmentId(
       formData.productName, 
       formData.batchId, 
-      DEMO_SUPPLIER_WALLET.address
+      supplierWallet
     );
 
     const newShipment = {
@@ -91,7 +50,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
       transporterName: formData.transporterId 
         ? TRANSPORTER_AGENCIES.find(t => t.id === formData.transporterId)?.name 
         : null,
-      supplierWallet: DEMO_SUPPLIER_WALLET.address,
+      supplierWallet: supplierWallet,
       status: SHIPMENT_STATUSES.CREATED,
       createdAt: Date.now(),
       metadata: null,
@@ -107,22 +66,12 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   const handleCreateAnother = () => {
     setCreatedShipment(null);
     setFormData({ productName: '', batchId: '', quantity: '', unit: 'units', transporterId: '' });
-    setSuggestedBatchId('');
   };
-
-  const filteredProducts = PRODUCT_SUGGESTIONS.filter(p => 
-    p.toLowerCase().includes(formData.productName.toLowerCase())
-  );
 
   const inputClass = `w-full border rounded-xl py-3 px-4 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
     isDarkMode 
       ? 'bg-slate-800/50 border-slate-700 text-slate-50 focus:border-blue-500 focus:ring-blue-500/20' 
       : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-blue-500/20'
-  }`;
-  const inputErrorClass = `w-full border rounded-xl py-3 px-4 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
-    isDarkMode 
-      ? 'bg-slate-800/50 border-red-500 text-slate-50 focus:border-red-500 focus:ring-red-500/20' 
-      : 'bg-white border-red-500 text-slate-900 focus:border-red-500 focus:ring-red-500/20'
   }`;
 
   // Success State: Show QR Code after shipment creation
@@ -265,8 +214,8 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Product Name with Suggestions */}
-        <div className="relative">
+        {/* Product Name */}
+        <div>
           <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
             Product Name <span className="text-red-400">*</span>
           </label>
@@ -275,83 +224,27 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
             name="productName"
             value={formData.productName}
             onChange={handleChange}
-            onFocus={() => setShowProductSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
             required
             placeholder="e.g., Organic Olive Oil"
             autoComplete="off"
             className={inputClass}
           />
-          
-          {/* Product Suggestions Dropdown */}
-          {showProductSuggestions && formData.productName && filteredProducts.length > 0 && (
-            <div className={`
-              absolute z-10 w-full mt-1 border rounded-xl shadow-lg max-h-48 overflow-y-auto
-              ${isDarkMode 
-                ? 'bg-slate-800 border-slate-700' 
-                : 'bg-white border-slate-200'
-              }
-            `}>
-              {filteredProducts.map(product => (
-                <button
-                  key={product}
-                  type="button"
-                  onClick={() => handleProductSelect(product)}
-                  className={`
-                    w-full px-4 py-2 text-left first:rounded-t-xl last:rounded-b-xl transition-colors
-                    ${isDarkMode 
-                      ? 'text-slate-200 hover:bg-slate-700' 
-                      : 'text-slate-700 hover:bg-slate-50'
-                    }
-                  `}
-                >
-                  {product}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Batch ID with Suggestion */}
+        {/* Batch ID */}
         <div>
           <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
             Batch ID <span className="text-red-400">*</span>
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              name="batchId"
-              value={formData.batchId}
-              onChange={handleChange}
-              required
-              placeholder="e.g., OOO-2024-004"
-              className={batchIdError ? inputErrorClass : inputClass}
-            />
-          </div>
-          
-          {/* Batch ID Suggestion */}
-          {suggestedBatchId && !formData.batchId && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Suggested:</span>
-              <button
-                type="button"
-                onClick={useSuggestedBatchId}
-                className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
-              >
-                {suggestedBatchId}
-              </button>
-            </div>
-          )}
-          
-          {/* Error Message */}
-          {batchIdError && (
-            <p className="mt-2 text-xs text-red-400 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {batchIdError}
-            </p>
-          )}
+          <input
+            type="text"
+            name="batchId"
+            value={formData.batchId}
+            onChange={handleChange}
+            required
+            placeholder="e.g., BATCH-2024-001"
+            className={inputClass}
+          />
         </div>
 
         {/* Quantity and Unit */}
@@ -410,7 +303,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
         </div>
 
         {/* Preview Info */}
-        {formData.productName && formData.batchId && !batchIdError && (
+        {formData.productName && formData.batchId && (
           <div className={`
             border rounded-xl p-4
             ${isDarkMode 
@@ -429,7 +322,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
 
         <button
           type="submit"
-          disabled={isSubmitting || !formData.productName || !formData.quantity || !formData.batchId || batchIdError}
+          disabled={isSubmitting || !formData.productName || !formData.quantity || !formData.batchId}
           className="w-full py-3 bg-linear-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (

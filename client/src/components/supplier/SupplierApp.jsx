@@ -8,7 +8,6 @@ import ShipmentActions from './components/ShipmentActions';
 import ShipmentDetails from './components/ShipmentDetails';
 import UploadMetadata from './components/UploadMetadata';
 import { 
-  DEMO_SHIPMENTS, 
   SHIPMENT_STATUSES,
   STATUS_COLORS,
   CONCERN_STATUS,
@@ -69,7 +68,7 @@ const NavigationTabs = ({ activeTab, setActiveTab, shipmentsWithConcerns, isDark
 // Main Supplier Dashboard Content
 const SupplierDashboardContent = () => {
   const { isDarkMode } = useSupplierTheme();
-  const [shipments, setShipments] = useState(DEMO_SHIPMENTS);
+  const [shipments, setShipments] = useState([]);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewingShipmentDetails, setViewingShipmentDetails] = useState(null);

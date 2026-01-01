@@ -18,12 +18,9 @@ const Header = ({ searchQuery, setSearchQuery }) => {
   const { logout } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const { user } = useAuth();
 
-  const notifications = [
-    { id: 1, title: 'Shipment SHP-001 picked up', time: '5 min ago', type: 'success' },
-    { id: 2, title: 'New concern raised on SHP-003', time: '1 hour ago', type: 'warning' },
-    { id: 3, title: 'Transporter assigned to SHP-002', time: '3 hours ago', type: 'info' },
-  ];
+  const notifications = [];
 
   return (
     <header className={`
@@ -187,8 +184,7 @@ const Header = ({ searchQuery, setSearchQuery }) => {
                 ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'}
               `}>
                 <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-                  <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>John Doe</p>
-                  <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>john@sentinel.io</p>
+                  <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{user?.fullName || 'User'}</p>
                 </div>
                 <div className="p-2">
                   {['Profile', 'Settings', 'Help'].map((item) => (
