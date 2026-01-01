@@ -33,12 +33,9 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
 
   const metrics = [
     { 
-      label: 'Total Products', 
-      value: '12,847', 
-      subtext: '+234 this week',
-      trend: '↑ 12%',
-      trendUp: true,
-      trendLabel: 'vs last month',
+      label: 'Total Shipments', 
+      value: totalShipments.toString(), 
+      subtext: 'All shipments',
       icon: BoxIcon,
       iconBg: isDarkMode ? 'bg-blue-500/20' : 'bg-blue-100',
       iconColor: 'text-blue-500',
@@ -48,9 +45,6 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
       label: 'Active Shipments', 
       value: activeShipments.toString(), 
       subtext: `${inTransitCount} in transit`,
-      trend: '↑ 8%',
-      trendUp: true,
-      trendLabel: 'vs last month',
       icon: TruckIcon,
       iconBg: isDarkMode ? 'bg-amber-500/20' : 'bg-amber-100',
       iconColor: 'text-amber-500',
@@ -58,11 +52,8 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
     },
     { 
       label: 'Delivered', 
-      value: deliveredCount > 0 ? `${deliveredCount},234` : '1,234',
-      subtext: 'This month',
-      trend: '↑ 23%',
-      trendUp: true,
-      trendLabel: 'vs last month',
+      value: deliveredCount.toString(),
+      subtext: 'Completed',
       icon: CheckCircleIcon,
       iconBg: isDarkMode ? 'bg-green-500/20' : 'bg-green-100',
       iconColor: 'text-green-500',
@@ -70,11 +61,8 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
     },
     { 
       label: 'Alerts', 
-      value: concernsCount.toString() || '3', 
+      value: concernsCount.toString(), 
       subtext: 'Requires attention',
-      trend: '↓ 5%',
-      trendUp: false,
-      trendLabel: 'vs last month',
       icon: AlertTriangleIcon,
       iconBg: isDarkMode ? 'bg-red-500/20' : 'bg-red-100',
       iconColor: 'text-red-500',
@@ -136,22 +124,9 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
               <p className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 {metric.value}
               </p>
-              <p className={`text-sm mb-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+              <p className={`text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                 {metric.subtext}
               </p>
-              
-              <div className="flex items-center gap-2 text-sm">
-                <span className={`font-medium px-2 py-0.5 rounded ${
-                  metric.trendUp 
-                    ? isDarkMode ? 'text-green-400 bg-green-500/20' : 'text-green-600 bg-green-100' 
-                    : isDarkMode ? 'text-red-400 bg-red-500/20' : 'text-red-600 bg-red-100'
-                }`}>
-                  {metric.trend}
-                </span>
-                <span className={isDarkMode ? 'text-slate-500' : 'text-slate-500'}>
-                  {metric.trendLabel}
-                </span>
-              </div>
             </div>
           );
         })}
