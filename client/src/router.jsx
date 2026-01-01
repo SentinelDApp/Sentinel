@@ -12,7 +12,10 @@ import LoginPage from "./components/Admin/pages/LoginPage";
 // Dashboard Pages
 import { SupplierApp } from "./components/supplier";
 import { WarehouseApp } from "./components/warehouse";
-import { RetailerApp, ProfileSettingsPage as RetailerProfileSettingsPage } from "./components/retailer";
+import {
+  RetailerApp,
+  ProfileSettingsPage as RetailerProfileSettingsPage,
+} from "./components/retailer";
 import { TransporterApp } from "./components/Transporter";
 
 // Admin App (includes layout with sidebar)
@@ -70,43 +73,43 @@ export const router = createBrowserRouter([
       {
         path: "/supplier/dashboard",
         element: (
-          <ProtectedRoute allowedRoles={['supplier']}>
+          <ProtectedRoute allowedRoles={["supplier"]}>
             <SupplierApp />
           </ProtectedRoute>
         ),
       },
 
-  // ============================================
-  // Warehouse Routes
-  // ============================================
-  {
-    path: "/warehouse",
-    element: <Navigate to="/warehouse/dashboard" replace />,
-  },
-  {
-    path: "/warehouse/dashboard",
-    element: (
-      <ProtectedRoute allowedRoles={['warehouse']}>
-        <WarehouseApp />
-      </ProtectedRoute>
-    )
-  },
+      // ============================================
+      // Warehouse Routes
+      // ============================================
+      {
+        path: "/warehouse",
+        element: <Navigate to="/warehouse/dashboard" replace />,
+      },
+      {
+        path: "/warehouse/dashboard",
+        element: (
+          <ProtectedRoute allowedRoles={["warehouse"]}>
+            <WarehouseApp />
+          </ProtectedRoute>
+        ),
+      },
 
-  // ============================================
-  // Retailer Routes
-  // ============================================
-  {
-    path: "/retailer",
-    element: <Navigate to="/retailer/dashboard" replace />,
-  },
-  {
-    path: "/retailer/dashboard",
-    element: <RetailerApp />,
-  },
-  {
-    path: "/retailer/profile-settings",
-    element: <RetailerProfileSettingsPage />,
-  },
+      // ============================================
+      // Retailer Routes
+      // ============================================
+      {
+        path: "/retailer",
+        element: <Navigate to="/retailer/dashboard" replace />,
+      },
+      {
+        path: "/retailer/dashboard",
+        element: <RetailerApp />,
+      },
+      {
+        path: "/retailer/profile-settings",
+        element: <RetailerProfileSettingsPage />,
+      },
 
       // ============================================
       // Transporter Routes (Protected)
@@ -118,7 +121,7 @@ export const router = createBrowserRouter([
       {
         path: "/transporter/dashboard",
         element: (
-          <ProtectedRoute allowedRoles={['transporter']}>
+          <ProtectedRoute allowedRoles={["transporter"]}>
             <TransporterApp />
           </ProtectedRoute>
         ),
@@ -131,7 +134,7 @@ export const router = createBrowserRouter([
       {
         path: "/admin",
         element: (
-          <ProtectedRoute allowedRoles={['admin', 'warehouse']}>
+          <ProtectedRoute allowedRoles={["admin", "warehouse"]}>
             <AdminApp role="admin" />
           </ProtectedRoute>
         ),

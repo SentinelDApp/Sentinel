@@ -1,11 +1,11 @@
-const { ethers } = require('ethers');
-const User = require('../models/User');
-const StakeholderRequest = require('../models/StakeholderRequest');
-const generateToken = require('../utils/generateToken');
+const { ethers } = require("ethers");
+const User = require("../models/User");
+const StakeholderRequest = require("../models/StakeholderRequest");
+const generateToken = require("../utils/generateToken");
 
 /**
  * AUTHENTICATION CONTROLLER
- * 
+ *
  * SENTINEL WALLET-FIRST IDENTITY MODEL:
  * - No passwords, only wallet signatures
  * - Role is determined by approved User record
@@ -14,10 +14,10 @@ const generateToken = require('../utils/generateToken');
 
 /**
  * CHECK ROLE - Step 1 of Login Flow
- * 
+ *
  * Determines user's registration/approval status
  * Frontend calls this when wallet connects
- * 
+ *
  * @route GET /api/auth/check-role
  * @query wallet - User's wallet address
  */
@@ -28,7 +28,7 @@ exports.checkRole = async (req, res) => {
     if (!wallet) {
       return res.status(400).json({
         success: false,
-        message: 'Wallet address is required'
+        message: "Wallet address is required",
       });
     }
 
@@ -39,20 +39,20 @@ exports.checkRole = async (req, res) => {
 
     if (user) {
       // User exists - check their status
-      if (user.status === 'ACTIVE') {
+      if (user.status === "ACTIVE") {
         return res.json({
           success: true,
-          status: 'APPROVED',
+          status: "APPROVED",
           role: user.role,
           fullName: user.fullName,
-          message: 'User is approved and active'
+          message: "User is approved and active",
         });
       } else {
         return res.json({
           success: true,
-          status: 'SUSPENDED',
+          status: "SUSPENDED",
           role: user.role,
-          message: 'Account is suspended. Contact administrator.'
+          message: "Account is suspended. Contact administrator.",
         });
       }
     }
@@ -61,19 +61,19 @@ exports.checkRole = async (req, res) => {
     const request = await StakeholderRequest.findOne({ walletAddress });
 
     if (request) {
-      if (request.status === 'PENDING') {
+      if (request.status === "PENDING") {
         return res.json({
           success: true,
-          status: 'PENDING',
+          status: "PENDING",
           requestedRole: request.requestedRole,
-          message: 'Registration pending admin approval'
+          message: "Registration pending admin approval",
         });
-      } else if (request.status === 'REJECTED') {
+      } else if (request.status === "REJECTED") {
         return res.json({
           success: true,
-          status: 'REJECTED',
-          message: 'Registration was rejected',
-          reason: request.rejectionReason
+          status: "REJECTED",
+          message: "Registration was rejected",
+          reason: request.rejectionReason,
         });
       }
     }
@@ -81,25 +81,24 @@ exports.checkRole = async (req, res) => {
     // Wallet not found anywhere
     return res.json({
       success: true,
-      status: 'NOT_REGISTERED',
-      message: 'Wallet not registered. Please sign up.'
+      status: "NOT_REGISTERED",
+      message: "Wallet not registered. Please sign up.",
     });
-
   } catch (error) {
-    console.error('Check role error:', error);
+    console.error("Check role error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error checking wallet status'
+      message: "Error checking wallet status",
     });
   }
 };
 
 /**
  * GET NONCE - Step 2 of Login Flow
- * 
+ *
  * Returns a nonce for the user to sign
  * This proves wallet ownership
- * 
+ *
  * @route GET /api/auth/nonce
  * @query wallet - User's wallet address
  */
@@ -110,7 +109,7 @@ exports.getNonce = async (req, res) => {
     if (!wallet) {
       return res.status(400).json({
         success: false,
-        message: 'Wallet address is required'
+        message: "Wallet address is required",
       });
     }
 
@@ -122,14 +121,14 @@ exports.getNonce = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found. Please register first.'
+        message: "User not found. Please register first.",
       });
     }
 
-    if (user.status !== 'ACTIVE') {
+    if (user.status !== "ACTIVE") {
       return res.status(403).json({
         success: false,
-        message: 'Account is not active'
+        message: "Account is not active",
       });
     }
 
@@ -140,24 +139,23 @@ exports.getNonce = async (req, res) => {
     res.json({
       success: true,
       nonce: user.nonce,
-      message: message
+      message: message,
     });
-
   } catch (error) {
-    console.error('Get nonce error:', error);
+    console.error("Get nonce error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error getting nonce'
+      message: "Error getting nonce",
     });
   }
 };
 
 /**
  * VERIFY SIGNATURE - Step 3 of Login Flow
- * 
+ *
  * Verifies wallet signature and issues JWT
  * This is the final authentication step
- * 
+ *
  * @route POST /api/auth/verify
  * @body wallet - User's wallet address
  * @body signature - Signed message from MetaMask
@@ -169,7 +167,7 @@ exports.verifySignature = async (req, res) => {
     if (!wallet || !signature) {
       return res.status(400).json({
         success: false,
-        message: 'Wallet address and signature are required'
+        message: "Wallet address and signature are required",
       });
     }
 
@@ -181,14 +179,14 @@ exports.verifySignature = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
-    if (user.status !== 'ACTIVE') {
+    if (user.status !== "ACTIVE") {
       return res.status(403).json({
         success: false,
-        message: 'Account is not active'
+        message: "Account is not active",
       });
     }
 
@@ -201,7 +199,7 @@ exports.verifySignature = async (req, res) => {
     if (recoveredAddress.toLowerCase() !== walletAddress) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid signature. Wallet verification failed.'
+        message: "Invalid signature. Wallet verification failed.",
       });
     }
 
@@ -217,7 +215,7 @@ exports.verifySignature = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Authentication successful',
+      message: "Authentication successful",
       token,
       user: {
         walletAddress: user.walletAddress,
@@ -225,37 +223,36 @@ exports.verifySignature = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         organizationName: user.organizationName,
-        address: user.address
-      }
+        address: user.address,
+      },
     });
-
   } catch (error) {
-    console.error('Verify signature error:', error);
+    console.error("Verify signature error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error verifying signature'
+      message: "Error verifying signature",
     });
   }
 };
 
 /**
  * GET CURRENT USER
- * 
+ *
  * Returns current user data from JWT
- * 
+ *
  * @route GET /api/auth/me
  * @protected - Requires authMiddleware
  */
 exports.getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findOne({ 
-      walletAddress: req.user.walletAddress 
-    }).select('-nonce');
+    const user = await User.findOne({
+      walletAddress: req.user.walletAddress,
+    }).select("-nonce");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -268,15 +265,14 @@ exports.getCurrentUser = async (req, res) => {
         organizationName: user.organizationName,
         status: user.status,
         approvedAt: user.approvedAt,
-        lastLogin: user.lastLogin
-      }
+        lastLogin: user.lastLogin,
+      },
     });
-
   } catch (error) {
-    console.error('Get current user error:', error);
+    console.error("Get current user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching user data'
+      message: "Error fetching user data",
     });
   }
 };
