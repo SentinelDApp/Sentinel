@@ -223,7 +223,9 @@ exports.verifySignature = async (req, res) => {
         walletAddress: user.walletAddress,
         role: user.role,
         fullName: user.fullName,
-        organizationName: user.organizationName
+        email: user.email,
+        organizationName: user.organizationName,
+        address: user.address
       }
     });
 

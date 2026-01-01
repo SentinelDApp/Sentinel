@@ -5,6 +5,9 @@
 export { default as RetailerApp } from './RetailerApp';
 export { default as RetailerDashboard } from './RetailerApp'; // Alias for backward compatibility
 
+// Pages
+export { default as ProfileSettingsPage } from './pages/ProfileSettingsPage';
+
 // Components
 export { default as OrdersTable } from './components/OrdersTable';
 export { default as SalesOverview } from './components/SalesOverview';

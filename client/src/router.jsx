@@ -12,7 +12,7 @@ import LoginPage from "./components/Admin/pages/LoginPage";
 // Dashboard Pages
 import { SupplierApp } from "./components/supplier";
 import { WarehouseApp } from "./components/warehouse";
-import { RetailerApp } from "./components/retailer";
+import { RetailerApp, ProfileSettingsPage as RetailerProfileSettingsPage } from "./components/retailer";
 import { TransporterApp } from "./components/Transporter";
 
 // Admin App (includes layout with sidebar)
@@ -102,6 +102,10 @@ export const router = createBrowserRouter([
   {
     path: "/retailer/dashboard",
     element: <RetailerApp />,
+  },
+  {
+    path: "/retailer/profile-settings",
+    element: <RetailerProfileSettingsPage />,
   },
 
       // ============================================

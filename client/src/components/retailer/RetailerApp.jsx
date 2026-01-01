@@ -4,8 +4,9 @@
  * Features Transporter-style header with navigation tabs.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RetailerThemeProvider, useRetailerTheme } from './context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import Header from './layout/Header';
 import NavigationTabs from './components/NavigationTabs';
 import SalesOverview from './components/SalesOverview';
@@ -15,9 +16,68 @@ import ShipmentsModal from './components/ShipmentsModal';
 import StatsCards from './components/StatsCards';
 import { DEMO_ORDERS } from './constants';
 
+// Helper function to get greeting based on time
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) {
+    return 'Good Morning';
+  } else if (hour >= 12 && hour < 17) {
+    return 'Good Afternoon';
+  } else if (hour >= 17 && hour < 21) {
+    return 'Good Evening';
+  } else {
+    return 'Good Night';
+  }
+};
+
 // Main Retailer Dashboard Content
 function RetailerDashboardContent() {
   const { isDarkMode } = useRetailerTheme();
+  const { user } = useAuth();
+  
+  // Get profile name from localStorage or fallback to user data
+  const [profileName, setProfileName] = useState(() => {
+    const saved = localStorage.getItem('retailer_profile_name');
+    return saved || user?.fullName || user?.organizationName || 'Retailer';
+  });
+
+  // Update profile name when localStorage changes (e.g., from profile settings page)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('retailer_profile_name');
+      if (saved) {
+        setProfileName(saved);
+      }
+    };
+
+    // Listen for storage changes from other tabs/components
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check on focus (for same-tab updates)
+    const handleFocus = () => {
+      const saved = localStorage.getItem('retailer_profile_name');
+      if (saved && saved !== profileName) {
+        setProfileName(saved);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [profileName]);
+
+  // Update greeting periodically
+  const [greeting, setGreeting] = useState(getGreeting());
+  
+  useEffect(() => {
+    // Update greeting every minute
+    const interval = setInterval(() => {
+      setGreeting(getGreeting());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
   
   // Navigation
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -64,6 +124,22 @@ function RetailerDashboardContent() {
       case 'dashboard':
         return (
           <>
+            {/* Greeting Section */}
+            <div className={`
+              rounded-2xl p-6 mb-2 border
+              ${isDarkMode 
+                ? 'bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-slate-700/50' 
+                : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-slate-200'
+              }
+            `}>
+              <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                Hello, {profileName}! 👋
+              </h1>
+              <p className={`mt-1 text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                {greeting}! Welcome back to your dashboard.
+              </p>
+            </div>
+
             {/* Stats Cards */}
             <StatsCards />
 

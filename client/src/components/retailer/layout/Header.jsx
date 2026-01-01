@@ -259,6 +259,10 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                 </div>
                 <div className="py-2">
                   <button
+                    onClick={() => {
+                      navigate('/retailer/profile-settings');
+                      setShowProfile(false);
+                    }}
                     className={`
                       w-full text-left px-4 py-2 text-sm transition-colors
                       ${isDarkMode
