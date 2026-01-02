@@ -6,7 +6,7 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
 // Auth Pages
-import Signup from "./components/signup/Signup";
+import { Signup } from "./components/signup";
 import LoginPage from "./components/Admin/pages/LoginPage";
 
 // Dashboard Pages
