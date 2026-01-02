@@ -12,6 +12,7 @@ const ShipmentActions = ({
   shipment, 
   onAssignTransporter, 
   onMarkReady,
+  onUpdateShipment,
   onAcknowledgeConcern,
   onResolveConcern,
   isDarkMode = true,
@@ -20,6 +21,13 @@ const ShipmentActions = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [resolutionText, setResolutionText] = useState('');
   const [activeTab, setActiveTab] = useState('actions');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    productName: '',
+    batchId: '',
+    quantity: '',
+    unit: '',
+  });
 
   if (!shipment) {
     return (
@@ -46,6 +54,45 @@ const ShipmentActions = ({
   const acknowledgedConcerns = shipment.concerns?.filter(c => c.status === CONCERN_STATUS.ACKNOWLEDGED) || [];
   const currentTransporter = TRANSPORTER_AGENCIES.find(t => t.id === shipment.transporterId);
   const canMarkReady = shipment.transporterId && isCreated;
+  const canEdit = isCreated; // Can only edit before dispatch
+
+  // Start editing mode
+  const handleStartEdit = () => {
+    setEditForm({
+      productName: shipment.productName,
+      batchId: shipment.batchId,
+      quantity: shipment.quantity.toString(),
+      unit: shipment.unit,
+    });
+    setIsEditing(true);
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditForm({ productName: '', batchId: '', quantity: '', unit: '' });
+  };
+
+  // Save edits
+  const handleSaveEdit = async () => {
+    if (!editForm.productName || !editForm.batchId || !editForm.quantity) return;
+    setIsProcessing(true);
+    await new Promise(r => setTimeout(r, 500));
+    onUpdateShipment?.(shipment.id, {
+      productName: editForm.productName,
+      batchId: editForm.batchId,
+      quantity: parseInt(editForm.quantity, 10),
+      unit: editForm.unit,
+    });
+    setIsEditing(false);
+    setIsProcessing(false);
+  };
+
+  // Handle form input changes
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleAssign = async () => {
     if (!selectedTransporter) return;
@@ -171,11 +218,155 @@ const ShipmentActions = ({
                 <p className={`text-sm font-medium ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Shipment Locked</p>
               </div>
               <p className={`text-xs mt-1 ${isDarkMode ? 'text-amber-400/70' : 'text-amber-600'}`}>
-                Status: {shipment.status.replace(/_/g, ' ')}. Assignment changes not allowed.
+                Status: {shipment.status.replace(/_/g, ' ')}. Editing and assignment changes not allowed after dispatch.
               </p>
+            </div>
+          ) : isEditing ? (
+            /* Edit Form */
+            <div className="space-y-4">
+              <div className={`
+                border rounded-xl p-4
+                ${isDarkMode 
+                  ? 'bg-blue-500/10 border-blue-500/30' 
+                  : 'bg-blue-50 border-blue-200'
+                }
+              `}>
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className={`w-5 h-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>Edit Shipment Details</p>
+                </div>
+                
+                {/* Product Name */}
+                <div className="mb-3">
+                  <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Product Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="productName"
+                    value={editForm.productName}
+                    onChange={handleEditChange}
+                    className={`
+                      w-full border rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 transition-all
+                      ${isDarkMode 
+                        ? 'bg-slate-800/50 border-slate-700 text-slate-50 focus:border-blue-500 focus:ring-blue-500/20' 
+                        : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-blue-500/20'
+                      }
+                    `}
+                  />
+                </div>
+
+                {/* Batch ID */}
+                <div className="mb-3">
+                  <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Batch ID <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="batchId"
+                    value={editForm.batchId}
+                    onChange={handleEditChange}
+                    className={`
+                      w-full border rounded-lg py-2 px-3 text-sm font-mono focus:outline-none focus:ring-2 transition-all
+                      ${isDarkMode 
+                        ? 'bg-slate-800/50 border-slate-700 text-slate-50 focus:border-blue-500 focus:ring-blue-500/20' 
+                        : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-blue-500/20'
+                      }
+                    `}
+                  />
+                </div>
+
+                {/* Quantity and Unit */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Quantity <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="quantity"
+                      value={editForm.quantity}
+                      onChange={handleEditChange}
+                      min="1"
+                      className={`
+                        w-full border rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 transition-all
+                        ${isDarkMode 
+                          ? 'bg-slate-800/50 border-slate-700 text-slate-50 focus:border-blue-500 focus:ring-blue-500/20' 
+                          : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-blue-500/20'
+                        }
+                      `}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Unit
+                    </label>
+                    <input
+                      type="text"
+                      name="unit"
+                      value={editForm.unit}
+                      onChange={handleEditChange}
+                      placeholder="e.g., kg, units"
+                      className={`
+                        w-full border rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 transition-all
+                        ${isDarkMode 
+                          ? 'bg-slate-800/50 border-slate-700 text-slate-50 focus:border-blue-500 focus:ring-blue-500/20' 
+                          : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-blue-500/20'
+                        }
+                      `}
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={isProcessing}
+                    className={`
+                      flex-1 py-2 text-sm font-medium rounded-lg transition-colors border
+                      ${isDarkMode 
+                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' 
+                        : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                      }
+                      disabled:opacity-50
+                    `}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={isProcessing || !editForm.productName || !editForm.batchId || !editForm.quantity}
+                    className="flex-1 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 transition-all"
+                  >
+                    {isProcessing ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Edit Button */}
+              {canEdit && (
+                <button
+                  onClick={handleStartEdit}
+                  className={`
+                    w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-xl transition-all border
+                    ${isDarkMode 
+                      ? 'bg-slate-800/50 hover:bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600' 
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200 hover:border-slate-300'
+                    }
+                  `}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit Shipment Details
+                </button>
+              )}
+
               {/* Transporter Assignment */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>

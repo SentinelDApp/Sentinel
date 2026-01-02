@@ -107,6 +107,23 @@ const SupplierDashboardContent = () => {
     }
   };
 
+  // Update shipment details (only allowed before dispatch)
+  const handleUpdateShipment = (shipmentId, updates) => {
+    setShipments(prev => prev.map(s => {
+      if (s.id !== shipmentId) return s;
+      // Only allow updates if status is CREATED
+      if (s.status !== SHIPMENT_STATUSES.CREATED) return s;
+      return { ...s, ...updates };
+    }));
+    
+    if (selectedShipment?.id === shipmentId) {
+      setSelectedShipment(prev => {
+        if (prev.status !== SHIPMENT_STATUSES.CREATED) return prev;
+        return { ...prev, ...updates };
+      });
+    }
+  };
+
   // Upload metadata (off-chain)
   const handleMetadataUpload = (shipmentId, files) => {
     const metadataHash = generateMetadataHash({ files, uploadedAt: Date.now() });
@@ -458,6 +475,7 @@ const SupplierDashboardContent = () => {
                       shipment={selectedShipment} 
                       onAssignTransporter={handleAssignTransporter} 
                       onMarkReady={handleMarkReady}
+                      onUpdateShipment={handleUpdateShipment}
                       onAcknowledgeConcern={handleAcknowledgeConcern}
                       onResolveConcern={handleResolveConcern}
                       isDarkMode={isDarkMode}
