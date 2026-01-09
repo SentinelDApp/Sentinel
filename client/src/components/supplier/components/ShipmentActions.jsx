@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   TRANSPORTER_AGENCIES, 
   SHIPMENT_STATUSES, 
@@ -28,6 +28,15 @@ const ShipmentActions = ({
     quantity: '',
     unit: '',
   });
+
+  // Reset editing state when switching to a different shipment
+  useEffect(() => {
+    setIsEditing(false);
+    setEditForm({ productName: '', batchId: '', quantity: '', unit: '' });
+    setSelectedTransporter('');
+    setResolutionText('');
+    setActiveTab('actions');
+  }, [shipment?.id]);
 
   if (!shipment) {
     return (
