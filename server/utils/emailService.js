@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer');
  * EMAIL SERVICE
  * 
  * Handles sending approval/rejection emails to stakeholders
- * Uses Nodemailer with Gmail SMTP configuration
+ * Uses Nodemailer with SMTP configuration
  */
 
 // Check if email credentials are configured
@@ -19,13 +19,20 @@ const createTransporter = () => {
     return null;
   }
 
+  // Use custom SMTP host if provided, otherwise default to Gmail
+  const smtpHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+  const smtpPort = parseInt(process.env.EMAIL_PORT) || 587;
+  const smtpSecure = process.env.EMAIL_SECURE === 'true'; // true for 465, false for 587
+
+  console.log(`📧 Using SMTP: ${smtpHost}:${smtpPort}`);
+
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true for 465, false for other ports
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS // App password for Gmail
+      pass: process.env.EMAIL_PASS
     },
     tls: {
       rejectUnauthorized: false
