@@ -22,7 +22,6 @@ import {
   STATUS_COLORS,
   CONCERN_STATUS,
   generateMetadataHash,
-  generateDemoShipments,
 } from './constants';
 
 // Navigation Tabs Component
@@ -78,8 +77,8 @@ const NavigationTabs = ({ activeTab, setActiveTab, shipmentsWithConcerns, isDark
 // Main Supplier Dashboard Content
 const SupplierDashboardContent = () => {
   const { isDarkMode } = useSupplierTheme();
-  // Initialize with demo shipments for development
-  const [shipments, setShipments] = useState(() => generateDemoShipments(3));
+  // Shipments state - starts empty, populated when supplier creates shipments
+  const [shipments, setShipments] = useState([]);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewingShipmentDetails, setViewingShipmentDetails] = useState(null);
