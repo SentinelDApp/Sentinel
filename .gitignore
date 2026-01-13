@@ -3,3 +3,4 @@ dist/
 client/src/App.jsx
 client/package-lock.json
 server/package-lock.json
+blockchain/build/
