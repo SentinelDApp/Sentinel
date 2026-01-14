@@ -141,9 +141,17 @@ class BlockchainIndexer {
 
   /**
    * Process a ShipmentLocked event from the blockchain
-   * This is the core indexing logic
+   * 
+   * IDEMPOTENCY GUARANTEE:
+   * Uses MongoDB's updateOne with $setOnInsert to ensure:
+   * - Same event processed twice = no duplicate records
+   * - Concurrent processing = safe (atomic upsert)
+   * - Crash recovery = safe (can replay from last block)
+   * 
+   * This is the core indexing logic following the golden rule:
+   * "Blockchain is source of truth, MongoDB is derived cache"
    */
-  async processShipmentLockedEvent(event) {
+  async processShipmentLockedEvent(event, updateBlockState = false) {
     const {
       shipmentHash,
       supplier,
@@ -168,58 +176,75 @@ class BlockchainIndexer {
     console.log('─────────────────────────────────────────────────────────────');
 
     try {
-      // Check for duplicate (idempotency)
-      const exists = await Shipment.existsByHash(shipmentHash);
-      if (exists) {
-        console.log(`⚠️  Shipment ${shipmentHash} already exists, skipping...`);
-        return { success: true, skipped: true };
-      }
-
       // Calculate derived fields
       const totalQuantity = Number(numberOfContainers) * Number(quantityPerContainer);
 
-      // Create shipment record
-      const shipment = new Shipment({
-        shipmentHash,
-        supplierWallet: supplier.toLowerCase(),
-        batchId,
-        numberOfContainers: Number(numberOfContainers),
-        quantityPerContainer: Number(quantityPerContainer),
-        totalQuantity,
-        txHash,
-        blockNumber,
-        blockchainTimestamp: Number(timestamp),
-        status: 'READY_FOR_DISPATCH'
-      });
+      // ═══════════════════════════════════════════════════════════════════
+      // IDEMPOTENT UPSERT: Uses $setOnInsert to only insert if not exists
+      // This is atomic and safe for concurrent/duplicate processing
+      // ═══════════════════════════════════════════════════════════════════
+      const result = await Shipment.updateOne(
+        { shipmentHash }, // Query: find by unique shipmentHash
+        {
+          $setOnInsert: {
+            shipmentHash,
+            supplierWallet: supplier.toLowerCase(),
+            batchId,
+            numberOfContainers: Number(numberOfContainers),
+            quantityPerContainer: Number(quantityPerContainer),
+            totalQuantity,
+            txHash,
+            blockNumber,
+            blockchainTimestamp: Number(timestamp),
+            status: 'READY_FOR_DISPATCH'
+          }
+        },
+        { upsert: true } // Insert if not exists
+      );
 
-      await shipment.save();
-      console.log(`✅ Shipment saved: ${shipmentHash}`);
+      // Check if this was a new insert or existing record
+      const wasInserted = result.upsertedCount > 0;
+      
+      if (wasInserted) {
+        console.log(`✅ Shipment saved: ${shipmentHash}`);
 
-      // Check if containers already exist (additional safety)
-      const containersExist = await Container.existsForShipment(shipmentHash);
-      if (containersExist) {
-        console.log(`⚠️  Containers for ${shipmentHash} already exist, skipping container generation...`);
+        // Generate containers only for newly inserted shipments
+        // Container.createForShipment should also be idempotent
+        const containersExist = await Container.existsForShipment(shipmentHash);
+        if (!containersExist) {
+          const containers = await Container.createForShipment({
+            shipmentHash,
+            batchId,
+            numberOfContainers: Number(numberOfContainers),
+            quantityPerContainer: Number(quantityPerContainer)
+          });
+          console.log(`✅ Created ${containers.length} containers for shipment ${shipmentHash}`);
+        }
       } else {
-        // Generate containers with QR codes
-        const containers = await Container.createForShipment({
-          shipmentHash,
-          batchId,
-          numberOfContainers: Number(numberOfContainers),
-          quantityPerContainer: Number(quantityPerContainer)
-        });
-        console.log(`✅ Created ${containers.length} containers for shipment ${shipmentHash}`);
+        console.log(`⚠️  Shipment ${shipmentHash} already exists, skipped (idempotent)`);
       }
 
-      return { success: true, skipped: false, shipmentHash };
+      // ═══════════════════════════════════════════════════════════════════
+      // UPDATE BLOCK STATE: Track progress per-event for crash recovery
+      // This ensures we can resume from the exact block if we crash
+      // ═══════════════════════════════════════════════════════════════════
+      if (updateBlockState) {
+        await SyncState.updateOne(
+          { key: SYNC_STATE_KEY },
+          {
+            $set: {
+              lastSyncedBlock: blockNumber,
+              lastSyncAt: new Date()
+            },
+            $inc: { totalEventsProcessed: wasInserted ? 1 : 0 }
+          },
+          { upsert: true }
+        );
+      }
+
+      return { success: true, skipped: !wasInserted, shipmentHash, blockNumber };
     } catch (error) {
       console.error(`❌ Error processing event for ${shipmentHash}:`, error.message);
-      
-      // If duplicate key error, treat as skipped (concurrent processing)
-      if (error.code === 11000) {
-        console.log(`⚠️  Duplicate key detected, shipment ${shipmentHash} was processed concurrently`);
-        return { success: true, skipped: true };
-      }
-      
       throw error;
     }
   }
@@ -231,6 +256,9 @@ class BlockchainIndexer {
   /**
    * Sync historical events from a starting block
    * Called on startup to catch up with any missed events
+   * 
+   * REPLAY-SAFE: Uses idempotent upserts, so replaying events is safe.
+   * CRASH-SAFE: Updates block state per-event, not at the end.
    */
   async syncHistoricalEvents(fromBlock) {
     console.log(`📜 Syncing historical events from block ${fromBlock}...`);
@@ -251,16 +279,23 @@ class BlockchainIndexer {
       console.log(`📥 Found ${events.length} historical ShipmentLocked events`);
 
       let processedCount = 0;
+      let lastBlockNumber = fromBlock;
+
+      // Process each event with per-event block state update
       for (const event of events) {
-        const result = await this.processShipmentLockedEvent(event);
+        // Pass updateBlockState = true to update sync state after each event
+        const result = await this.processShipmentLockedEvent(event, true);
         if (!result.skipped) {
           processedCount++;
         }
+        lastBlockNumber = event.blockNumber;
       }
 
-      // Update sync state
-      await SyncState.updateSyncedBlock(SYNC_STATE_KEY, currentBlock, processedCount);
+      // Final sync state update to mark current block even if no events
+      // This handles the case where there are no events in the block range
+      await SyncState.updateSyncedBlock(SYNC_STATE_KEY, currentBlock, 0);
       console.log(`✅ Historical sync complete. Processed ${processedCount} new events.`);
+      console.log(`📍 Synced up to block ${currentBlock}`);
 
       return { processed: processedCount, currentBlock };
     } catch (error) {
@@ -276,6 +311,9 @@ class BlockchainIndexer {
 
   /**
    * Start listening for new ShipmentLocked events in real-time
+   * 
+   * IMPORTANT: Only called AFTER historical sync is complete.
+   * Uses the same idempotent processing as historical sync.
    */
   async startListening() {
     if (this.isRunning) {
@@ -314,10 +352,8 @@ class BlockchainIndexer {
             blockNumber: event.log.blockNumber
           };
 
-          await this.processShipmentLockedEvent(eventData);
-
-          // Update sync state with new block
-          await SyncState.updateSyncedBlock(SYNC_STATE_KEY, event.log.blockNumber, 1);
+          // Process with updateBlockState = true for immediate tracking
+          await this.processShipmentLockedEvent(eventData, true);
         } catch (error) {
           console.error('❌ Error processing real-time event:', error.message);
           await SyncState.setError(SYNC_STATE_KEY, error.message);
@@ -472,6 +508,84 @@ class BlockchainIndexer {
         lastError: syncState.lastError
       } : null
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // REBUILD FROM CHAIN
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * Rebuild MongoDB data entirely from blockchain events
+   * 
+   * USE CASE: When MongoDB is corrupted, wiped, or you need a fresh start.
+   * This method:
+   * 1. Clears all shipments and containers from MongoDB
+   * 2. Resets sync state to deployment block
+   * 3. Replays all ShipmentLocked events from the beginning
+   * 
+   * SAFETY: Idempotent upserts ensure no duplicates even if interrupted.
+   */
+  async rebuildFromChain() {
+    console.log('');
+    console.log('╔═══════════════════════════════════════════════════════════════╗');
+    console.log('║        REBUILDING MONGODB FROM BLOCKCHAIN                    ║');
+    console.log('╚═══════════════════════════════════════════════════════════════╝');
+    console.log('');
+    console.log('⚠️  This will clear all shipments and containers from MongoDB');
+    console.log('⚠️  and rebuild them from blockchain events.');
+    console.log('');
+
+    try {
+      // Stop real-time listener if running
+      await this.stopListening();
+
+      // Clear existing data
+      console.log('🗑️  Clearing existing shipments...');
+      const deleteShipments = await Shipment.deleteMany({});
+      console.log(`   Deleted ${deleteShipments.deletedCount} shipments`);
+
+      console.log('🗑️  Clearing existing containers...');
+      const deleteContainers = await Container.deleteMany({});
+      console.log(`   Deleted ${deleteContainers.deletedCount} containers`);
+
+      // Reset sync state
+      console.log('🔄 Resetting sync state...');
+      await SyncState.deleteOne({ key: SYNC_STATE_KEY });
+
+      // Re-initialize if needed
+      if (!this.provider || !this.contract) {
+        const initialized = await this.initialize();
+        if (!initialized) {
+          throw new Error('Failed to initialize blockchain connection');
+        }
+      }
+
+      // Get or create fresh sync state
+      await SyncState.getOrCreate(SYNC_STATE_KEY, {
+        startBlock: this.config.startBlock,
+        chainId: this.config.chainId,
+        contractAddress: this.config.contractAddress.toLowerCase()
+      });
+
+      // Replay all events from deployment block
+      console.log(`📜 Replaying all events from block ${this.config.startBlock}...`);
+      const result = await this.syncHistoricalEvents(this.config.startBlock);
+
+      console.log('');
+      console.log('╔═══════════════════════════════════════════════════════════════╗');
+      console.log(`║   REBUILD COMPLETE: ${result.processed} shipments indexed               ║`);
+      console.log('╚═══════════════════════════════════════════════════════════════╝');
+      console.log('');
+
+      // Restart real-time listener
+      await this.startListening();
+
+      return { success: true, processed: result.processed };
+    } catch (error) {
+      console.error('❌ Rebuild failed:', error.message);
+      await SyncState.setError(SYNC_STATE_KEY, `Rebuild failed: ${error.message}`);
+      throw error;
+    }
   }
 }
 

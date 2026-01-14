@@ -169,6 +169,106 @@ router.get('/sync-history', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/indexer/rebuild
+ * 
+ * Rebuild MongoDB data from blockchain events
+ * 
+ * ⚠️ DANGER: This will DELETE all shipments and containers from MongoDB
+ *          and replay all events from the blockchain.
+ * 
+ * Use this when:
+ * - MongoDB is corrupted or out of sync
+ * - You need a fresh database state
+ * - Debugging indexer issues
+ * 
+ * Request body:
+ * {
+ *   confirm: "REBUILD" (required safety check)
+ * }
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: { processed: number }
+ * }
+ */
+router.post('/rebuild', async (req, res) => {
+  try {
+    // Safety check - require explicit confirmation
+    const { confirm } = req.body;
+    
+    if (confirm !== 'REBUILD') {
+      return res.status(400).json({
+        success: false,
+        message: 'Safety check failed. Send { "confirm": "REBUILD" } to confirm this destructive operation.'
+      });
+    }
+
+    console.log('🔄 Admin requested rebuild from blockchain...');
+    
+    const result = await blockchainIndexer.rebuildFromChain();
+
+    res.json({
+      success: true,
+      message: 'Database rebuilt successfully from blockchain',
+      data: {
+        processed: result.processed
+      }
+    });
+  } catch (error) {
+    console.error('Error rebuilding from blockchain:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to rebuild from blockchain',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/indexer/resync
+ * 
+ * Force a resync from the last known block
+ * 
+ * Use this to catch up on any missed events without wiping data.
+ * This is safe and idempotent.
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: { processed: number, currentBlock: number }
+ * }
+ */
+router.post('/resync', async (req, res) => {
+  try {
+    console.log('🔄 Admin requested resync...');
+    
+    // Get current sync state
+    const status = await blockchainIndexer.getStatus();
+    const fromBlock = (status.syncState?.lastSyncedBlock || 0) + 1;
+
+    // Run historical sync
+    const result = await blockchainIndexer.syncHistoricalEvents(fromBlock);
+
+    res.json({
+      success: true,
+      message: 'Resync completed successfully',
+      data: {
+        processed: result.processed,
+        currentBlock: result.currentBlock
+      }
+    });
+  } catch (error) {
+    console.error('Error resyncing:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to resync',
+      error: error.message
+    });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════════════════════════════════════
