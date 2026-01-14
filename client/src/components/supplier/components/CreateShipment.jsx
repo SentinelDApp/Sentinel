@@ -2,8 +2,8 @@
  * CreateShipment Component
  * 
  * SYSTEM PRINCIPLE:
- * Sentinel records shipment identity on-chain while enabling container-level
- * traceability using off-chain QR codes. The blockchain serves as a source of
+ * Shipment data is written to blockchain only after supplier confirmation
+ * to ensure immutability and trust. The blockchain serves as a source of
  * truth for shipment lifecycle events, not as a database for operational data.
  * 
  * SHIPMENT CREATION MODEL:
@@ -11,6 +11,11 @@
  * - Optional inputs: transporterId, warehouseId (can be assigned later via edit)
  * - System generates: shipmentHash, totalQuantity, containerIds
  * - Each container gets a unique QR code encoding only its containerId
+ * 
+ * BLOCKCHAIN INTEGRATION:
+ * - Shipment is created off-chain first (draft state)
+ * - "Confirm & Lock" triggers on-chain registration via confirmAndLockShipment()
+ * - Once locked, shipment becomes immutable and verifiable on-chain
  */
 
 import { useState } from 'react';
@@ -23,11 +28,23 @@ import {
   generateContainers,
 } from '../constants';
 import { useAuth } from '../../../context/AuthContext';
+import { useBlockchain } from '../../../hooks/useBlockchain';
 import ContainerQRGrid from './ContainerQRGrid';
 
 
 const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   const { user } = useAuth();
+  
+  // Blockchain integration hook
+  const { 
+    isProcessing: isBlockchainProcessing, 
+    walletAddress,
+    error: blockchainError,
+    connectWallet,
+    confirmAndLockShipment,
+    clearError: clearBlockchainError,
+    isWalletAvailable,
+  } = useBlockchain();
   
   // Form state - supplier inputs
   const [formData, setFormData] = useState({
@@ -44,6 +61,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   const [createdShipment, setCreatedShipment] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
+  const [lockError, setLockError] = useState(null);
 
   // Calculate total quantity (system-generated)
   const totalQuantity = formData.numberOfContainers && formData.quantityPerContainer
@@ -118,32 +136,73 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
 
   // Handle "Mark Ready for Dispatch" - shows confirmation modal
   const handleMarkReadyClick = () => {
+    setLockError(null);
+    clearBlockchainError();
     setShowConfirmModal(true);
   };
 
-  // Confirm and lock shipment on blockchain
+  /**
+   * Confirm and lock shipment on blockchain
+   * 
+   * SYSTEM PRINCIPLE:
+   * Shipment data is written to blockchain only after supplier confirmation
+   * to ensure immutability and trust.
+   * 
+   * This function:
+   * 1. Validates wallet connection
+   * 2. Calls the smart contract's confirmAndLockShipment()
+   * 3. Awaits transaction confirmation
+   * 4. Updates local state with blockchain transaction details
+   */
   const handleConfirmLock = async () => {
     setIsLocking(true);
+    setLockError(null);
     
-    // Simulate blockchain transaction
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Update shipment status
-    const updatedShipment = {
-      ...createdShipment,
-      status: SHIPMENT_STATUSES.READY_FOR_DISPATCH,
-      isLocked: true,
-      blockchainTxHash: `0x${Math.random().toString(16).slice(2, 66)}`,
-      containers: createdShipment.containers.map(c => ({
-        ...c,
-        status: CONTAINER_STATUSES.LOCKED,
-      })),
-    };
-    
-    setCreatedShipment(updatedShipment);
-    onCreateShipment(updatedShipment);
-    setShowConfirmModal(false);
-    setIsLocking(false);
+    try {
+      // Pre-check: Ensure wallet is available
+      if (!isWalletAvailable()) {
+        throw new Error('No Ethereum wallet detected. Please install MetaMask or Brave Wallet.');
+      }
+
+      // Pre-check: Ensure wallet is connected
+      if (!walletAddress) {
+        await connectWallet();
+      }
+
+      // Call the smart contract via the blockchain hook
+      // This will trigger the wallet popup for user approval
+      const result = await confirmAndLockShipment({
+        shipmentHash: createdShipment.shipmentHash,
+        batchId: createdShipment.batchId,
+        numberOfContainers: createdShipment.numberOfContainers,
+        quantityPerContainer: createdShipment.quantityPerContainer,
+      });
+
+      // Transaction successful - update shipment with blockchain details
+      const updatedShipment = {
+        ...createdShipment,
+        status: SHIPMENT_STATUSES.READY_FOR_DISPATCH,
+        isLocked: true,
+        blockchainTxHash: result.txHash,
+        blockchainBlockNumber: result.blockNumber,
+        containers: createdShipment.containers.map(c => ({
+          ...c,
+          status: CONTAINER_STATUSES.LOCKED,
+        })),
+      };
+      
+      setCreatedShipment(updatedShipment);
+      onCreateShipment(updatedShipment);
+      setShowConfirmModal(false);
+      
+    } catch (err) {
+      // Handle errors gracefully and show to user
+      console.error('Blockchain transaction failed:', err);
+      setLockError(err.message || 'Transaction failed. Please try again.');
+      // Don't close modal on error - let user see the error and retry
+    } finally {
+      setIsLocking(false);
+    }
   };
 
   // Reset form to create another shipment
@@ -204,9 +263,66 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
           </div>
         </div>
 
+        {/* Wallet Status Indicator */}
+        <div className={`
+          rounded-xl p-3 mb-4
+          ${walletAddress 
+            ? isDarkMode ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-emerald-50 border border-emerald-200'
+            : isDarkMode ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'
+          }
+        `}>
+          <div className="flex items-center gap-2 text-sm">
+            {walletAddress ? (
+              <>
+                <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span className={isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}>
+                  Wallet connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className={isDarkMode ? 'text-blue-300' : 'text-blue-700'}>
+                  Wallet will connect when you confirm
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Error Display */}
+        {(lockError || blockchainError) && (
+          <div className={`
+            rounded-xl p-4 mb-4 border
+            ${isDarkMode ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}
+          `}>
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className={`text-sm font-medium ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>
+                  Transaction Failed
+                </p>
+                <p className={`text-xs mt-1 ${isDarkMode ? 'text-red-200/70' : 'text-red-600'}`}>
+                  {lockError || blockchainError}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-3">
           <button
-            onClick={() => setShowConfirmModal(false)}
+            onClick={() => {
+              setShowConfirmModal(false);
+              setLockError(null);
+              clearBlockchainError();
+            }}
             disabled={isLocking}
             className={`
               flex-1 py-3 px-4 font-medium rounded-xl transition-colors
@@ -230,9 +346,9 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Registering...
+                Confirming on Blockchain...
               </span>
-            ) : 'Confirm & Lock'}
+            ) : (lockError || blockchainError) ? 'Retry' : 'Confirm & Lock'}
           </button>
         </div>
       </div>
