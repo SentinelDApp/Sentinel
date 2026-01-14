@@ -360,7 +360,7 @@ const SupplierDashboardContent = () => {
   };
 
   // Mark shipment ready for dispatch (locks to blockchain)
-  const handleMarkReady = (shipmentId) => {
+  const handleMarkReady = async (shipmentId) => {
     const blockchainTxHash = `0x${Array.from({ length: 64 }, () =>
       Math.floor(Math.random() * 16).toString(16)
     ).join("")}`;
