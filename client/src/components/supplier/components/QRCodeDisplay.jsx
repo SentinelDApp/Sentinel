@@ -1,8 +1,40 @@
+/**
+ * QRCodeDisplay Component
+ * 
+ * SYSTEM PRINCIPLE:
+ * Sentinel records shipment identity on-chain while enabling container-level
+ * traceability using off-chain QR codes. This component can display QR codes
+ * for both shipment-level and container-level identification.
+ * 
+ * QR codes encode only the identifier (shipmentHash or containerId) to enable
+ * scanning and verification without exposing sensitive data.
+ */
+
 import { useRef } from 'react';
 
 
-const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode = true }) => {
+/**
+ * QRCodeDisplay - Renders a QR code for a given identifier
+ * @param {string} containerId - The container ID to encode (preferred for container-level)
+ * @param {string} shipmentId - Legacy: The shipment ID to encode (for backward compatibility)
+ * @param {number} size - Size of the QR code in pixels
+ * @param {boolean} showActions - Whether to show download/print buttons
+ * @param {boolean} isDarkMode - Theme mode
+ * @param {string} label - Optional custom label to display below QR
+ */
+const QRCodeDisplay = ({ 
+  containerId, 
+  shipmentId, 
+  size = 200, 
+  showActions = true, 
+  isDarkMode = true,
+  label 
+}) => {
   const qrRef = useRef(null);
+  
+  // Use containerId if provided, otherwise fall back to shipmentId
+  const qrData = containerId || shipmentId;
+  const displayLabel = label || (containerId ? 'Container ID' : 'Shipment Hash');
 
   const generateQRPattern = (data) => {
     const hash = data.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -38,7 +70,7 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode 
     return pattern;
   };
 
-  const pattern = generateQRPattern(shipmentId);
+  const pattern = generateQRPattern(qrData);
   const moduleSize = size / 25; // 21 modules + 2 quiet zone on each side
 
   // Download QR code as image
@@ -60,7 +92,7 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode 
       ctx.drawImage(img, 0, 0);
       
       const link = document.createElement('a');
-      link.download = `QR-${shipmentId}.png`;
+      link.download = `QR-${qrData}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     };
@@ -80,7 +112,7 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode 
       <!DOCTYPE html>
       <html>
         <head>
-          <title>QR Code - ${shipmentId}</title>
+          <title>QR Code - ${qrData}</title>
           <style>
             body {
               display: flex;
@@ -95,11 +127,12 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode 
               text-align: center;
               padding: 40px;
             }
-            .shipment-id {
+            .qr-id {
               margin-top: 20px;
               font-family: monospace;
               font-size: 14px;
               color: #333;
+              word-break: break-all;
             }
             .instructions {
               margin-top: 10px;
@@ -111,8 +144,8 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode 
         <body>
           <div class="qr-container">
             ${svgData}
-            <div class="shipment-id">${shipmentId}</div>
-            <div class="instructions">Attach this QR to the physical shipment</div>
+            <div class="qr-id">${qrData}</div>
+            <div class="instructions">Attach this QR to the physical ${containerId ? 'container' : 'shipment'}</div>
           </div>
           <script>
             window.onload = () => {
@@ -136,6 +169,7 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode 
           height={size}
           viewBox={`0 0 ${size} ${size}`}
           xmlns="http://www.w3.org/2000/svg"
+          data-container-id={containerId}
         >
           <rect width={size} height={size} fill="white" />
           {pattern.map(({ row, col }, index) => (
@@ -151,11 +185,11 @@ const QRCodeDisplay = ({ shipmentId, size = 200, showActions = true, isDarkMode 
         </svg>
       </div>
 
-      {/* Shipment ID Display */}
+      {/* ID Display */}
       <div className="mt-4 text-center">
-        <p className={`text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Shipment Hash</p>
+        <p className={`text-xs mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{displayLabel}</p>
         <code className={`text-sm font-mono px-3 py-1.5 rounded-lg ${isDarkMode ? 'text-slate-200 bg-slate-700/50' : 'text-slate-700 bg-slate-200'}`}>
-          {shipmentId}
+          {qrData}
         </code>
       </div>
 

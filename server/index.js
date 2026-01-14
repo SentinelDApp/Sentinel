@@ -1,3 +1,26 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SENTINEL SUPPLY CHAIN - BACKEND SERVER
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * Sentinel backend acts as a blockchain indexer, transforming immutable 
+ * on-chain shipment events into queryable off-chain records for dashboards 
+ * and analytics.
+ * 
+ * CORE RESPONSIBILITIES:
+ * - Index ShipmentLocked events from the blockchain
+ * - Store structured shipment/container data in MongoDB
+ * - Expose READ-ONLY APIs for frontend dashboards
+ * 
+ * BLOCKCHAIN RELATIONSHIP:
+ * - Blockchain is the source of truth
+ * - Backend NEVER modifies blockchain data
+ * - Backend NEVER writes to blockchain
+ * - This is a trusted indexer, not a controller
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -14,6 +37,12 @@ const User = require('./models/User');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const onboardingRoutes = require('./routes/onboarding.routes');
+const shipmentRoutes = require('./routes/shipmentRoutes');
+const containerRoutes = require('./routes/containerRoutes');
+const indexerRoutes = require('./routes/indexerRoutes');
+
+// Services
+const blockchainIndexer = require('./services/blockchainIndexer');
 
 const app = express();
 
@@ -64,6 +93,18 @@ app.use('/api/admin', adminRoutes);
 
 // Onboarding routes (Cloudinary-based document upload)
 app.use('/api/onboarding', onboardingRoutes);
+
+// ================= BLOCKCHAIN INDEXER ROUTES (READ-ONLY) ================= //
+/**
+ * SHIPMENT & CONTAINER APIs
+ * 
+ * These endpoints serve data indexed from blockchain events.
+ * They are READ-ONLY - no create/update/delete operations.
+ * All data originates from ShipmentLocked events on the smart contract.
+ */
+app.use('/api/shipments', shipmentRoutes);
+app.use('/api/containers', containerRoutes);
+app.use('/api/indexer', indexerRoutes);
 
 // ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**
@@ -230,4 +271,30 @@ app.listen(PORT, async () => {
   
   // Seed admin on startup
   await seedAdmin();
+
+  // ================= BLOCKCHAIN INDEXER STARTUP ================= //
+  /**
+   * Start the blockchain indexer service
+   * 
+   * The indexer:
+   * - Connects to the Ethereum RPC endpoint
+   * - Syncs any missed ShipmentLocked events since last run
+   * - Listens for new events in real-time
+   * - Indexes events into MongoDB (Shipments & Containers)
+   * 
+   * If CONTRACT_ADDRESS is not configured, indexer will be disabled
+   * but the REST API will continue to function.
+   */
+  if (process.env.CONTRACT_ADDRESS) {
+    console.log('\n📦 Initializing blockchain indexer...');
+    try {
+      await blockchainIndexer.start();
+    } catch (error) {
+      console.error('❌ Blockchain indexer failed to start:', error.message);
+      console.log('⚠️  Server will continue without blockchain indexing');
+    }
+  } else {
+    console.log('\n⚠️  CONTRACT_ADDRESS not set - blockchain indexing disabled');
+    console.log('ℹ️  Set CONTRACT_ADDRESS in .env to enable indexing');
+  }
 });

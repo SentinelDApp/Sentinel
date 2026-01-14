@@ -1,5 +1,14 @@
+/**
+ * ShipmentDetails Component
+ * 
+ * SYSTEM PRINCIPLE:
+ * Sentinel records shipment identity on-chain while enabling container-level
+ * traceability using off-chain QR codes. This component displays comprehensive
+ * shipment details including container list, blockchain status, and QR codes.
+ */
+
 import { useState } from 'react';
-import QRCodeDisplay from './QRCodeDisplay';
+import ContainerQRGrid from './ContainerQRGrid';
 import { 
   STATUS_COLORS, 
   CONCERN_STATUS,
@@ -9,19 +18,25 @@ import {
 
 
 const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
-  const [activeTab, setActiveTab] = useState('details'); // 'details' | 'qrcode' | 'concerns'
+  const [activeTab, setActiveTab] = useState('details'); // 'details' | 'containers' | 'concerns'
   
   if (!shipment) return null;
 
   const {
     id,
-    batchId,
+    shipmentHash,
     productName,
-    quantity,
-    unit,
+    batchId,
+    numberOfContainers,
+    quantityPerContainer,
+    totalQuantity,
     status,
     createdAt,
+    isLocked,
+    blockchainTxHash,
     transporterName,
+    warehouseName,
+    containers = [],
     metadata,
     concerns = [],
   } = shipment;
@@ -35,7 +50,7 @@ const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
 
   const tabs = [
     { id: 'details', label: 'Details', icon: '📋' },
-    { id: 'qrcode', label: 'QR Code', icon: '📱' },
+    { id: 'containers', label: 'Containers', badge: containers.length, icon: '📦' },
     { id: 'concerns', label: 'Concerns', badge: openConcerns.length + acknowledgedConcerns.length, icon: '⚠️' },
   ];
 
@@ -56,9 +71,19 @@ const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
         }
       `}>
         <div className="flex items-center justify-between mb-3">
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} border`}>
-            {statusStyle.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} border`}>
+              {statusStyle.label}
+            </span>
+            {isLocked && (
+              <span className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Locked
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
             className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-200'}`}
@@ -68,9 +93,14 @@ const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
             </svg>
           </button>
         </div>
-        <h2 className={`text-xl font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{productName}</h2>
+        <h2 className={`text-xl font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+          {productName || 'Unnamed Product'}
+        </h2>
+        <div className={`text-xs font-mono mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          Batch: {batchId}
+        </div>
         <code className={`text-xs font-mono px-2 py-1 rounded ${isDarkMode ? 'text-slate-400 bg-slate-700/50' : 'text-slate-500 bg-slate-200'}`}>
-          {id}
+          {shipmentHash || id}
         </code>
       </div>
 
@@ -89,7 +119,9 @@ const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
             <span className="mr-1">{tab.icon}</span>
             {tab.label}
             {tab.badge > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 text-xs bg-red-500/20 text-red-400 rounded-full">
+              <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
+                tab.id === 'concerns' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
+              }`}>
                 {tab.badge}
               </span>
             )}
@@ -102,24 +134,90 @@ const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
         {/* Details Tab */}
         {activeTab === 'details' && (
           <div className="space-y-4">
-            {/* Key Info Grid */}
+            {/* Shipment Summary */}
             <div className="grid grid-cols-2 gap-4">
               <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Batch ID</span>
-                <span className={`font-mono ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{batchId}</span>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Containers</span>
+                <span className={`text-lg font-bold ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                  {numberOfContainers || containers.length}
+                </span>
               </div>
               <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Quantity</span>
-                <span className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{quantity} {unit}</span>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Qty per Container</span>
+                <span className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                  {quantityPerContainer || 0} units
+                </span>
               </div>
               <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Transporter</span>
-                <span className={isDarkMode ? 'text-slate-50' : 'text-slate-900'}>{transporterName || 'Not assigned'}</span>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Total Quantity</span>
+                <span className={`text-lg font-bold text-emerald-400`}>
+                  {totalQuantity || 0} units
+                </span>
               </div>
               <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
                 <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Created</span>
                 <span className={isDarkMode ? 'text-slate-50' : 'text-slate-900'}>{formatDate(createdAt)}</span>
               </div>
+            </div>
+
+            {/* Transporter & Warehouse Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Transporter</span>
+                <span className={`font-medium ${transporterName 
+                  ? (isDarkMode ? 'text-blue-300' : 'text-blue-600') 
+                  : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>
+                  {transporterName || 'Not assigned'}
+                </span>
+              </div>
+              <div className={`border rounded-xl p-3 ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Warehouse</span>
+                <span className={`font-medium ${warehouseName 
+                  ? (isDarkMode ? 'text-purple-300' : 'text-purple-600') 
+                  : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>
+                  {warehouseName || 'Not assigned'}
+                </span>
+              </div>
+            </div>
+
+            {/* Blockchain Status */}
+            <div className={`
+              border rounded-xl p-4
+              ${blockchainTxHash 
+                ? isDarkMode 
+                  ? 'bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-500/30' 
+                  : 'bg-gradient-to-br from-emerald-50 to-cyan-50 border-emerald-200'
+                : isDarkMode 
+                  ? 'bg-slate-800/30 border-slate-700' 
+                  : 'bg-slate-50 border-slate-200'
+              }
+            `}>
+              <div className="flex items-center gap-2 mb-2">
+                {blockchainTxHash ? (
+                  <>
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                      Blockchain Verified
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg className={`w-5 h-5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Pending Blockchain Registration
+                    </span>
+                  </>
+                )}
+              </div>
+              {blockchainTxHash && (
+                <p className={`text-xs font-mono truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  TX: {blockchainTxHash}
+                </p>
+              )}
             </div>
 
             {/* Supporting Documents */}
@@ -185,32 +283,23 @@ const ShipmentDetails = ({ shipment, onClose, isDarkMode = true }) => {
           </div>
         )}
 
-        {/* QR Code Tab */}
-        {activeTab === 'qrcode' && (
-          <div className="py-4">
-            <div className="text-center mb-6">
-              <h3 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>Shipment QR Code</h3>
+        {/* Containers Tab */}
+        {activeTab === 'containers' && (
+          <div className="space-y-4">
+            <div className="text-center mb-4">
+              <h3 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                Container QR Codes
+              </h3>
               <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                This QR code is permanently linked to this shipment and cannot be regenerated
+                Each container has a unique QR code for tracking and verification
               </p>
             </div>
 
-            <QRCodeDisplay shipmentId={id} size={200} showActions={true} isDarkMode={isDarkMode} />
-
-            {/* QR Info */}
-            <div className={`mt-6 p-4 border rounded-xl ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-              <h4 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>QR Code Information</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Encoded Data:</span>
-                  <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>Shipment Hash Only</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Generated:</span>
-                  <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>{formatDate(createdAt)}</span>
-                </div>
-              </div>
-            </div>
+            <ContainerQRGrid 
+              containers={containers} 
+              isDarkMode={isDarkMode}
+              maxHeight={500}
+            />
           </div>
         )}
 

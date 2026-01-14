@@ -1,89 +1,215 @@
+/**
+ * CreateShipment Component
+ * 
+ * SYSTEM PRINCIPLE:
+ * Shipment data is written to blockchain only after supplier confirmation
+ * to ensure immutability and trust. The blockchain serves as a source of
+ * truth for shipment lifecycle events, not as a database for operational data.
+ * 
+ * SHIPMENT CREATION MODEL:
+ * - Supplier inputs: productName, batchId, numberOfContainers, quantityPerContainer
+ * - Optional inputs: transporterId, warehouseId (can be assigned later via edit)
+ * - System generates: shipmentHash, totalQuantity, containerIds
+ * - Each container gets a unique QR code encoding only its containerId
+ * 
+ * BLOCKCHAIN INTEGRATION:
+ * - Shipment is created off-chain first (draft state)
+ * - "Confirm & Lock" triggers on-chain registration via confirmAndLockShipment()
+ * - Once locked, shipment becomes immutable and verifiable on-chain
+ */
+
 import { useState } from 'react';
 import { 
-  TRANSPORTER_AGENCIES, 
-  generateShipmentId, 
-  SHIPMENT_STATUSES 
+  SHIPMENT_STATUSES,
+  CONTAINER_STATUSES,
+  TRANSPORTER_AGENCIES,
+  WAREHOUSES,
+  generateShipmentHash,
+  generateContainers,
 } from '../constants';
 import { useAuth } from '../../../context/AuthContext';
-import QRCodeDisplay from './QRCodeDisplay';
-
-// Mock warehouse data
-const WAREHOUSES = [
-  { warehouseId: "WH-01", name: "Mumbai Warehouse", status: "AVAILABLE", address: "Andheri East" },
-  { warehouseId: "WH-02", name: "Delhi Warehouse", status: "NOT_AVAILABLE", unavailableReason: "Full capacity" },
-  { warehouseId: "WH-03", name: "Bengaluru Warehouse", status: "AVAILABLE", address: "Whitefield" },
-  { warehouseId: "WH-04", name: "Chennai Warehouse", status: "NOT_AVAILABLE", unavailableReason: "Maintenance" },
-  { warehouseId: "WH-05", name: "Pune Warehouse", status: "AVAILABLE", address: "Hinjewadi" }
-];
+import { useBlockchain } from '../../../hooks/useBlockchain';
+import ContainerQRGrid from './ContainerQRGrid';
 
 
 const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   const { user } = useAuth();
+  
+  // Blockchain integration hook
+  const { 
+    isProcessing: isBlockchainProcessing, 
+    walletAddress,
+    error: blockchainError,
+    connectWallet,
+    confirmAndLockShipment,
+    clearError: clearBlockchainError,
+    isWalletAvailable,
+  } = useBlockchain();
+  
+  // Form state - supplier inputs
   const [formData, setFormData] = useState({
     productName: '',
     batchId: '',
-    quantity: '',
-    unit: 'units',
+    numberOfContainers: '',
+    quantityPerContainer: '',
     transporterId: '',
     warehouseId: '',
   });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdShipment, setCreatedShipment] = useState(null); // Holds shipment data after creation
+  const [previewShipment, setPreviewShipment] = useState(null); // Preview before confirming
+  const [createdShipment, setCreatedShipment] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
+  const [lockError, setLockError] = useState(null);
+
+  // Calculate total quantity (system-generated)
+  const totalQuantity = formData.numberOfContainers && formData.quantityPerContainer
+    ? parseInt(formData.numberOfContainers, 10) * parseInt(formData.quantityPerContainer, 10)
+    : 0;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Step 1: Generate preview for user to review
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validate required fields including warehouse selection
-    if (!formData.productName || !formData.quantity || !formData.batchId || !formData.warehouseId) return;
-    
-    // Ensure selected warehouse is available
-    const selectedWarehouse = WAREHOUSES.find(w => w.warehouseId === formData.warehouseId);
-    if (!selectedWarehouse || selectedWarehouse.status !== 'AVAILABLE') return;
+    if (!formData.productName || !formData.batchId || !formData.numberOfContainers || !formData.quantityPerContainer || !formData.warehouseId) return;
 
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Generate cryptographic shipment ID
+    // Generate shipment hash (system-generated, not editable)
     const supplierWallet = user?.walletAddress || user?.id || 'supplier';
-    const shipmentId = generateShipmentId(
-      formData.productName, 
-      formData.batchId, 
-      supplierWallet
-    );
+    const shipmentHash = generateShipmentHash(formData.batchId, supplierWallet);
     
-    const newShipment = {
-      id: shipmentId,
-      batchId: formData.batchId,
+    // Generate containers with unique IDs
+    const numberOfContainers = parseInt(formData.numberOfContainers, 10);
+    const quantityPerContainer = parseInt(formData.quantityPerContainer, 10);
+    const containers = generateContainers(shipmentHash, numberOfContainers);
+    
+    // Get transporter and warehouse names if selected
+    const transporter = TRANSPORTER_AGENCIES.find(t => t.id === formData.transporterId);
+    const warehouse = WAREHOUSES.find(w => w.id === formData.warehouseId);
+    
+    const shipmentPreview = {
+      id: shipmentHash,
+      shipmentHash,
       productName: formData.productName,
-      quantity: parseInt(formData.quantity, 10),
-      unit: formData.unit,
-      transporterId: formData.transporterId || null,
-      transporterName: formData.transporterId 
-        ? TRANSPORTER_AGENCIES.find(t => t.id === formData.transporterId)?.name 
-        : null,
-      warehouseId: formData.warehouseId,
-      warehouseName: selectedWarehouse?.name || null,
-      warehouseAddress: selectedWarehouse?.address || null,
-      supplierWallet: supplierWallet,
+      batchId: formData.batchId,
+      numberOfContainers,
+      quantityPerContainer,
+      totalQuantity: numberOfContainers * quantityPerContainer,
+      containers,
+      supplierWallet,
       status: SHIPMENT_STATUSES.CREATED,
+      isLocked: false,
       createdAt: Date.now(),
       metadata: null,
       concerns: [],
+      transporterId: formData.transporterId || null,
+      transporterName: transporter?.name || null,
+      warehouseId: formData.warehouseId || null,
+      warehouseName: warehouse?.name || null,
+      blockchainTxHash: null,
     };
 
-    onCreateShipment(newShipment);
-    setCreatedShipment(newShipment); // Show success state with QR code
+    // Show preview for user confirmation
+    setPreviewShipment(shipmentPreview);
     setIsSubmitting(false);
+  };
+
+  // Step 2: User confirms and shipment is actually created
+  const handleConfirmCreate = () => {
+    if (!previewShipment) return;
+    onCreateShipment(previewShipment);
+    setCreatedShipment(previewShipment);
+    setPreviewShipment(null);
+  };
+
+  // Go back to edit from preview
+  const handleBackToEdit = () => {
+    setPreviewShipment(null);
+  };
+
+  // Handle "Mark Ready for Dispatch" - shows confirmation modal
+  const handleMarkReadyClick = () => {
+    setLockError(null);
+    clearBlockchainError();
+    setShowConfirmModal(true);
+  };
+
+  /**
+   * Confirm and lock shipment on blockchain
+   * 
+   * SYSTEM PRINCIPLE:
+   * Shipment data is written to blockchain only after supplier confirmation
+   * to ensure immutability and trust.
+   * 
+   * This function:
+   * 1. Validates wallet connection
+   * 2. Calls the smart contract's confirmAndLockShipment()
+   * 3. Awaits transaction confirmation
+   * 4. Updates local state with blockchain transaction details
+   */
+  const handleConfirmLock = async () => {
+    setIsLocking(true);
+    setLockError(null);
+    
+    try {
+      // Pre-check: Ensure wallet is available
+      if (!isWalletAvailable()) {
+        throw new Error('No Ethereum wallet detected. Please install MetaMask or Brave Wallet.');
+      }
+
+      // Pre-check: Ensure wallet is connected
+      if (!walletAddress) {
+        await connectWallet();
+      }
+
+      // Call the smart contract via the blockchain hook
+      // This will trigger the wallet popup for user approval
+      const result = await confirmAndLockShipment({
+        shipmentHash: createdShipment.shipmentHash,
+        batchId: createdShipment.batchId,
+        numberOfContainers: createdShipment.numberOfContainers,
+        quantityPerContainer: createdShipment.quantityPerContainer,
+      });
+
+      // Transaction successful - update shipment with blockchain details
+      const updatedShipment = {
+        ...createdShipment,
+        status: SHIPMENT_STATUSES.READY_FOR_DISPATCH,
+        isLocked: true,
+        blockchainTxHash: result.txHash,
+        blockchainBlockNumber: result.blockNumber,
+        containers: createdShipment.containers.map(c => ({
+          ...c,
+          status: CONTAINER_STATUSES.LOCKED,
+        })),
+      };
+      
+      setCreatedShipment(updatedShipment);
+      onCreateShipment(updatedShipment);
+      setShowConfirmModal(false);
+      
+    } catch (err) {
+      // Handle errors gracefully and show to user
+      console.error('Blockchain transaction failed:', err);
+      setLockError(err.message || 'Transaction failed. Please try again.');
+      // Don't close modal on error - let user see the error and retry
+    } finally {
+      setIsLocking(false);
+    }
   };
 
   // Reset form to create another shipment
   const handleCreateAnother = () => {
     setCreatedShipment(null);
-    setFormData({ productName: '', batchId: '', quantity: '', unit: 'units', transporterId: '', warehouseId: '' });
+    setPreviewShipment(null);
+    setFormData({ productName: '', batchId: '', numberOfContainers: '', quantityPerContainer: '', transporterId: '', warehouseId: '' });
   };
 
   const inputClass = `w-full border rounded-xl py-3 px-4 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
@@ -92,7 +218,326 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
       : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-blue-500/20'
   }`;
 
-  // Success State: Show QR Code after shipment creation
+  // Confirmation Modal
+  const ConfirmationModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className={`
+        max-w-md w-full rounded-2xl p-6 shadow-2xl
+        ${isDarkMode ? 'bg-slate-900 border border-slate-700' : 'bg-white'}
+      `}>
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 mx-auto mb-4 bg-amber-500/20 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+            Confirm Blockchain Registration
+          </h3>
+          <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            This action is <strong className="text-amber-400">irreversible</strong>. Once registered on the blockchain:
+          </p>
+        </div>
+
+        <div className={`
+          rounded-xl p-4 mb-6 space-y-2
+          ${isDarkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-slate-50 border border-slate-200'}
+        `}>
+          <div className="flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>Shipment details cannot be edited</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>Containers will be locked</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>Shipment becomes verifiable on-chain</span>
+          </div>
+        </div>
+
+        {/* Wallet Status Indicator */}
+        <div className={`
+          rounded-xl p-3 mb-4
+          ${walletAddress 
+            ? isDarkMode ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-emerald-50 border border-emerald-200'
+            : isDarkMode ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'
+          }
+        `}>
+          <div className="flex items-center gap-2 text-sm">
+            {walletAddress ? (
+              <>
+                <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span className={isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}>
+                  Wallet connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className={isDarkMode ? 'text-blue-300' : 'text-blue-700'}>
+                  Wallet will connect when you confirm
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Error Display */}
+        {(lockError || blockchainError) && (
+          <div className={`
+            rounded-xl p-4 mb-4 border
+            ${isDarkMode ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}
+          `}>
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className={`text-sm font-medium ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>
+                  Transaction Failed
+                </p>
+                <p className={`text-xs mt-1 ${isDarkMode ? 'text-red-200/70' : 'text-red-600'}`}>
+                  {lockError || blockchainError}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setShowConfirmModal(false);
+              setLockError(null);
+              clearBlockchainError();
+            }}
+            disabled={isLocking}
+            className={`
+              flex-1 py-3 px-4 font-medium rounded-xl transition-colors
+              ${isDarkMode 
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' 
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmLock}
+            disabled={isLocking}
+            className="flex-1 py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLocking ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Confirming on Blockchain...
+              </span>
+            ) : (lockError || blockchainError) ? 'Retry' : 'Confirm & Lock'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Preview State: Show shipment details for confirmation before creating
+  if (previewShipment) {
+    return (
+      <div className={`
+        border rounded-2xl p-6 transition-colors duration-200
+        ${isDarkMode 
+          ? 'bg-slate-900/50 border-slate-800' 
+          : 'bg-white border-slate-200 shadow-sm'
+        }
+      `}>
+        {/* Preview Header */}
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-600">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </div>
+          <h2 className={`text-xl font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+            Review Shipment Details
+          </h2>
+          <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            Please verify all details before confirming. Once created, shipment details cannot be edited.
+          </p>
+        </div>
+
+        {/* Preview Summary */}
+        <div className={`
+          border rounded-xl p-4 mb-6
+          ${isDarkMode 
+            ? 'bg-slate-800/50 border-slate-700' 
+            : 'bg-slate-50 border-slate-200'
+          }
+        `}>
+          <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Shipment Details
+          </h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-start">
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Product Name</span>
+              <span className={`font-medium text-right ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                {previewShipment.productName}
+              </span>
+            </div>
+            <div className="flex justify-between items-start">
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Batch ID</span>
+              <span className={`font-mono font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                {previewShipment.batchId}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Containers</span>
+              <span className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                {previewShipment.numberOfContainers}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Qty per Container</span>
+              <span className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                {previewShipment.quantityPerContainer} units
+              </span>
+            </div>
+            <div className={`flex justify-between items-center pt-2 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Total Quantity</span>
+              <span className={`text-lg font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                {previewShipment.totalQuantity} units
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Assignments */}
+        <div className={`
+          border rounded-xl p-4 mb-6
+          ${isDarkMode 
+            ? 'bg-slate-800/50 border-slate-700' 
+            : 'bg-slate-50 border-slate-200'
+          }
+        `}>
+          <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Assignments
+          </h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>🏭 Warehouse</span>
+              <span className={`font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`}>
+                {previewShipment.warehouseName}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>🚚 Transporter</span>
+              {previewShipment.transporterName ? (
+                <span className={`font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+                  {previewShipment.transporterName}
+                </span>
+              ) : (
+                <span className={`italic ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Not assigned
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* System Generated */}
+        <div className={`
+          border rounded-xl p-4 mb-6
+          ${isDarkMode 
+            ? 'bg-cyan-500/10 border-cyan-500/30' 
+            : 'bg-cyan-50 border-cyan-200'
+          }
+        `}>
+          <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDarkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+            </svg>
+            System Generated
+          </h3>
+          <div className="space-y-2 text-sm">
+            <div>
+              <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Shipment Hash</span>
+              <code className={`text-xs font-mono block truncate ${isDarkMode ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                {previewShipment.shipmentHash}
+              </code>
+            </div>
+            <div>
+              <span className={`text-xs block mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Container IDs</span>
+              <span className={`text-sm ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                {previewShipment.numberOfContainers} unique IDs generated
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Warning Notice */}
+        <div className={`
+          p-4 rounded-xl border mb-6
+          ${isDarkMode 
+            ? 'bg-amber-500/10 border-amber-500/30' 
+            : 'bg-amber-50 border-amber-200'
+          }
+        `}>
+          <div className="flex items-start gap-3">
+            <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p className={`text-sm font-medium ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                Shipment details cannot be modified after creation
+              </p>
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-amber-200/70' : 'text-amber-600'}`}>
+                If you haven't assigned a transporter, you can do so later from the Manage tab before dispatching.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={handleBackToEdit}
+            className={`
+              flex-1 py-3 px-4 font-medium rounded-xl transition-colors border
+              ${isDarkMode 
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' 
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+              }
+            `}
+          >
+            ← Back to Edit
+          </button>
+          <button
+            onClick={handleConfirmCreate}
+            className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-500/25"
+          >
+            Confirm & Create
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Success State: Show shipment summary with containers
   if (createdShipment) {
     return (
       <div className={`
@@ -102,22 +547,62 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
           : 'bg-white border-slate-200 shadow-sm'
         }
       `}>
+        {showConfirmModal && <ConfirmationModal />}
+
         {/* Success Header */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto mb-4 bg-linear-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+          <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+            createdShipment.isLocked 
+              ? 'bg-gradient-to-br from-amber-500 to-orange-600' 
+              : 'bg-gradient-to-br from-green-500 to-emerald-600'
+          }`}>
+            {createdShipment.isLocked ? (
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            ) : (
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
           </div>
           <h2 className={`text-xl font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-            Shipment Created Successfully
+            {createdShipment.isLocked ? 'Shipment Locked on Blockchain' : 'Shipment Created Successfully'}
           </h2>
           <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-            Your shipment has been registered on the blockchain
+            {createdShipment.isLocked 
+              ? 'This shipment is now immutable and ready for dispatch'
+              : 'Review the details and mark ready for dispatch when confirmed'
+            }
           </p>
         </div>
 
-        {/* Shipment Details */}
+        {/* Status Badge */}
+        <div className="flex justify-center mb-6">
+          <span className={`
+            inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border
+            ${createdShipment.isLocked 
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
+              : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+            }
+          `}>
+            {createdShipment.isLocked ? (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                LOCKED
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+                CREATED
+              </>
+            )}
+          </span>
+        </div>
+
+        {/* Shipment Summary */}
         <div className={`
           border rounded-xl p-4 mb-6
           ${isDarkMode 
@@ -125,84 +610,115 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
             : 'bg-slate-50 border-slate-200'
           }
         `}>
+          <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Shipment Summary
+          </h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Product</span>
-              <p className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-                {createdShipment.productName}
-              </p>
-            </div>
-            <div>
               <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Batch ID</span>
-              <p className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+              <p className={`font-mono font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
                 {createdShipment.batchId}
               </p>
             </div>
             <div>
-              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Quantity</span>
-              <p className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-                {createdShipment.quantity} {createdShipment.unit}
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Shipment Hash</span>
+              <p className={`font-mono text-xs truncate ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`} title={createdShipment.shipmentHash}>
+                {createdShipment.shipmentHash}
               </p>
             </div>
             <div>
-              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Status</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                Created
-              </span>
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Containers</span>
+              <p className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                {createdShipment.numberOfContainers}
+              </p>
+            </div>
+            <div>
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Qty per Container</span>
+              <p className={`font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                {createdShipment.quantityPerContainer} units
+              </p>
+            </div>
+            <div className="col-span-2">
+              <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Total Quantity</span>
+              <p className={`text-lg font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                {createdShipment.totalQuantity} units
+              </p>
             </div>
           </div>
         </div>
 
-        {/* QR Code Section */}
-        <div className={`
-          border rounded-xl p-6 mb-6
-          ${isDarkMode 
-            ? 'bg-linear-to-br from-slate-900/80 to-slate-800/80 border-slate-700' 
-            : 'bg-linear-to-br from-slate-50 to-white border-slate-200'
-          }
-        `}>
-          <div className="text-center mb-4">
-            <h3 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-              Shipment QR Code
-            </h3>
-            <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              This QR code is permanently linked to this shipment
-            </p>
-          </div>
-
-          <QRCodeDisplay shipmentId={createdShipment.id} size={180} showActions={true} isDarkMode={isDarkMode} />
-
-          {/* Instructions */}
+        {/* Blockchain Status */}
+        {createdShipment.blockchainTxHash && (
           <div className={`
-            mt-6 p-4 rounded-xl border
+            border rounded-xl p-4 mb-6
             ${isDarkMode 
-              ? 'bg-amber-500/10 border-amber-500/30' 
-              : 'bg-amber-50 border-amber-200'
+              ? 'bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border-emerald-500/30' 
+              : 'bg-gradient-to-br from-emerald-50 to-cyan-50 border-emerald-200'
             }
           `}>
-            <div className="flex items-start gap-3">
-              <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              <div>
-                <p className={`text-sm font-medium ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
-                  Attach to Physical Shipment
-                </p>
-                <p className={`text-xs mt-1 ${isDarkMode ? 'text-amber-200/70' : 'text-amber-600'}`}>
-                  Print or download this QR code and attach it to the physical shipment package. 
-                  This allows anyone to scan and verify the shipment's authenticity and track its journey.
-                </p>
-              </div>
+              <span className={`text-sm font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                Blockchain Verified
+              </span>
+            </div>
+            <p className={`text-xs font-mono truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              TX: {createdShipment.blockchainTxHash}
+            </p>
+          </div>
+        )}
+
+        {/* Container QR Grid */}
+        <div className="mb-6">
+          <h3 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+            Container QR Codes ({createdShipment.containers.length})
+          </h3>
+          <ContainerQRGrid 
+            containers={createdShipment.containers} 
+            isDarkMode={isDarkMode} 
+          />
+        </div>
+
+        {/* Instructions */}
+        <div className={`
+          p-4 rounded-xl border mb-6
+          ${isDarkMode 
+            ? 'bg-amber-500/10 border-amber-500/30' 
+            : 'bg-amber-50 border-amber-200'
+          }
+        `}>
+          <div className="flex items-start gap-3">
+            <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className={`text-sm font-medium ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                Attach QR Codes to Physical Containers
+              </p>
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-amber-200/70' : 'text-amber-600'}`}>
+                Print or download each QR code and attach it to the corresponding physical container. 
+                Each QR code uniquely identifies its container for tracking and verification.
+              </p>
             </div>
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex gap-3">
+          {!createdShipment.isLocked && (
+            <button
+              onClick={handleMarkReadyClick}
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-amber-500/25"
+            >
+              Mark Ready for Dispatch
+            </button>
+          )}
           <button
             onClick={handleCreateAnother}
             className={`
-              flex-1 py-3 px-4 font-medium rounded-xl transition-colors
+              ${createdShipment.isLocked ? 'flex-1' : ''} py-3 px-4 font-medium rounded-xl transition-colors
               ${isDarkMode 
                 ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' 
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -216,6 +732,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
     );
   }
 
+  // Form State
   return (
     <div className={`
       border rounded-2xl p-6 transition-all duration-200
@@ -228,7 +745,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
         Create New Shipment
       </h2>
       <p className={`text-sm mb-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-        Enter batch ID or use the suggested one based on product history
+        Enter batch details and container configuration
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -243,7 +760,7 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
             value={formData.productName}
             onChange={handleChange}
             required
-            placeholder="e.g., Organic Olive Oil"
+            placeholder="e.g., Pharmaceutical Grade Chemicals"
             autoComplete="off"
             className={inputClass}
           />
@@ -260,44 +777,51 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
             value={formData.batchId}
             onChange={handleChange}
             required
-            placeholder="e.g., BATCH-2024-001"
+            placeholder="e.g., BATCH-2026-001"
+            autoComplete="off"
             className={inputClass}
           />
+          <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            Unique identifier for this product batch
+          </p>
         </div>
 
-        {/* Quantity and Unit */}
+        {/* Container Configuration */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-              Quantity <span className="text-red-400">*</span>
+              Number of Containers <span className="text-red-400">*</span>
             </label>
             <input
               type="number"
-              name="quantity"
-              value={formData.quantity}
+              name="numberOfContainers"
+              value={formData.numberOfContainers}
               onChange={handleChange}
               required
               min="1"
-              placeholder="e.g., 500"
+              max="100"
+              placeholder="e.g., 10"
               className={inputClass}
             />
           </div>
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-              Unit
+              Quantity per Container <span className="text-red-400">*</span>
             </label>
             <input
-              type="text"
-              name="unit"
-              value={formData.unit}
+              type="number"
+              name="quantityPerContainer"
+              value={formData.quantityPerContainer}
               onChange={handleChange}
-              placeholder="e.g., kg, bottles"
+              required
+              min="1"
+              placeholder="e.g., 50"
               className={inputClass}
             />
           </div>
         </div>
 
-        {/* Warehouse Selection */}
+        {/* Destination Warehouse - Required */}
         <div>
           <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
             Destination Warehouse <span className="text-red-400">*</span>
@@ -305,56 +829,57 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
           <select
             name="warehouseId"
             value={formData.warehouseId}
-            onChange={(e) => {
-              const warehouse = WAREHOUSES.find(w => w.warehouseId === e.target.value);
-              // Only allow selection of available warehouses
-              if (!warehouse || warehouse.status === 'AVAILABLE') {
-                handleChange(e);
-              }
-            }}
+            onChange={handleChange}
             required
             className={inputClass}
           >
             <option value="" className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>-- Select Warehouse --</option>
-            {WAREHOUSES.map(warehouse => (
+            {WAREHOUSES.map(w => (
               <option 
-                key={warehouse.warehouseId} 
-                value={warehouse.warehouseId} 
-                disabled={warehouse.status === 'NOT_AVAILABLE'}
-                className={`${isDarkMode ? 'bg-slate-800' : 'bg-white'} ${warehouse.status === 'NOT_AVAILABLE' ? 'text-red-400' : 'text-green-400'}`}
+                key={w.id} 
+                value={w.id} 
+                disabled={!w.available}
+                className={isDarkMode ? 'bg-slate-800' : 'bg-white'}
               >
-              {warehouse.name} • {warehouse.address || 'N/A'}
-                {warehouse.status === 'NOT_AVAILABLE' ? ` (${warehouse.unavailableReason})` : ''}
+                {w.name} ({w.location}){!w.available && ` - [${w.unavailableReason}]`}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Transporter Selection */}
-        <div>
-          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-            Assign Transporter <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>(optional)</span>
-          </label>
-          <select
-            name="transporterId"
-            value={formData.transporterId}
-            onChange={handleChange}
-            className={inputClass}
-          >
-            <option value="" className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>-- Select Later --</option>
-            {TRANSPORTER_AGENCIES.map(agency => (
-              <option key={agency.id} value={agency.id} className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>
-                {agency.name} • {agency.specialization}
-              </option>
-            ))}
-          </select>
-          <p className={`text-xs mt-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-            Can be assigned later before marking ready for dispatch
+        {/* Transporter - Optional */}
+        <div className={`
+          border rounded-xl p-4
+          ${isDarkMode 
+            ? 'bg-slate-800/30 border-slate-700/50' 
+            : 'bg-slate-50 border-slate-200'
+          }
+        `}>
+          <p className={`text-xs mb-3 font-medium flex items-center gap-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className="text-blue-400">ℹ</span> Optional - Can be assigned later
           </p>
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              Transporter
+            </label>
+            <select
+              name="transporterId"
+              value={formData.transporterId}
+              onChange={handleChange}
+              className={inputClass}
+            >
+              <option value="" className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>-- Select Transporter --</option>
+              {TRANSPORTER_AGENCIES.map(t => (
+                <option key={t.id} value={t.id} className={isDarkMode ? 'bg-slate-800' : 'bg-white'}>
+                  {t.name} ({t.specialization})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Preview Info */}
-        {formData.productName && formData.batchId && (
+        {/* System-Generated Preview */}
+        {formData.productName && formData.batchId && formData.numberOfContainers && formData.quantityPerContainer && (
           <div className={`
             border rounded-xl p-4
             ${isDarkMode 
@@ -362,19 +887,36 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
               : 'bg-slate-50 border-slate-200'
             }
           `}>
-            <p className={`text-xs mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Shipment ID will be generated on creation:
+            <p className={`text-xs mb-3 font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              System-Generated Values (Preview)
             </p>
-            <code className="text-xs text-emerald-400 font-mono">
-              SHP-[HASH]-[TIMESTAMP]
-            </code>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Total Quantity:</span>
+                <span className={`text-lg font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  {totalQuantity} units
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Container IDs:</span>
+                <span className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  {formData.numberOfContainers} will be generated
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Shipment Hash:</span>
+                <code className="text-xs text-emerald-400 font-mono">
+                  SHP-[HASH]-[TIMESTAMP]
+                </code>
+              </div>
+            </div>
           </div>
         )}
 
         <button
           type="submit"
-          disabled={isSubmitting || !formData.productName || !formData.quantity || !formData.batchId || !formData.warehouseId}
-          className="w-full py-3 bg-linear-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          disabled={isSubmitting || !formData.productName || !formData.batchId || !formData.numberOfContainers || !formData.quantityPerContainer || !formData.warehouseId}
+          className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-2">
@@ -382,9 +924,9 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              Creating Shipment...
+              Preparing Preview...
             </span>
-          ) : 'Create Shipment'}
+          ) : 'Preview Shipment'}
         </button>
       </form>
     </div>

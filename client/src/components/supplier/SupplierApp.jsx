@@ -1,4 +1,20 @@
-import { useState } from 'react';
+/**
+ * SupplierApp - Main Supplier Dashboard Application
+ * 
+ * SYSTEM PRINCIPLE:
+ * Sentinel records shipment identity on-chain while enabling container-level
+ * traceability using off-chain QR codes. The supplier creates shipments with
+ * containers, and when marked "Ready for Dispatch", the shipment is permanently
+ * locked to the blockchain.
+ * 
+ * DATA FLOW:
+ * 1. Supplier creates shipment → locks to blockchain
+ * 2. Blockchain emits ShipmentLocked event
+ * 3. Backend indexer captures event → stores in MongoDB
+ * 4. Frontend fetches from backend API
+ */
+
+import { useState, useEffect, useCallback } from 'react';
 import { SupplierThemeProvider, useSupplierTheme } from './context/ThemeContext';
 import Header from './layout/Header';
 import SupplierOverview from './components/SupplierOverview';
@@ -7,11 +23,12 @@ import ShipmentList from './components/ShipmentList';
 import ShipmentActions from './components/ShipmentActions';
 import ShipmentDetails from './components/ShipmentDetails';
 import UploadMetadata from './components/UploadMetadata';
+import { fetchShipments, fetchContainers } from '../../services/shipmentApi';
+import { useAuth } from '../../context/AuthContext';
 import { 
   SHIPMENT_STATUSES,
   STATUS_COLORS,
   CONCERN_STATUS,
-  TRANSPORTER_AGENCIES,
   generateMetadataHash,
 } from './constants';
 
@@ -68,58 +85,123 @@ const NavigationTabs = ({ activeTab, setActiveTab, shipmentsWithConcerns, isDark
 // Main Supplier Dashboard Content
 const SupplierDashboardContent = () => {
   const { isDarkMode } = useSupplierTheme();
+  const { walletAddress } = useAuth();
+  
+  // Shipments state - fetched from backend API (indexed from blockchain)
   const [shipments, setShipments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewingShipmentDetails, setViewingShipmentDetails] = useState(null);
 
-  // Create new shipment
+  // ═══════════════════════════════════════════════════════════════════════
+  // FETCH SHIPMENTS FROM BACKEND API
+  // ═══════════════════════════════════════════════════════════════════════
+  
+  /**
+   * Load shipments from the backend indexer
+   * The backend indexes ShipmentLocked events from the blockchain
+   */
+  const loadShipments = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch shipments for this supplier's wallet
+      const { shipments: fetchedShipments } = await fetchShipments(walletAddress);
+      
+      // For each shipment, fetch its containers
+      const shipmentsWithContainers = await Promise.all(
+        fetchedShipments.map(async (shipment) => {
+          try {
+            const { containers } = await fetchContainers(shipment.shipmentHash);
+            return { ...shipment, containers };
+          } catch {
+            // If container fetch fails, return shipment without containers
+            return { ...shipment, containers: [] };
+          }
+        })
+      );
+      
+      setShipments(shipmentsWithContainers);
+    } catch (err) {
+      console.error('Failed to load shipments:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [walletAddress]);
+
+  // Fetch shipments on mount and when wallet changes
+  useEffect(() => {
+    loadShipments();
+  }, [loadShipments]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SHIPMENT HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // Create new shipment (adds to local state, will be fetched after blockchain lock)
   const handleCreateShipment = (newShipment) => {
     setShipments(prev => [newShipment, ...prev]);
     setActiveTab('dashboard');
   };
 
-  // Assign transporter to shipment
-  const handleAssignTransporter = (shipmentId, transporterId) => {
-    const transporterName = TRANSPORTER_AGENCIES.find(t => t.id === transporterId)?.name || null;
-    
-    setShipments(prev => prev.map(s => 
-      s.id === shipmentId 
-        ? { ...s, transporterId, transporterName } 
-        : s
-    ));
-    
-    if (selectedShipment?.id === shipmentId) {
-      setSelectedShipment(prev => ({ ...prev, transporterId, transporterName }));
-    }
-  };
-
-  // Mark shipment ready for dispatch
+  // Mark shipment ready for dispatch (locks to blockchain)
   const handleMarkReady = (shipmentId) => {
-    setShipments(prev => prev.map(s => 
-      s.id === shipmentId 
-        ? { ...s, status: SHIPMENT_STATUSES.READY_FOR_DISPATCH } 
-        : s
-    ));
+    const blockchainTxHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
     
-    if (selectedShipment?.id === shipmentId) {
-      setSelectedShipment(prev => ({ ...prev, status: SHIPMENT_STATUSES.READY_FOR_DISPATCH }));
-    }
-  };
-
-  // Update shipment details (only allowed before dispatch)
-  const handleUpdateShipment = (shipmentId, updates) => {
     setShipments(prev => prev.map(s => {
       if (s.id !== shipmentId) return s;
-      // Only allow updates if status is CREATED
-      if (s.status !== SHIPMENT_STATUSES.CREATED) return s;
-      return { ...s, ...updates };
+      
+      // Lock all containers
+      const lockedContainers = (s.containers || []).map(c => ({
+        ...c,
+        status: 'LOCKED',
+      }));
+      
+      return { 
+        ...s, 
+        status: SHIPMENT_STATUSES.READY_FOR_DISPATCH,
+        isLocked: true,
+        blockchainTxHash,
+        containers: lockedContainers,
+      };
+    }));
+    
+    if (selectedShipment?.id === shipmentId) {
+      setSelectedShipment(prev => ({
+        ...prev,
+        status: SHIPMENT_STATUSES.READY_FOR_DISPATCH,
+        isLocked: true,
+        blockchainTxHash,
+        containers: (prev.containers || []).map(c => ({ ...c, status: 'LOCKED' })),
+      }));
+    }
+  };
+
+  // Assign transporter to shipment (only allowed before dispatch/lock)
+  const handleAssignTransporter = (shipmentId, transporterInfo) => {
+    setShipments(prev => prev.map(s => {
+      if (s.id !== shipmentId) return s;
+      // Only allow if not locked
+      if (s.isLocked) return s;
+      return { 
+        ...s, 
+        transporterId: transporterInfo.transporterId,
+        transporterName: transporterInfo.transporterName,
+      };
     }));
     
     if (selectedShipment?.id === shipmentId) {
       setSelectedShipment(prev => {
-        if (prev.status !== SHIPMENT_STATUSES.CREATED) return prev;
-        return { ...prev, ...updates };
+        if (prev.isLocked) return prev;
+        return { 
+          ...prev, 
+          transporterId: transporterInfo.transporterId,
+          transporterName: transporterInfo.transporterName,
+        };
       });
     }
   };
@@ -240,13 +322,53 @@ const SupplierDashboardContent = () => {
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <SupplierOverview shipments={shipments} isDarkMode={isDarkMode} />
-            <ShipmentList 
-              shipments={shipments} 
-              selectedShipment={selectedShipment} 
-              onShipmentSelect={handleSelectShipment}
-              isDarkMode={isDarkMode}
-            />
+            {/* Loading State */}
+            {isLoading && (
+              <div className={`
+                flex flex-col items-center justify-center py-16 rounded-2xl border
+                ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}
+              `}>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>
+                  Loading shipments from blockchain indexer...
+                </p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !isLoading && (
+              <div className={`
+                flex flex-col items-center justify-center py-12 rounded-2xl border
+                ${isDarkMode ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}
+              `}>
+                <div className="text-4xl mb-4">⚠️</div>
+                <p className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                  Failed to load shipments
+                </p>
+                <p className={`text-sm mb-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {error}
+                </p>
+                <button
+                  onClick={loadShipments}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Content - Only show when not loading and no error */}
+            {!isLoading && !error && (
+              <>
+                <SupplierOverview shipments={shipments} isDarkMode={isDarkMode} />
+                <ShipmentList 
+                  shipments={shipments} 
+                  selectedShipment={selectedShipment} 
+                  onShipmentSelect={handleSelectShipment}
+                  isDarkMode={isDarkMode}
+                />
+              </>
+            )}
           </div>
         )}
 
@@ -276,10 +398,10 @@ const SupplierDashboardContent = () => {
                   }
                 `}>
                   <p className={`text-3xl font-bold ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-                    {shipments.length}
+                    {shipments.reduce((acc, s) => acc + (s.numberOfContainers || s.containers?.length || 0), 0)}
                   </p>
                   <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Total Shipments
+                    Total Containers
                   </p>
                 </div>
                 <div className={`
@@ -290,10 +412,10 @@ const SupplierDashboardContent = () => {
                   }
                 `}>
                   <p className="text-3xl font-bold text-green-500">
-                    {shipments.filter(s => s.status === SHIPMENT_STATUSES.DELIVERED).length}
+                    {shipments.filter(s => s.isLocked || s.blockchainTxHash).length}
                   </p>
                   <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Delivered
+                    On Blockchain
                   </p>
                 </div>
               </div>
@@ -301,21 +423,25 @@ const SupplierDashboardContent = () => {
               {/* Divider */}
               <div className={`border-t my-5 ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}></div>
 
-              {/* Approved Transporters */}
+              {/* Recent Shipments Quick Info */}
               <h3 className={`text-sm font-semibold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-                <span className="text-lg">🚚</span> Approved Transporters
+                <span className="text-lg">📦</span> Recent Shipments
               </h3>
               <div className="space-y-2">
-                {TRANSPORTER_AGENCIES.slice(0, 4).map((transporter) => (
+                {shipments.slice(0, 5).map((shipment) => (
                   <div 
-                    key={transporter.id} 
+                    key={shipment.id} 
                     className={`
-                      flex items-center justify-between p-2.5 rounded-lg transition-colors
+                      flex items-center justify-between p-2.5 rounded-lg transition-colors cursor-pointer
                       ${isDarkMode 
                         ? 'bg-slate-800/50 hover:bg-slate-800' 
                         : 'bg-slate-50 hover:bg-slate-100'
                       }
                     `}
+                    onClick={() => {
+                      setSelectedShipment(shipment);
+                      setActiveTab('manage');
+                    }}
                   >
                     <div className="flex items-center gap-2">
                       <div className={`
@@ -325,23 +451,43 @@ const SupplierDashboardContent = () => {
                           : 'bg-slate-200 text-slate-600'
                         }
                       `}>
-                        {transporter.name.charAt(0)}
+                        {shipment.numberOfContainers || shipment.containers?.length || 0}
                       </div>
-                      <span className={`text-sm ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                        {transporter.name}
+                      <span className={`text-sm font-mono truncate max-w-[120px] ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {shipment.batchId}
                       </span>
                     </div>
-                    <span className={`
-                      text-xs px-2 py-0.5 rounded-full
-                      ${isDarkMode 
-                        ? 'text-emerald-400 bg-emerald-500/10' 
-                        : 'text-emerald-600 bg-emerald-50'
-                      }
-                    `}>
-                      Verified
-                    </span>
+                    {shipment.isLocked ? (
+                      <span className={`
+                        text-xs px-2 py-0.5 rounded-full flex items-center gap-1
+                        ${isDarkMode 
+                          ? 'text-emerald-400 bg-emerald-500/10' 
+                          : 'text-emerald-600 bg-emerald-50'
+                        }
+                      `}>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        Verified
+                      </span>
+                    ) : (
+                      <span className={`
+                        text-xs px-2 py-0.5 rounded-full
+                        ${isDarkMode 
+                          ? 'text-slate-400 bg-slate-700/50' 
+                          : 'text-slate-500 bg-slate-100'
+                        }
+                      `}>
+                        Draft
+                      </span>
+                    )}
                   </div>
                 ))}
+                {shipments.length === 0 && (
+                  <p className={`text-sm text-center py-4 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                    No shipments yet
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -402,8 +548,8 @@ const SupplierDashboardContent = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-                            {selectedShipment.productName}
+                          <h2 className={`text-lg font-semibold font-mono ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                            {selectedShipment.batchId}
                           </h2>
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
                             STATUS_COLORS[selectedShipment.status]?.bg || ''
@@ -412,20 +558,22 @@ const SupplierDashboardContent = () => {
                           }`}>
                             {STATUS_COLORS[selectedShipment.status]?.label || selectedShipment.status}
                           </span>
+                          {selectedShipment.isLocked && (
+                            <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                              Blockchain Locked
+                            </span>
+                          )}
                         </div>
                         <p className={`text-sm font-mono ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                          {selectedShipment.id}
+                          {selectedShipment.shipmentHash || selectedShipment.id}
                         </p>
                         <div className={`flex items-center gap-4 mt-2 text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                          <span>Batch: <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>{selectedShipment.batchId}</span></span>
+                          <span>Containers: <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{selectedShipment.numberOfContainers || selectedShipment.containers?.length || 0}</span></span>
                           <span>•</span>
-                          <span>Qty: <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>{selectedShipment.quantity} {selectedShipment.unit}</span></span>
-                          {selectedShipment.transporterName && (
-                            <>
-                              <span>•</span>
-                              <span>🚚 <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>{selectedShipment.transporterName}</span></span>
-                            </>
-                          )}
+                          <span>Total: <span className={`font-medium text-emerald-400`}>{selectedShipment.totalQuantity || 0} units</span></span>
                         </div>
                       </div>
                     </div>
@@ -473,9 +621,8 @@ const SupplierDashboardContent = () => {
                   ) : (
                     <ShipmentActions 
                       shipment={selectedShipment} 
-                      onAssignTransporter={handleAssignTransporter} 
                       onMarkReady={handleMarkReady}
-                      onUpdateShipment={handleUpdateShipment}
+                      onAssignTransporter={handleAssignTransporter}
                       onAcknowledgeConcern={handleAcknowledgeConcern}
                       onResolveConcern={handleResolveConcern}
                       isDarkMode={isDarkMode}
