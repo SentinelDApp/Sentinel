@@ -6,9 +6,15 @@
  * traceability using off-chain QR codes. The supplier creates shipments with
  * containers, and when marked "Ready for Dispatch", the shipment is permanently
  * locked to the blockchain.
+ * 
+ * DATA FLOW:
+ * 1. Supplier creates shipment → locks to blockchain
+ * 2. Blockchain emits ShipmentLocked event
+ * 3. Backend indexer captures event → stores in MongoDB
+ * 4. Frontend fetches from backend API
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SupplierThemeProvider, useSupplierTheme } from './context/ThemeContext';
 import Header from './layout/Header';
 import SupplierOverview from './components/SupplierOverview';
@@ -17,6 +23,8 @@ import ShipmentList from './components/ShipmentList';
 import ShipmentActions from './components/ShipmentActions';
 import ShipmentDetails from './components/ShipmentDetails';
 import UploadMetadata from './components/UploadMetadata';
+import { fetchShipments, fetchContainers } from '../../services/shipmentApi';
+import { useAuth } from '../../context/AuthContext';
 import { 
   SHIPMENT_STATUSES,
   STATUS_COLORS,
@@ -77,13 +85,64 @@ const NavigationTabs = ({ activeTab, setActiveTab, shipmentsWithConcerns, isDark
 // Main Supplier Dashboard Content
 const SupplierDashboardContent = () => {
   const { isDarkMode } = useSupplierTheme();
-  // Shipments state - starts empty, populated when supplier creates shipments
+  const { walletAddress } = useAuth();
+  
+  // Shipments state - fetched from backend API (indexed from blockchain)
   const [shipments, setShipments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewingShipmentDetails, setViewingShipmentDetails] = useState(null);
 
-  // Create new shipment
+  // ═══════════════════════════════════════════════════════════════════════
+  // FETCH SHIPMENTS FROM BACKEND API
+  // ═══════════════════════════════════════════════════════════════════════
+  
+  /**
+   * Load shipments from the backend indexer
+   * The backend indexes ShipmentLocked events from the blockchain
+   */
+  const loadShipments = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch shipments for this supplier's wallet
+      const { shipments: fetchedShipments } = await fetchShipments(walletAddress);
+      
+      // For each shipment, fetch its containers
+      const shipmentsWithContainers = await Promise.all(
+        fetchedShipments.map(async (shipment) => {
+          try {
+            const { containers } = await fetchContainers(shipment.shipmentHash);
+            return { ...shipment, containers };
+          } catch {
+            // If container fetch fails, return shipment without containers
+            return { ...shipment, containers: [] };
+          }
+        })
+      );
+      
+      setShipments(shipmentsWithContainers);
+    } catch (err) {
+      console.error('Failed to load shipments:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [walletAddress]);
+
+  // Fetch shipments on mount and when wallet changes
+  useEffect(() => {
+    loadShipments();
+  }, [loadShipments]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SHIPMENT HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // Create new shipment (adds to local state, will be fetched after blockchain lock)
   const handleCreateShipment = (newShipment) => {
     setShipments(prev => [newShipment, ...prev]);
     setActiveTab('dashboard');
@@ -263,13 +322,53 @@ const SupplierDashboardContent = () => {
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <SupplierOverview shipments={shipments} isDarkMode={isDarkMode} />
-            <ShipmentList 
-              shipments={shipments} 
-              selectedShipment={selectedShipment} 
-              onShipmentSelect={handleSelectShipment}
-              isDarkMode={isDarkMode}
-            />
+            {/* Loading State */}
+            {isLoading && (
+              <div className={`
+                flex flex-col items-center justify-center py-16 rounded-2xl border
+                ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}
+              `}>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>
+                  Loading shipments from blockchain indexer...
+                </p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !isLoading && (
+              <div className={`
+                flex flex-col items-center justify-center py-12 rounded-2xl border
+                ${isDarkMode ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}
+              `}>
+                <div className="text-4xl mb-4">⚠️</div>
+                <p className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                  Failed to load shipments
+                </p>
+                <p className={`text-sm mb-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {error}
+                </p>
+                <button
+                  onClick={loadShipments}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Content - Only show when not loading and no error */}
+            {!isLoading && !error && (
+              <>
+                <SupplierOverview shipments={shipments} isDarkMode={isDarkMode} />
+                <ShipmentList 
+                  shipments={shipments} 
+                  selectedShipment={selectedShipment} 
+                  onShipmentSelect={handleSelectShipment}
+                  isDarkMode={isDarkMode}
+                />
+              </>
+            )}
           </div>
         )}
 
