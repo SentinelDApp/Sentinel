@@ -1,6 +1,6 @@
 /**
  * Supplier Dashboard Constants and Utilities
- * 
+ *
  * SYSTEM PRINCIPLE:
  * Sentinel records shipment identity on-chain while enabling container-level
  * traceability using off-chain QR codes. The blockchain serves as a source of
@@ -14,51 +14,51 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const SHIPMENT_STATUSES = {
-  CREATED: 'created',
-  READY_FOR_DISPATCH: 'ready_for_dispatch',
-  IN_TRANSIT: 'in_transit',
-  AT_WAREHOUSE: 'at_warehouse',
-  DELIVERED: 'delivered',
-  CONCERN_RAISED: 'concern_raised',
+  CREATED: "created",
+  READY_FOR_DISPATCH: "ready_for_dispatch",
+  IN_TRANSIT: "in_transit",
+  AT_WAREHOUSE: "at_warehouse",
+  DELIVERED: "delivered",
+  CONCERN_RAISED: "concern_raised",
 };
 
 // Status Colors for UI
 export const STATUS_COLORS = {
   [SHIPMENT_STATUSES.CREATED]: {
-    bg: 'bg-blue-500/20',
-    text: 'text-blue-400',
-    border: 'border-blue-500/30',
-    label: 'Created',
+    bg: "bg-blue-500/20",
+    text: "text-blue-400",
+    border: "border-blue-500/30",
+    label: "Created",
   },
   [SHIPMENT_STATUSES.READY_FOR_DISPATCH]: {
-    bg: 'bg-amber-500/20',
-    text: 'text-amber-400',
-    border: 'border-amber-500/30',
-    label: 'Ready for Dispatch',
+    bg: "bg-amber-500/20",
+    text: "text-amber-400",
+    border: "border-amber-500/30",
+    label: "Ready for Dispatch",
   },
   [SHIPMENT_STATUSES.IN_TRANSIT]: {
-    bg: 'bg-purple-500/20',
-    text: 'text-purple-400',
-    border: 'border-purple-500/30',
-    label: 'In Transit',
+    bg: "bg-purple-500/20",
+    text: "text-purple-400",
+    border: "border-purple-500/30",
+    label: "In Transit",
   },
   [SHIPMENT_STATUSES.AT_WAREHOUSE]: {
-    bg: 'bg-cyan-500/20',
-    text: 'text-cyan-400',
-    border: 'border-cyan-500/30',
-    label: 'At Warehouse',
+    bg: "bg-cyan-500/20",
+    text: "text-cyan-400",
+    border: "border-cyan-500/30",
+    label: "At Warehouse",
   },
   [SHIPMENT_STATUSES.DELIVERED]: {
-    bg: 'bg-emerald-500/20',
-    text: 'text-emerald-400',
-    border: 'border-emerald-500/30',
-    label: 'Delivered',
+    bg: "bg-emerald-500/20",
+    text: "text-emerald-400",
+    border: "border-emerald-500/30",
+    label: "Delivered",
   },
   [SHIPMENT_STATUSES.CONCERN_RAISED]: {
-    bg: 'bg-red-500/20',
-    text: 'text-red-400',
-    border: 'border-red-500/30',
-    label: 'Concern Raised',
+    bg: "bg-red-500/20",
+    text: "text-red-400",
+    border: "border-red-500/30",
+    label: "Concern Raised",
   },
 };
 
@@ -67,36 +67,36 @@ export const STATUS_COLORS = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const CONTAINER_STATUSES = {
-  CREATED: 'CREATED',
-  LOCKED: 'LOCKED',
-  IN_TRANSIT: 'IN_TRANSIT',
-  DELIVERED: 'DELIVERED',
+  CREATED: "CREATED",
+  LOCKED: "LOCKED",
+  IN_TRANSIT: "IN_TRANSIT",
+  DELIVERED: "DELIVERED",
 };
 
 export const CONTAINER_STATUS_COLORS = {
   [CONTAINER_STATUSES.CREATED]: {
-    bg: 'bg-blue-500/20',
-    text: 'text-blue-400',
-    border: 'border-blue-500/30',
-    label: 'Created',
+    bg: "bg-blue-500/20",
+    text: "text-blue-400",
+    border: "border-blue-500/30",
+    label: "Created",
   },
   [CONTAINER_STATUSES.LOCKED]: {
-    bg: 'bg-amber-500/20',
-    text: 'text-amber-400',
-    border: 'border-amber-500/30',
-    label: 'Locked',
+    bg: "bg-amber-500/20",
+    text: "text-amber-400",
+    border: "border-amber-500/30",
+    label: "Locked",
   },
   [CONTAINER_STATUSES.IN_TRANSIT]: {
-    bg: 'bg-purple-500/20',
-    text: 'text-purple-400',
-    border: 'border-purple-500/30',
-    label: 'In Transit',
+    bg: "bg-purple-500/20",
+    text: "text-purple-400",
+    border: "border-purple-500/30",
+    label: "In Transit",
   },
   [CONTAINER_STATUSES.DELIVERED]: {
-    bg: 'bg-emerald-500/20',
-    text: 'text-emerald-400',
-    border: 'border-emerald-500/30',
-    label: 'Delivered',
+    bg: "bg-emerald-500/20",
+    text: "text-emerald-400",
+    border: "border-emerald-500/30",
+    label: "Delivered",
   },
 };
 
@@ -105,50 +105,50 @@ export const CONTAINER_STATUS_COLORS = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const CONCERN_TYPES = {
-  TEMPERATURE_DEVIATION: 'temperature_deviation',
-  PACKAGE_DAMAGE: 'package_damage',
-  DELAY: 'delay',
-  DOCUMENTATION_ISSUE: 'documentation_issue',
-  QUANTITY_MISMATCH: 'quantity_mismatch',
-  OTHER: 'other',
+  TEMPERATURE_DEVIATION: "temperature_deviation",
+  PACKAGE_DAMAGE: "package_damage",
+  DELAY: "delay",
+  DOCUMENTATION_ISSUE: "documentation_issue",
+  QUANTITY_MISMATCH: "quantity_mismatch",
+  OTHER: "other",
 };
 
 export const CONCERN_TYPE_LABELS = {
-  [CONCERN_TYPES.TEMPERATURE_DEVIATION]: 'Temperature Deviation',
-  [CONCERN_TYPES.PACKAGE_DAMAGE]: 'Package Damage',
-  [CONCERN_TYPES.DELAY]: 'Delivery Delay',
-  [CONCERN_TYPES.DOCUMENTATION_ISSUE]: 'Documentation Issue',
-  [CONCERN_TYPES.QUANTITY_MISMATCH]: 'Quantity Mismatch',
-  [CONCERN_TYPES.OTHER]: 'Other',
+  [CONCERN_TYPES.TEMPERATURE_DEVIATION]: "Temperature Deviation",
+  [CONCERN_TYPES.PACKAGE_DAMAGE]: "Package Damage",
+  [CONCERN_TYPES.DELAY]: "Delivery Delay",
+  [CONCERN_TYPES.DOCUMENTATION_ISSUE]: "Documentation Issue",
+  [CONCERN_TYPES.QUANTITY_MISMATCH]: "Quantity Mismatch",
+  [CONCERN_TYPES.OTHER]: "Other",
 };
 
 export const CONCERN_STATUS = {
-  OPEN: 'open',
-  ACKNOWLEDGED: 'acknowledged',
-  RESOLVED: 'resolved',
-  ESCALATED: 'escalated',
+  OPEN: "open",
+  ACKNOWLEDGED: "acknowledged",
+  RESOLVED: "resolved",
+  ESCALATED: "escalated",
 };
 
 export const CONCERN_STATUS_COLORS = {
   [CONCERN_STATUS.OPEN]: {
-    bg: 'bg-red-500/20',
-    text: 'text-red-400',
-    label: 'Open',
+    bg: "bg-red-500/20",
+    text: "text-red-400",
+    label: "Open",
   },
   [CONCERN_STATUS.ACKNOWLEDGED]: {
-    bg: 'bg-amber-500/20',
-    text: 'text-amber-400',
-    label: 'Acknowledged',
+    bg: "bg-amber-500/20",
+    text: "text-amber-400",
+    label: "Acknowledged",
   },
   [CONCERN_STATUS.RESOLVED]: {
-    bg: 'bg-emerald-500/20',
-    text: 'text-emerald-400',
-    label: 'Resolved',
+    bg: "bg-emerald-500/20",
+    text: "text-emerald-400",
+    label: "Resolved",
   },
   [CONCERN_STATUS.ESCALATED]: {
-    bg: 'bg-purple-500/20',
-    text: 'text-purple-400',
-    label: 'Escalated',
+    bg: "bg-purple-500/20",
+    text: "text-purple-400",
+    label: "Escalated",
   },
 };
 
@@ -157,11 +157,36 @@ export const CONCERN_STATUS_COLORS = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const TRANSPORTER_AGENCIES = [
-  { id: 'trans_001', name: 'FastTrack Logistics', rating: 4.8, specialization: 'Cold Chain' },
-  { id: 'trans_002', name: 'SecureMove Transport', rating: 4.6, specialization: 'Fragile Goods' },
-  { id: 'trans_003', name: 'GreenRoute Carriers', rating: 4.5, specialization: 'Eco-Friendly' },
-  { id: 'trans_004', name: 'PharmaFleet', rating: 4.9, specialization: 'Pharmaceuticals' },
-  { id: 'trans_005', name: 'GlobalChain Express', rating: 4.7, specialization: 'International' },
+  {
+    id: "trans_001",
+    name: "FastTrack Logistics",
+    rating: 4.8,
+    specialization: "Cold Chain",
+  },
+  {
+    id: "trans_002",
+    name: "SecureMove Transport",
+    rating: 4.6,
+    specialization: "Fragile Goods",
+  },
+  {
+    id: "trans_003",
+    name: "GreenRoute Carriers",
+    rating: 4.5,
+    specialization: "Eco-Friendly",
+  },
+  {
+    id: "trans_004",
+    name: "PharmaFleet",
+    rating: 4.9,
+    specialization: "Pharmaceuticals",
+  },
+  {
+    id: "trans_005",
+    name: "GlobalChain Express",
+    rating: 4.7,
+    specialization: "International",
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -169,11 +194,43 @@ export const TRANSPORTER_AGENCIES = [
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const WAREHOUSES = [
-  { id: 'wh_001', name: 'Central Distribution Hub', location: 'Mumbai', capacity: 'High', available: true },
-  { id: 'wh_002', name: 'Northern Logistics Center', location: 'Delhi', capacity: 'High', available: true },
-  { id: 'wh_003', name: 'Southern Storage Facility', location: 'Chennai', capacity: 'Medium', available: false, unavailableReason: 'Under Maintenance' },
-  { id: 'wh_004', name: 'Western Cold Storage', location: 'Ahmedabad', capacity: 'Medium', available: false, unavailableReason: 'At Full Capacity' },
-  { id: 'wh_005', name: 'Eastern Warehouse Complex', location: 'Kolkata', capacity: 'High', available: true },
+  {
+    id: "wh_001",
+    name: "Central Distribution Hub",
+    location: "Mumbai",
+    capacity: "High",
+    available: true,
+  },
+  {
+    id: "wh_002",
+    name: "Northern Logistics Center",
+    location: "Delhi",
+    capacity: "High",
+    available: true,
+  },
+  {
+    id: "wh_003",
+    name: "Southern Storage Facility",
+    location: "Chennai",
+    capacity: "Medium",
+    available: false,
+    unavailableReason: "Under Maintenance",
+  },
+  {
+    id: "wh_004",
+    name: "Western Cold Storage",
+    location: "Ahmedabad",
+    capacity: "Medium",
+    available: false,
+    unavailableReason: "At Full Capacity",
+  },
+  {
+    id: "wh_005",
+    name: "Eastern Warehouse Complex",
+    location: "Kolkata",
+    capacity: "High",
+    available: true,
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -185,8 +242,8 @@ export const WAREHOUSES = [
  * @returns {string} A 6-character alphanumeric ID
  */
 export const generateShortId = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
   for (let i = 0; i < 6; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -203,17 +260,17 @@ export const generateShortId = () => {
 export const generateShipmentHash = (batchId, walletAddress) => {
   const timestamp = Date.now();
   const dataString = `${batchId}-${walletAddress}-${timestamp}`;
-  
+
   // Simple hash simulation (in production, use crypto.subtle or similar)
   let hash = 0;
   for (let i = 0; i < dataString.length; i++) {
     const char = dataString.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32bit integer
   }
-  
+
   // Convert to hex and format
-  const hexHash = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+  const hexHash = Math.abs(hash).toString(16).toUpperCase().padStart(8, "0");
   return `SHP-${hexHash}-${timestamp.toString(36).toUpperCase()}`;
 };
 
@@ -234,17 +291,26 @@ export const generateContainerId = (shipmentHash) => {
  * Generate containers for a shipment
  * @param {string} shipmentHash - The parent shipment's hash
  * @param {number} numberOfContainers - Number of containers to generate
+ * @param {string} batchId - The batch ID from the shipment
  * @returns {Array} Array of container objects
  */
-export const generateContainers = (shipmentHash, numberOfContainers) => {
+export const generateContainers = (
+  shipmentHash,
+  numberOfContainers,
+  batchId
+) => {
   const containers = [];
   for (let i = 0; i < numberOfContainers; i++) {
     const containerId = generateContainerId(shipmentHash);
+
     containers.push({
       containerId,
+      batchId,
       shipmentHash,
-      qrData: containerId, // QR encodes only the containerId
+      qrData: containerId, // QR encodes ONLY the unique containerId
       status: CONTAINER_STATUSES.CREATED,
+      scannedBy: null, // Will be set when scanned by transporter/warehouse
+      scannedAt: null,
       createdAt: Date.now(),
     });
   }
@@ -261,10 +327,40 @@ export const generateMetadataHash = (metadata) => {
   let hash = 0;
   for (let i = 0; i < dataString.length; i++) {
     const char = dataString.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
-  return `META-${Math.abs(hash).toString(16).toUpperCase().padStart(12, '0')}`;
+  return `META-${Math.abs(hash).toString(16).toUpperCase().padStart(12, "0")}`;
+};
+
+/**
+ * Decode QR data from container
+ * @param {string} qrData - The QR code data string (containerId only)
+ * @returns {object|null} Object with containerId or null if invalid
+ *
+ * QR Code Data Structure (simplified):
+ * The QR code contains ONLY the unique containerId string.
+ * Example: "CONTAINER-1A2B3C4D-XYZ789"
+ */
+export const decodeContainerQR = (qrData) => {
+  try {
+    // QR now contains only the containerId string
+    if (!qrData || typeof qrData !== "string") {
+      console.error("Invalid QR data: empty or not a string");
+      return null;
+    }
+
+    // Validate containerId format (CONTAINER-{shipmentRef}-{shortId})
+    if (!qrData.startsWith("CONTAINER-")) {
+      console.error("Invalid QR data format:", qrData);
+      return null;
+    }
+
+    return { containerId: qrData };
+  } catch (error) {
+    console.error("Failed to decode QR data:", error);
+    return null;
+  }
 };
 
 /**
@@ -273,12 +369,12 @@ export const generateMetadataHash = (metadata) => {
  * @returns {string} Formatted date string
  */
 export const formatDate = (timestamp) => {
-  return new Date(timestamp).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Date(timestamp).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -296,13 +392,13 @@ export const getStatusLabel = (status) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const SUPPLIER_ACTIONS = {
-  CREATE_SHIPMENT: 'create_shipment',
-  ASSIGN_TRANSPORTER: 'assign_transporter',
-  MARK_READY: 'mark_ready_for_dispatch',
-  UPLOAD_METADATA: 'upload_metadata',
-  ACKNOWLEDGE_CONCERN: 'acknowledge_concern',
-  RESOLVE_CONCERN: 'resolve_concern',
-  VIEW_DETAILS: 'view_details',
+  CREATE_SHIPMENT: "create_shipment",
+  ASSIGN_TRANSPORTER: "assign_transporter",
+  MARK_READY: "mark_ready_for_dispatch",
+  UPLOAD_METADATA: "upload_metadata",
+  ACKNOWLEDGE_CONCERN: "acknowledge_concern",
+  RESOLVE_CONCERN: "resolve_concern",
+  VIEW_DETAILS: "view_details",
 };
 
 // Actions available per status
@@ -316,15 +412,9 @@ export const ACTIONS_BY_STATUS = {
     SUPPLIER_ACTIONS.UPLOAD_METADATA,
     SUPPLIER_ACTIONS.VIEW_DETAILS,
   ],
-  [SHIPMENT_STATUSES.IN_TRANSIT]: [
-    SUPPLIER_ACTIONS.VIEW_DETAILS,
-  ],
-  [SHIPMENT_STATUSES.AT_WAREHOUSE]: [
-    SUPPLIER_ACTIONS.VIEW_DETAILS,
-  ],
-  [SHIPMENT_STATUSES.DELIVERED]: [
-    SUPPLIER_ACTIONS.VIEW_DETAILS,
-  ],
+  [SHIPMENT_STATUSES.IN_TRANSIT]: [SUPPLIER_ACTIONS.VIEW_DETAILS],
+  [SHIPMENT_STATUSES.AT_WAREHOUSE]: [SUPPLIER_ACTIONS.VIEW_DETAILS],
+  [SHIPMENT_STATUSES.DELIVERED]: [SUPPLIER_ACTIONS.VIEW_DETAILS],
   [SHIPMENT_STATUSES.CONCERN_RAISED]: [
     SUPPLIER_ACTIONS.ACKNOWLEDGE_CONCERN,
     SUPPLIER_ACTIONS.RESOLVE_CONCERN,
