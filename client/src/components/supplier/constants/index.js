@@ -234,17 +234,29 @@ export const generateContainerId = (shipmentHash) => {
  * Generate containers for a shipment
  * @param {string} shipmentHash - The parent shipment's hash
  * @param {number} numberOfContainers - Number of containers to generate
+ * @param {string} batchId - The batch ID from the shipment
  * @returns {Array} Array of container objects
  */
-export const generateContainers = (shipmentHash, numberOfContainers) => {
+export const generateContainers = (shipmentHash, numberOfContainers, batchId) => {
   const containers = [];
   for (let i = 0; i < numberOfContainers; i++) {
     const containerId = generateContainerId(shipmentHash);
+    // QR data encodes: containerId, batchId, and shipmentHash for comprehensive tracking
+    const qrData = JSON.stringify({
+      containerId,
+      batchId,
+      shipmentHash,
+      createdAt: Date.now(),
+    });
+    
     containers.push({
       containerId,
+      batchId,
       shipmentHash,
-      qrData: containerId, // QR encodes only the containerId
+      qrData, // QR encodes container details in JSON format
       status: CONTAINER_STATUSES.CREATED,
+      scannedBy: null, // Will be set when scanned by transporter/warehouse
+      scannedAt: null,
       createdAt: Date.now(),
     });
   }
@@ -265,6 +277,33 @@ export const generateMetadataHash = (metadata) => {
     hash = hash & hash;
   }
   return `META-${Math.abs(hash).toString(16).toUpperCase().padStart(12, '0')}`;
+};
+
+/**
+ * Decode QR data from container
+ * @param {string} qrData - The QR code data string (JSON format)
+ * @returns {object|null} Decoded container data or null if invalid
+ * 
+ * QR Code Data Structure:
+ * {
+ *   containerId: string,    // Unique container identifier
+ *   batchId: string,        // Batch identifier from shipment
+ *   shipmentHash: string,   // Parent shipment hash
+ *   createdAt: number       // Timestamp of container creation
+ * }
+ */
+export const decodeContainerQR = (qrData) => {
+  try {
+    const data = JSON.parse(qrData);
+    if (!data.containerId || !data.batchId || !data.shipmentHash) {
+      console.error('Invalid QR data structure:', data);
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error('Failed to decode QR data:', error);
+    return null;
+  }
 };
 
 /**

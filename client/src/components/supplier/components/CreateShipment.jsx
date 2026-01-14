@@ -32,7 +32,7 @@ import { useBlockchain } from '../../../hooks/useBlockchain';
 import ContainerQRGrid from './ContainerQRGrid';
 
 
-const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
+const CreateShipment = ({ onCreateShipment, isDarkMode = true, formData: externalFormData, onFormDataChange }) => {
   const { user } = useAuth();
   
   // Blockchain integration hook
@@ -46,8 +46,8 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
     isWalletAvailable,
   } = useBlockchain();
   
-  // Form state - supplier inputs
-  const [formData, setFormData] = useState({
+  // Form state - use external state if provided, otherwise use internal state
+  const [internalFormData, setInternalFormData] = useState({
     productName: '',
     batchId: '',
     numberOfContainers: '',
@@ -55,6 +55,10 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
     transporterId: '',
     warehouseId: '',
   });
+  
+  // Use external form data if provided (for persistence), otherwise use internal
+  const formData = externalFormData || internalFormData;
+  const setFormData = onFormDataChange || setInternalFormData;
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewShipment, setPreviewShipment] = useState(null); // Preview before confirming
@@ -85,10 +89,10 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
     const supplierWallet = user?.walletAddress || user?.id || 'supplier';
     const shipmentHash = generateShipmentHash(formData.batchId, supplierWallet);
     
-    // Generate containers with unique IDs
+    // Generate containers with unique IDs and QR codes
     const numberOfContainers = parseInt(formData.numberOfContainers, 10);
     const quantityPerContainer = parseInt(formData.quantityPerContainer, 10);
-    const containers = generateContainers(shipmentHash, numberOfContainers);
+    const containers = generateContainers(shipmentHash, numberOfContainers, formData.batchId);
     
     // Get transporter and warehouse names if selected
     const transporter = TRANSPORTER_AGENCIES.find(t => t.id === formData.transporterId);
@@ -209,7 +213,14 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   const handleCreateAnother = () => {
     setCreatedShipment(null);
     setPreviewShipment(null);
-    setFormData({ productName: '', batchId: '', numberOfContainers: '', quantityPerContainer: '', transporterId: '', warehouseId: '' });
+    setFormData({ 
+      productName: '', 
+      batchId: '', 
+      numberOfContainers: '', 
+      quantityPerContainer: '', 
+      transporterId: '', 
+      warehouseId: '' 
+    });
   };
 
   const inputClass = `w-full border rounded-xl py-3 px-4 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${
