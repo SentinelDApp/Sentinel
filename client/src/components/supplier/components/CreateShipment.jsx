@@ -30,9 +30,10 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useBlockchain } from '../../../hooks/useBlockchain';
 import ContainerQRGrid from './ContainerQRGrid';
+import UploadMetadata from './UploadMetadata';
 
 
-const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
+const CreateShipment = ({ onCreateShipment, onRefreshShipment, onDeleteDocument, isDarkMode = true }) => {
   const { user } = useAuth();
   
   // Blockchain integration hook
@@ -122,11 +123,28 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
   };
 
   // Step 2: User confirms and shipment is actually created
-  const handleConfirmCreate = () => {
+  const [createSuccess, setCreateSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  const handleConfirmCreate = async () => {
     if (!previewShipment) return;
-    onCreateShipment(previewShipment);
-    setCreatedShipment(previewShipment);
-    setPreviewShipment(null);
+    try {
+      await onCreateShipment(previewShipment);
+      // Show success message
+      setSuccessMessage(`Shipment "${previewShipment.batchId}" created successfully!`);
+      setCreateSuccess(true);
+      // Reset form for new shipment
+      setPreviewShipment(null);
+      setCreatedShipment(null);
+      setFormData({ productName: '', batchId: '', numberOfContainers: '', quantityPerContainer: '', transporterId: '', warehouseId: '' });
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setCreateSuccess(false);
+        setSuccessMessage('');
+      }, 5000);
+    } catch (err) {
+      console.error('Failed to create shipment:', err);
+    }
   };
 
   // Go back to edit from preview
@@ -548,6 +566,31 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
         }
       `}>
         {showConfirmModal && <ConfirmationModal />}
+        
+        {/* Success Toast Banner */}
+        {createSuccess && (
+          <div className={`
+            mb-6 p-4 rounded-xl border flex items-center gap-3 animate-pulse
+            ${isDarkMode 
+              ? 'bg-emerald-500/20 border-emerald-500/30' 
+              : 'bg-emerald-50 border-emerald-200'
+            }
+          `}>
+            <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <p className={`font-semibold ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                ✅ Shipment Created Successfully!
+              </p>
+              <p className={`text-sm ${isDarkMode ? 'text-emerald-200/70' : 'text-emerald-600'}`}>
+                Containers have been generated. You can now upload documents or mark ready for dispatch.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Success Header */}
         <div className="text-center mb-6">
@@ -681,6 +724,41 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
           />
         </div>
 
+        {/* Upload Supporting Documents */}
+        <div className="mb-6">
+          <UploadMetadata
+            shipment={createdShipment}
+            onUploadComplete={async () => {
+              if (onRefreshShipment) {
+                const refreshedShipment = await onRefreshShipment(createdShipment.shipmentHash);
+                if (refreshedShipment) {
+                  setCreatedShipment(prev => ({
+                    ...prev,
+                    supportingDocuments: refreshedShipment.supportingDocuments || []
+                  }));
+                }
+              }
+            }}
+            onDeleteDocument={async (shipmentHash, docIndex) => {
+              if (onDeleteDocument) {
+                await onDeleteDocument(shipmentHash, docIndex);
+                // Refresh shipment data after delete
+                if (onRefreshShipment) {
+                  const refreshedShipment = await onRefreshShipment(createdShipment.shipmentHash);
+                  if (refreshedShipment) {
+                    setCreatedShipment(prev => ({
+                      ...prev,
+                      supportingDocuments: refreshedShipment.supportingDocuments || []
+                    }));
+                  }
+                }
+              }
+            }}
+            walletAddress={walletAddress}
+            isDarkMode={isDarkMode}
+          />
+        </div>
+
         {/* Instructions */}
         <div className={`
           p-4 rounded-xl border mb-6
@@ -741,6 +819,39 @@ const CreateShipment = ({ onCreateShipment, isDarkMode = true }) => {
         : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
       }
     `}>
+      {/* Success Toast */}
+      {createSuccess && (
+        <div className={`
+          mb-6 p-4 rounded-xl border flex items-center gap-3
+          ${isDarkMode 
+            ? 'bg-emerald-500/20 border-emerald-500/30' 
+            : 'bg-emerald-50 border-emerald-200'
+          }
+        `}>
+          <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className={`font-semibold ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+              ✅ {successMessage}
+            </p>
+            <p className={`text-sm ${isDarkMode ? 'text-emerald-200/70' : 'text-emerald-600'}`}>
+              You can now upload documents from the Manage tab or create another shipment.
+            </p>
+          </div>
+          <button
+            onClick={() => { setCreateSuccess(false); setSuccessMessage(''); }}
+            className={`p-1 rounded-lg transition-colors hover:bg-emerald-500/20 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <h2 className={`text-lg font-semibold mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
         Create New Shipment
       </h2>

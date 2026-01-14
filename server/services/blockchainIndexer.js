@@ -180,12 +180,23 @@ class BlockchainIndexer {
       const totalQuantity = Number(numberOfContainers) * Number(quantityPerContainer);
 
       // ═══════════════════════════════════════════════════════════════════
-      // IDEMPOTENT UPSERT: Uses $setOnInsert to only insert if not exists
+      // IDEMPOTENT UPSERT: 
+      // - If shipment doesn't exist: insert with all fields
+      // - If shipment exists (created off-chain): update with blockchain data
       // This is atomic and safe for concurrent/duplicate processing
       // ═══════════════════════════════════════════════════════════════════
       const result = await Shipment.updateOne(
         { shipmentHash }, // Query: find by unique shipmentHash
         {
+          // Always update these fields (blockchain data)
+          $set: {
+            txHash,
+            blockNumber,
+            blockchainTimestamp: Number(timestamp),
+            status: 'READY_FOR_DISPATCH',
+            updatedAt: new Date()
+          },
+          // Only set these on insert (first time)
           $setOnInsert: {
             shipmentHash,
             supplierWallet: supplier.toLowerCase(),
@@ -193,17 +204,15 @@ class BlockchainIndexer {
             numberOfContainers: Number(numberOfContainers),
             quantityPerContainer: Number(quantityPerContainer),
             totalQuantity,
-            txHash,
-            blockNumber,
-            blockchainTimestamp: Number(timestamp),
-            status: 'READY_FOR_DISPATCH'
+            createdAt: new Date()
           }
         },
         { upsert: true } // Insert if not exists
       );
 
-      // Check if this was a new insert or existing record
+      // Check if this was a new insert or update of existing record
       const wasInserted = result.upsertedCount > 0;
+      const wasUpdated = result.modifiedCount > 0;
       
       if (wasInserted) {
         console.log(`✅ Shipment saved: ${shipmentHash}`);
@@ -221,7 +230,11 @@ class BlockchainIndexer {
           console.log(`✅ Created ${containers.length} containers for shipment ${shipmentHash}`);
         }
       } else {
-        console.log(`⚠️  Shipment ${shipmentHash} already exists, skipped (idempotent)`);
+        if (wasUpdated) {
+          console.log(`✅ Shipment ${shipmentHash} updated with blockchain data (txHash, blockNumber)`);
+        } else {
+          console.log(`⚠️  Shipment ${shipmentHash} already has blockchain data, skipped (idempotent)`);
+        }
       }
 
       // ═══════════════════════════════════════════════════════════════════
@@ -236,13 +249,13 @@ class BlockchainIndexer {
               lastSyncedBlock: blockNumber,
               lastSyncAt: new Date()
             },
-            $inc: { totalEventsProcessed: wasInserted ? 1 : 0 }
+            $inc: { totalEventsProcessed: (wasInserted || wasUpdated) ? 1 : 0 }
           },
           { upsert: true }
         );
       }
 
-      return { success: true, skipped: !wasInserted, shipmentHash, blockNumber };
+      return { success: true, skipped: !(wasInserted || wasUpdated), shipmentHash, blockNumber };
     } catch (error) {
       console.error(`❌ Error processing event for ${shipmentHash}:`, error.message);
       throw error;

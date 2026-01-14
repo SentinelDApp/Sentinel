@@ -68,13 +68,14 @@ const transformShipment = (backendShipment, containers = []) => {
     unit: 'units',
     
     // Status (convert from backend uppercase to frontend lowercase)
-    status: STATUS_MAP[backendShipment.status] || 'ready_for_dispatch',
+    status: STATUS_MAP[backendShipment.status] || 'created',
     
-    // Blockchain data
-    isLocked: true, // All indexed shipments are already locked on blockchain
-    blockchainTxHash: backendShipment.txHash,
-    blockNumber: backendShipment.blockNumber,
-    blockchainTimestamp: backendShipment.blockchainTimestamp,
+    // Blockchain data - only locked if txHash exists
+    isLocked: !!backendShipment.txHash,
+    blockchainTxHash: backendShipment.txHash || null,
+    txHash: backendShipment.txHash || null,
+    blockNumber: backendShipment.blockNumber || null,
+    blockchainTimestamp: backendShipment.blockchainTimestamp || null,
     
     // Supplier info
     supplierWallet: backendShipment.supplierWallet,
@@ -85,9 +86,18 @@ const transformShipment = (backendShipment, containers = []) => {
     // Timestamps
     createdAt: backendShipment.createdAt,
     
+    // Supporting documents (uploaded to Cloudinary)
+    supportingDocuments: backendShipment.supportingDocuments || [],
+    
+    // Transporter info
+    transporterWallet: backendShipment.transporterWallet || null,
+    transporterName: backendShipment.transporterName || null,
+    
+    // Warehouse info
+    warehouseWallet: backendShipment.warehouseWallet || null,
+    warehouseName: backendShipment.warehouseName || null,
+    
     // UI state defaults
-    transporterName: null,
-    transporterWallet: null,
     concerns: [],
     metadata: [],
   };
@@ -289,6 +299,53 @@ export const fetchIndexerStatus = async () => {
   return result.data;
 };
 
+/**
+ * Create a new shipment off-chain (before blockchain confirmation)
+ * @param {Object} shipmentData - Shipment data
+ * @returns {Promise<Object>} - Created shipment
+ */
+export const createShipment = async (shipmentData) => {
+  const response = await fetch(`${API_BASE_URL}/api/shipments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(shipmentData),
+  });
+
+  const result = await response.json();
+  
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || 'Failed to create shipment');
+  }
+
+  return transformShipment(result.data);
+};
+
+/**
+ * Lock a shipment on blockchain (update with txHash)
+ * @param {string} shipmentHash - The shipment identifier
+ * @param {Object} lockData - Blockchain lock data (txHash, blockNumber, blockchainTimestamp)
+ * @returns {Promise<Object>} - Updated shipment
+ */
+export const lockShipment = async (shipmentHash, lockData) => {
+  const response = await fetch(`${API_BASE_URL}/api/shipments/${shipmentHash}/lock`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(lockData),
+  });
+
+  const result = await response.json();
+  
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || 'Failed to lock shipment');
+  }
+
+  return transformShipment(result.data);
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -300,4 +357,6 @@ export default {
   fetchContainerById,
   fetchShipmentStats,
   fetchIndexerStatus,
+  createShipment,
+  lockShipment,
 };
