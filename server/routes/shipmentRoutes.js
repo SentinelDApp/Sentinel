@@ -23,6 +23,9 @@
 const express = require('express');
 const router = express.Router();
 const Shipment = require('../models/Shipment');
+const Container = require('../models/Container');
+const { uploadSupportingDocuments, handleUploadErrors } = require('../middleware/upload.middleware');
+const { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } = require('../config/cloudinary.config');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VALIDATION HELPERS
@@ -47,6 +50,201 @@ const parsePagination = (query) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/shipments
+ * 
+ * Create a new shipment off-chain (before blockchain confirmation)
+ * This allows uploading documents before the shipment is locked on blockchain
+ * 
+ * Body:
+ * - shipmentHash: Unique identifier for the shipment
+ * - supplierWallet: Ethereum address of the supplier
+ * - batchId: Product batch identifier
+ * - numberOfContainers: Number of containers
+ * - quantityPerContainer: Quantity per container
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.post('/', async (req, res) => {
+  try {
+    const { 
+      shipmentHash, 
+      supplierWallet, 
+      batchId, 
+      numberOfContainers, 
+      quantityPerContainer 
+    } = req.body;
+
+    // Validate required fields
+    if (!shipmentHash || !supplierWallet || !batchId || !numberOfContainers || !quantityPerContainer) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: shipmentHash, supplierWallet, batchId, numberOfContainers, quantityPerContainer'
+      });
+    }
+
+    if (!isValidAddress(supplierWallet)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid supplier wallet address format'
+      });
+    }
+
+    // Check if shipment already exists
+    const existingShipment = await Shipment.findOne({ shipmentHash });
+    if (existingShipment) {
+      return res.status(409).json({
+        success: false,
+        message: 'Shipment with this hash already exists'
+      });
+    }
+
+    // Create shipment off-chain (no txHash yet)
+    const shipment = new Shipment({
+      shipmentHash,
+      supplierWallet: supplierWallet.toLowerCase(),
+      batchId,
+      numberOfContainers: parseInt(numberOfContainers),
+      quantityPerContainer: parseInt(quantityPerContainer),
+      totalQuantity: parseInt(numberOfContainers) * parseInt(quantityPerContainer),
+      status: 'CREATED', // Not yet locked on blockchain
+      txHash: null,
+      blockNumber: null,
+      blockchainTimestamp: null
+    });
+
+    await shipment.save();
+
+    // Create containers in MongoDB
+    const numContainers = parseInt(numberOfContainers);
+    const qtyPerContainer = parseInt(quantityPerContainer);
+    const containers = [];
+
+    for (let i = 1; i <= numContainers; i++) {
+      const containerId = Container.generateContainerId();
+      const qrData = Container.generateQRData(containerId, shipmentHash, i);
+
+      containers.push({
+        containerId,
+        shipmentHash,
+        containerNumber: i,
+        qrData: JSON.stringify(qrData),
+        quantity: qtyPerContainer,
+        status: 'CREATED'
+      });
+    }
+
+    // Insert all containers
+    if (containers.length > 0) {
+      await Container.insertMany(containers);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        shipmentHash: shipment.shipmentHash,
+        supplierWallet: shipment.supplierWallet,
+        batchId: shipment.batchId,
+        numberOfContainers: shipment.numberOfContainers,
+        quantityPerContainer: shipment.quantityPerContainer,
+        totalQuantity: shipment.totalQuantity,
+        status: shipment.status,
+        createdAt: shipment.createdAt,
+        containersCreated: containers.length
+      }
+    });
+  } catch (error) {
+    console.error('Error creating shipment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create shipment'
+    });
+  }
+});
+
+/**
+ * PATCH /api/shipments/:shipmentHash/lock
+ * 
+ * Lock a shipment on blockchain (update with txHash)
+ * Called after the blockchain transaction is confirmed
+ * 
+ * Body:
+ * - txHash: Transaction hash from blockchain
+ * - blockNumber: Block number where transaction was mined
+ * - blockchainTimestamp: Timestamp from blockchain
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch('/:shipmentHash/lock', async (req, res) => {
+  try {
+    const { shipmentHash } = req.params;
+    const { txHash, blockNumber, blockchainTimestamp } = req.body;
+
+    if (!txHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'txHash is required'
+      });
+    }
+
+    const shipment = await Shipment.findOne({ shipmentHash });
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shipment not found'
+      });
+    }
+
+    if (shipment.txHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipment is already locked on blockchain'
+      });
+    }
+
+    // Update with blockchain data
+    shipment.txHash = txHash;
+    shipment.blockNumber = blockNumber || 0;
+    shipment.blockchainTimestamp = blockchainTimestamp || Math.floor(Date.now() / 1000);
+    shipment.status = 'READY_FOR_DISPATCH';
+    shipment.updatedAt = new Date();
+
+    await shipment.save();
+
+    res.json({
+      success: true,
+      data: {
+        shipmentHash: shipment.shipmentHash,
+        supplierWallet: shipment.supplierWallet,
+        batchId: shipment.batchId,
+        numberOfContainers: shipment.numberOfContainers,
+        quantityPerContainer: shipment.quantityPerContainer,
+        totalQuantity: shipment.totalQuantity,
+        txHash: shipment.txHash,
+        blockNumber: shipment.blockNumber,
+        status: shipment.status,
+        supportingDocuments: shipment.supportingDocuments || [],
+        createdAt: shipment.createdAt,
+        updatedAt: shipment.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error locking shipment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to lock shipment'
+    });
+  }
+});
 
 /**
  * GET /api/shipments
@@ -121,7 +319,12 @@ router.get('/', async (req, res) => {
       blockNumber: shipment.blockNumber,
       blockchainTimestamp: shipment.blockchainTimestamp,
       status: shipment.status,
-      createdAt: shipment.createdAt
+      transporterWallet: shipment.transporterWallet,
+      transporterName: shipment.transporterName,
+      warehouseWallet: shipment.warehouseWallet,
+      warehouseName: shipment.warehouseName,
+      createdAt: shipment.createdAt,
+      supportingDocuments: shipment.supportingDocuments || []
     }));
 
     res.json({
@@ -191,8 +394,13 @@ router.get('/:shipmentHash', async (req, res) => {
         blockNumber: shipment.blockNumber,
         blockchainTimestamp: shipment.blockchainTimestamp,
         status: shipment.status,
+        transporterWallet: shipment.transporterWallet,
+        transporterName: shipment.transporterName,
+        warehouseWallet: shipment.warehouseWallet,
+        warehouseName: shipment.warehouseName,
         createdAt: shipment.createdAt,
-        updatedAt: shipment.updatedAt
+        updatedAt: shipment.updatedAt,
+        supportingDocuments: shipment.supportingDocuments || []
       }
     });
   } catch (error) {
@@ -289,6 +497,280 @@ router.get('/stats/summary', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch shipment statistics'
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOCUMENT UPLOAD
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/shipments/:shipmentHash/documents
+ * 
+ * Upload supporting documents for a shipment
+ * Files are uploaded to Cloudinary and URLs are saved to the shipment
+ * 
+ * Path Parameters:
+ * - shipmentHash: The unique shipment identifier
+ * 
+ * Body (multipart/form-data):
+ * - supportingDocuments: File(s) to upload (max 10 files, 5MB each)
+ * - uploadedBy: Wallet address or 'SYSTEM' (required)
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     uploadedDocuments: [...urls],
+ *     shipmentHash: string
+ *   }
+ * }
+ */
+router.post('/:shipmentHash/documents', uploadSupportingDocuments, handleUploadErrors, async (req, res) => {
+  try {
+    const { shipmentHash } = req.params;
+    const { uploadedBy } = req.body;
+
+    // Validate shipmentHash
+    if (!shipmentHash || shipmentHash.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipment hash is required'
+      });
+    }
+
+    // Validate uploadedBy
+    if (!uploadedBy || uploadedBy.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'uploadedBy is required (wallet address or SYSTEM)'
+      });
+    }
+
+    // Check if files were uploaded
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one file is required'
+      });
+    }
+
+    // Find the shipment
+    const shipment = await Shipment.findOne({ shipmentHash });
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shipment not found'
+      });
+    }
+
+    // Check if shipment is locked (IN_TRANSIT or DELIVERED - cannot modify after dispatch)
+    const lockedStatuses = ['IN_TRANSIT', 'DELIVERED'];
+    if (lockedStatuses.includes(shipment.status)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot upload documents. Shipment is in transit or delivered.'
+      });
+    }
+
+    // Upload files to Cloudinary and collect URLs
+    const uploadedDocuments = [];
+    const uploadPromises = req.files.map(async (file) => {
+      const result = await uploadToCloudinary(
+        file.buffer,
+        {
+          folder: 'sentinel/shipment-documents',
+          public_id: `${shipmentHash}_${Date.now()}_${file.originalname.replace(/\.[^/.]+$/, '')}`
+        },
+        file.mimetype
+      );
+      return {
+        url: result.secure_url,
+        uploadedBy: uploadedBy.trim(),
+        uploadedAt: new Date()
+      };
+    });
+
+    // Wait for all uploads to complete
+    const newDocuments = await Promise.all(uploadPromises);
+    uploadedDocuments.push(...newDocuments);
+
+    // Add documents to shipment and update timestamp
+    shipment.supportingDocuments = [
+      ...(shipment.supportingDocuments || []),
+      ...newDocuments
+    ];
+    shipment.updatedAt = new Date();
+    await shipment.save();
+
+    res.json({
+      success: true,
+      data: {
+        uploadedDocuments: newDocuments.map(doc => doc.url),
+        shipmentHash: shipment.shipmentHash,
+        totalDocuments: shipment.supportingDocuments.length
+      }
+    });
+  } catch (error) {
+    console.error('Error uploading shipment documents:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload documents'
+    });
+  }
+});
+
+/**
+ * GET /api/shipments/:shipmentHash/documents
+ * 
+ * Get all supporting documents for a shipment
+ * 
+ * Path Parameters:
+ * - shipmentHash: The unique shipment identifier
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     documents: [...],
+ *     shipmentHash: string
+ *   }
+ * }
+ */
+router.get('/:shipmentHash/documents', async (req, res) => {
+  try {
+    const { shipmentHash } = req.params;
+
+    if (!shipmentHash || shipmentHash.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipment hash is required'
+      });
+    }
+
+    const shipment = await Shipment.findOne({ shipmentHash }).lean();
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shipment not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        documents: shipment.supportingDocuments || [],
+        shipmentHash: shipment.shipmentHash
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching shipment documents:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch documents'
+    });
+  }
+});
+
+/**
+ * DELETE /api/shipments/:shipmentHash/documents/:docIndex
+ * 
+ * Delete a supporting document from a shipment
+ * 
+ * Path Parameters:
+ * - shipmentHash: The unique shipment identifier
+ * - docIndex: Index of the document to delete
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   message: 'Document deleted successfully'
+ * }
+ */
+router.delete('/:shipmentHash/documents/:docIndex', async (req, res) => {
+  try {
+    const { shipmentHash, docIndex } = req.params;
+    const index = parseInt(docIndex, 10);
+
+    if (!shipmentHash || shipmentHash.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipment hash is required'
+      });
+    }
+
+    if (isNaN(index) || index < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid document index'
+      });
+    }
+
+    const shipment = await Shipment.findOne({ shipmentHash });
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shipment not found'
+      });
+    }
+
+    // Check if shipment is blockchain locked (has txHash) or has locked status
+    if (shipment.txHash) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete documents. Shipment is locked on blockchain.'
+      });
+    }
+
+    const lockedStatuses = ['IN_TRANSIT', 'DELIVERED'];
+    if (lockedStatuses.includes(shipment.status)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete documents. Shipment is in transit or delivered.'
+      });
+    }
+
+    if (!shipment.supportingDocuments || index >= shipment.supportingDocuments.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found'
+      });
+    }
+
+    // Get the document to delete
+    const docToDelete = shipment.supportingDocuments[index];
+
+    // Try to delete from Cloudinary
+    if (docToDelete.url) {
+      const publicIdInfo = extractPublicIdFromUrl(docToDelete.url);
+      if (publicIdInfo) {
+        try {
+          await deleteFromCloudinary(publicIdInfo.publicId, publicIdInfo.resourceType);
+        } catch (cloudinaryError) {
+          console.error('Failed to delete from Cloudinary:', cloudinaryError);
+          // Continue with DB deletion even if Cloudinary fails
+        }
+      }
+    }
+
+    // Remove from array
+    shipment.supportingDocuments.splice(index, 1);
+    shipment.updatedAt = new Date();
+    await shipment.save();
+
+    res.json({
+      success: true,
+      message: 'Document deleted successfully',
+      data: {
+        remainingDocuments: shipment.supportingDocuments.length
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting shipment document:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete document'
     });
   }
 });

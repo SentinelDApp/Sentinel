@@ -31,6 +31,7 @@ const mongoose = require('mongoose');
 // ═══════════════════════════════════════════════════════════════════════════
 
 const SHIPMENT_STATUS = {
+  CREATED: 'CREATED',  // Off-chain, not yet locked on blockchain
   READY_FOR_DISPATCH: 'READY_FOR_DISPATCH',
   IN_TRANSIT: 'IN_TRANSIT',
   AT_WAREHOUSE: 'AT_WAREHOUSE',
@@ -95,10 +96,11 @@ const shipmentSchema = new mongoose.Schema({
     min: [1, 'Total quantity must be at least 1']
   },
 
-  // Transaction hash from the blockchain event
+  // Transaction hash from the blockchain event (null until locked)
   txHash: {
     type: String,
-    required: [true, 'Transaction hash is required'],
+    required: false,
+    default: null,
     trim: true,
     index: true
   },
@@ -106,21 +108,23 @@ const shipmentSchema = new mongoose.Schema({
   // Block number where the ShipmentLocked event was emitted
   blockNumber: {
     type: Number,
-    required: [true, 'Block number is required'],
+    required: false,
+    default: null,
     index: true
   },
 
   // Timestamp from the blockchain event (Unix timestamp)
   blockchainTimestamp: {
     type: Number,
-    required: [true, 'Blockchain timestamp is required']
+    required: false,
+    default: null
   },
 
   // Current lifecycle status of the shipment
   status: {
     type: String,
     enum: Object.values(SHIPMENT_STATUS),
-    default: SHIPMENT_STATUS.READY_FOR_DISPATCH,
+    default: SHIPMENT_STATUS.CREATED,
     index: true
   },
 
@@ -136,6 +140,15 @@ const shipmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+  ,
+  // Supporting documents uploaded for this shipment
+  supportingDocuments: [
+    {
+      url: { type: String, required: true },
+      uploadedBy: { type: String, required: true }, // wallet or 'SYSTEM'
+      uploadedAt: { type: Date, default: Date.now }
+    }
+  ]
 }, {
   timestamps: true, // Automatically manage createdAt and updatedAt
   collection: 'shipments'
@@ -224,7 +237,12 @@ shipmentSchema.methods.toResponse = function() {
     blockNumber: this.blockNumber,
     blockchainTimestamp: this.blockchainTimestamp,
     status: this.status,
-    createdAt: this.createdAt
+    transporterWallet: this.transporterWallet,
+    transporterName: this.transporterName,
+    warehouseWallet: this.warehouseWallet,
+    warehouseName: this.warehouseName,
+    createdAt: this.createdAt,
+    supportingDocuments: this.supportingDocuments || []
   };
 };
 
