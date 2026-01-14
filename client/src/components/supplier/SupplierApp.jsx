@@ -353,10 +353,38 @@ const SupplierDashboardContent = () => {
   // SHIPMENT HANDLERS
   // ═══════════════════════════════════════════════════════════════════════
 
-  // Create new shipment (adds to local state, will be fetched after blockchain lock)
-  const handleCreateShipment = (newShipment) => {
-    setShipments((prev) => [newShipment, ...prev]);
-    setActiveTab("dashboard");
+  // Create new shipment (adds to local state, stays on create page)
+  const handleCreateShipment = async (newShipment) => {
+    try {
+      // Create shipment in database (off-chain)
+      await createShipmentApi({
+        shipmentHash: newShipment.shipmentHash,
+        supplierWallet: newShipment.supplierWallet || walletAddress,
+        batchId: newShipment.batchId,
+        numberOfContainers: newShipment.numberOfContainers,
+        quantityPerContainer: newShipment.quantityPerContainer,
+      });
+      
+      // Refresh shipments list to include the new shipment
+      await loadShipments();
+      // Stay on create tab - don't navigate away
+    } catch (err) {
+      console.error('Failed to create shipment:', err);
+      // Still add to local state even if API fails (for demo purposes)
+      setShipments((prev) => [newShipment, ...prev]);
+      throw err; // Re-throw so CreateShipment knows it failed
+    }
+  };
+
+  // Refresh a single shipment from the API
+  const handleRefreshShipment = async (shipmentHash) => {
+    try {
+      const refreshedShipment = await fetchShipmentByHash(shipmentHash);
+      return refreshedShipment;
+    } catch (err) {
+      console.error('Failed to refresh shipment:', err);
+      return null;
+    }
   };
 
   // Mark shipment ready for dispatch (locks to blockchain)
@@ -447,6 +475,54 @@ const SupplierDashboardContent = () => {
 
     if (selectedShipment?.id === shipmentId) {
       setSelectedShipment((prev) => ({ ...prev, metadata }));
+    }
+  };
+
+  // Refresh shipments and update selectedShipment after upload
+  const handleUploadComplete = async () => {
+    await loadShipments();
+    // Also refresh selectedShipment if it exists
+    if (selectedShipment) {
+      const shipmentHash = selectedShipment.shipmentHash || selectedShipment.id;
+      const refreshed = await fetchShipmentByHash(shipmentHash);
+      if (refreshed) {
+        setSelectedShipment(prev => ({
+          ...prev,
+          supportingDocuments: refreshed.supportingDocuments || []
+        }));
+      }
+    }
+  };
+
+  // Delete document from Cloudinary
+  const handleDeleteDocument = async (shipmentHash, docIndex) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/shipments/${shipmentHash}/documents/${docIndex}`,
+        { method: 'DELETE' }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete document');
+      }
+      
+      // Refresh shipments to get updated document list
+      await loadShipments();
+      
+      // Also update selectedShipment
+      if (selectedShipment) {
+        const refreshed = await fetchShipmentByHash(shipmentHash);
+        if (refreshed) {
+          setSelectedShipment(prev => ({
+            ...prev,
+            supportingDocuments: refreshed.supportingDocuments || []
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete document:', err);
+      throw err;
     }
   };
 
@@ -656,6 +732,8 @@ const SupplierDashboardContent = () => {
               <div className="lg:col-span-2 h-fit">
                 <CreateShipment
                   onCreateShipment={handleCreateShipment}
+                  onRefreshShipment={handleRefreshShipment}
+                  onDeleteDocument={handleDeleteDocument}
                   isDarkMode={isDarkMode}
                   formData={createShipmentFormData}
                   onFormDataChange={setCreateShipmentFormData}
@@ -1225,7 +1303,9 @@ const SupplierDashboardContent = () => {
                     {/* Right Column: Upload Metadata */}
                     <UploadMetadata
                       shipment={selectedShipment}
-                      onUploadComplete={handleMetadataUpload}
+                      onUploadComplete={handleUploadComplete}
+                      onDeleteDocument={handleDeleteDocument}
+                      walletAddress={walletAddress}
                       isDarkMode={isDarkMode}
                     />
                   </div>
