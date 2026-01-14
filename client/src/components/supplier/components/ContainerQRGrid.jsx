@@ -15,8 +15,18 @@
  */
 
 import { useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { CONTAINER_STATUS_COLORS } from "../constants";
+
+/**
+ * Helper function to convert QR SVG to data URL
+ */
+const svgToDataURL = (svgElement) => {
+  const svgData = new XMLSerializer().serializeToString(svgElement);
+  return (
+    "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)))
+  );
+};
 
 /**
  * Single Container QR Card Component
@@ -59,21 +69,39 @@ const ContainerQRCard = ({ container, isDarkMode, size = 120 }) => {
       btoa(unescape(encodeURIComponent(svgData)));
   };
 
-  // Print single QR code
+  // Print single QR code - uses the existing rendered SVG
   const handlePrint = (e) => {
     e.stopPropagation();
-    const printWindow = window.open("", "_blank");
-    const svg = qrRef.current?.querySelector("svg");
-    if (!svg || !printWindow) return;
 
+    // Get the SVG from the rendered QR code
+    const svg = qrRef.current?.querySelector("svg");
+    if (!svg) {
+      alert("QR code not found");
+      return;
+    }
+
+    // Convert SVG to data URL
     const svgData = new XMLSerializer().serializeToString(svg);
+    const qrImageUrl =
+      "data:image/svg+xml;base64," +
+      btoa(unescape(encodeURIComponent(svgData)));
+
+    const containerId = container.containerId;
+    const batchId = container.batchId;
+    const statusLabel = statusStyle.label;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print QR codes");
+      return;
+    }
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Container QR - ${container.containerId}</title>
-          <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+          <meta charset="UTF-8">
+          <title>Container QR - ${containerId}</title>
           <style>
             body {
               display: flex;
@@ -90,16 +118,21 @@ const ContainerQRCard = ({ container, isDarkMode, size = 120 }) => {
               border: 2px dashed #ccc;
               border-radius: 12px;
             }
+            .qr-image {
+              width: 200px;
+              height: 200px;
+            }
             .container-id {
               margin-top: 20px;
               font-family: monospace;
-              font-size: 12px;
+              font-size: 14px;
               color: #333;
               word-break: break-all;
+              font-weight: bold;
             }
             .batch-info {
               margin-top: 8px;
-              font-size: 11px;
+              font-size: 12px;
               color: #666;
               font-weight: 500;
             }
@@ -122,29 +155,21 @@ const ContainerQRCard = ({ container, isDarkMode, size = 120 }) => {
         </head>
         <body>
           <div class="qr-container">
-            <canvas id="qr-canvas"></canvas>
-            <div class="container-id">${container.containerId}</div>
+            <img src="${qrImageUrl}" class="qr-image" alt="QR Code" />
+            <div class="container-id">${containerId}</div>
             ${
-              container.batchId
-                ? `<div class="batch-info">📦 Batch: ${container.batchId}</div>`
+              batchId
+                ? `<div class="batch-info">📦 Batch: ${batchId}</div>`
                 : ""
             }
-            <div class="status-badge">${statusStyle.label}</div>
+            <div class="status-badge">${statusLabel}</div>
             <div class="instructions">Attach to physical container</div>
           </div>
           <script>
-            const qrData = ${JSON.stringify(container.qrData)};
-            QRCode.toCanvas(document.getElementById('qr-canvas'), qrData, {
-              width: 200,
-              margin: 2,
-              errorCorrectionLevel: 'H'
-            }, (error) => {
-              if (!error) {
-                window.print();
-                window.close();
-              }
-            });
-          </script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 300);
+            };
+          <\/script>
         </body>
       </html>
     `);
@@ -296,79 +321,73 @@ const ContainerQRGrid = ({
   const displayedContainers = showAll ? containers : containers.slice(0, 6);
   const hasMore = containers.length > 6;
 
-  // Download all QR codes as a batch
-  const handleDownloadAll = () => {
-    containers.forEach((container, index) => {
-      setTimeout(() => {
-        const svg = document.querySelector(
-          `[data-container-id="${container.containerId}"]`
-        );
-        if (!svg) return;
-
+  // Print all QR codes - collects SVGs already rendered on page
+  const handlePrintAll = () => {
+    // Collect all QR code SVGs from the rendered cards
+    const qrImages = [];
+    containers.forEach((container) => {
+      const svg = document.querySelector(
+        `[data-container-id="${container.containerId}"]`
+      );
+      if (svg) {
         const svgData = new XMLSerializer().serializeToString(svg);
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        const img = new Image();
-
-        canvas.width = 240;
-        canvas.height = 240;
-
-        img.onload = () => {
-          ctx.fillStyle = "white";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          const link = document.createElement("a");
-          link.download = `${container.containerId}.png`;
-          link.href = canvas.toDataURL("image/png");
-          link.click();
-        };
-
-        img.src =
+        const dataUrl =
           "data:image/svg+xml;base64," +
           btoa(unescape(encodeURIComponent(svgData)));
-      }, index * 200); // Stagger downloads to prevent browser issues
+        qrImages.push({
+          dataUrl,
+          containerId: container.containerId,
+          batchId: container.batchId,
+        });
+      }
     });
-  };
 
-  // Print all QR codes
-  const handlePrintAll = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    if (qrImages.length === 0) {
+      alert("No QR codes found to print");
+      return;
+    }
 
-    // Generate QR codes HTML using the library
-    const qrHtml = containers
-      .map((container) => {
-        // Create temporary container for QR generation
-        const tempDiv = document.createElement("div");
-        const qrSize = 150;
-
-        // We'll use inline SVG generation - create QR SVG string
-        // For print, we need to generate the QR code HTML inline
-        return `
-        <div class="qr-card" data-qr="${container.qrData}">
-          <div class="qr-placeholder" style="width: ${qrSize}px; height: ${qrSize}px; background: white;"></div>
-          <div class="container-id">${container.containerId}</div>
-          ${
-            container.batchId
-              ? `<div class="batch-info">📦 ${container.batchId}</div>`
-              : ""
-          }
+    // Generate the print HTML with pre-generated QR images
+    const qrCardsHtml = qrImages
+      .map(
+        (item) => `
+      <div class="qr-card">
+        <div class="qr-wrapper">
+          <img src="${item.dataUrl}" class="qr-image" alt="QR Code" />
         </div>
-      `;
-      })
+        <div class="container-id">${item.containerId}</div>
+        ${
+          item.batchId ? `<div class="batch-info">📦 ${item.batchId}</div>` : ""
+        }
+      </div>
+    `
+      )
       .join("");
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Please allow popups to print QR codes");
+      return;
+    }
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Container QR Codes</title>
-          <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+          <meta charset="UTF-8">
+          <title>Container QR Codes - ${containers.length} Containers</title>
           <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
-              font-family: system-ui, sans-serif;
+              font-family: system-ui, -apple-system, sans-serif;
               padding: 20px;
+              background: #fff;
+            }
+            h2 {
+              text-align: center;
+              margin-bottom: 25px;
+              color: #333;
+              font-size: 18px;
             }
             .grid {
               display: grid;
@@ -378,65 +397,51 @@ const ContainerQRGrid = ({
             .qr-card {
               text-align: center;
               padding: 15px;
-              border: 1px dashed #ccc;
-              border-radius: 8px;
+              border: 2px dashed #ccc;
+              border-radius: 10px;
               page-break-inside: avoid;
+              background: #fafafa;
             }
-            .qr-placeholder {
-              margin: 0 auto;
+            .qr-wrapper {
+              background: white;
+              padding: 10px;
+              border-radius: 8px;
+              display: inline-block;
+            }
+            .qr-image {
+              width: 140px;
+              height: 140px;
+              display: block;
             }
             .container-id {
               margin-top: 10px;
-              font-family: monospace;
+              font-family: 'Courier New', monospace;
               font-size: 9px;
               color: #333;
               word-break: break-all;
+              font-weight: bold;
             }
             .batch-info {
               margin-top: 5px;
               font-size: 8px;
               color: #666;
-              font-weight: 500;
             }
             @media print {
-              .grid {
-                grid-template-columns: repeat(3, 1fr);
-              }
+              body { padding: 10px; }
+              .grid { gap: 15px; }
             }
           </style>
         </head>
         <body>
-          <h2 style="text-align: center; margin-bottom: 20px;">Container QR Codes</h2>
+          <h2>Container QR Codes - ${containers.length} Total</h2>
           <div class="grid">
-            ${qrHtml}
+            ${qrCardsHtml}
           </div>
           <script>
-            // Generate QR codes after page loads
-            window.onload = () => {
-              const cards = document.querySelectorAll('.qr-card');
-              let loaded = 0;
-              
-              cards.forEach(card => {
-                const qrData = card.getAttribute('data-qr');
-                const placeholder = card.querySelector('.qr-placeholder');
-                
-                QRCode.toCanvas(placeholder, qrData, {
-                  width: 150,
-                  margin: 1,
-                  errorCorrectionLevel: 'H'
-                }, (error) => {
-                  loaded++;
-                  if (loaded === cards.length) {
-                    // All QR codes generated, now print
-                    setTimeout(() => {
-                      window.print();
-                      window.close();
-                    }, 500);
-                  }
-                });
-              });
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 300);
             };
-          </script>
+          <\/script>
         </body>
       </html>
     `);
@@ -473,60 +478,32 @@ const ContainerQRGrid = ({
         >
           {containers.length} container{containers.length !== 1 ? "s" : ""}
         </span>
-        <div className="flex gap-2">
-          <button
-            onClick={handleDownloadAll}
-            className={`
-              flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
-              ${
-                isDarkMode
-                  ? "bg-slate-700 hover:bg-slate-600 text-slate-300"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-              }
-            `}
+        <button
+          onClick={handlePrintAll}
+          className={`
+            flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+            ${
+              isDarkMode
+                ? "bg-slate-700 hover:bg-slate-600 text-slate-300"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+            }
+          `}
+        >
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
-            Download All
-          </button>
-          <button
-            onClick={handlePrintAll}
-            className={`
-              flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
-              ${
-                isDarkMode
-                  ? "bg-slate-700 hover:bg-slate-600 text-slate-300"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-              }
-            `}
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-              />
-            </svg>
-            Print All
-          </button>
-        </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+            />
+          </svg>
+          Print All
+        </button>
       </div>
 
       {/* QR Grid */}
