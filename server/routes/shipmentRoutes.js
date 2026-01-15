@@ -1,32 +1,39 @@
 /**
  * Shipment Routes
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  * READ-ONLY API ENDPOINTS
  * ═══════════════════════════════════════════════════════════════════════════
- * 
- * Sentinel backend acts as a blockchain indexer, transforming immutable 
- * on-chain shipment events into queryable off-chain records for dashboards 
+ *
+ * Sentinel backend acts as a blockchain indexer, transforming immutable
+ * on-chain shipment events into queryable off-chain records for dashboards
  * and analytics.
- * 
+ *
  * These endpoints fetch data from MongoDB ONLY - they do NOT interact with
  * the blockchain directly. All data served here was indexed from blockchain
  * events by the BlockchainIndexer service.
- * 
+ *
  * ❌ NO CREATE/UPDATE/DELETE OPERATIONS
  * ❌ NO BLOCKCHAIN WRITES
  * ✅ READ-ONLY QUERIES FROM MONGODB
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Shipment = require('../models/Shipment');
-const Container = require('../models/Container');
-const User = require('../models/User');
-const { uploadSupportingDocuments, handleUploadErrors } = require('../middleware/upload.middleware');
-const { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } = require('../config/cloudinary.config');
+const Shipment = require("../models/Shipment");
+const Container = require("../models/Container");
+const User = require("../models/User");
+const {
+  uploadSupportingDocuments,
+  handleUploadErrors,
+} = require("../middleware/upload.middleware");
+const {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+  extractPublicIdFromUrl,
+} = require("../config/cloudinary.config");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VALIDATION HELPERS
@@ -54,10 +61,10 @@ const parsePagination = (query) => {
 
 /**
  * POST /api/shipments
- * 
+ *
  * Create a new shipment off-chain (before blockchain confirmation)
  * This allows uploading documents before the shipment is locked on blockchain
- * 
+ *
  * Body:
  * - shipmentHash: Unique identifier for the shipment
  * - supplierWallet: Ethereum address of the supplier
@@ -66,30 +73,37 @@ const parsePagination = (query) => {
  * - quantityPerContainer: Quantity per container
  * - assignedTransporterWallet: (Required) Wallet address of assigned transporter
  * - assignedWarehouseWallet: (Required) Wallet address of assigned warehouse
- * 
+ *
  * Response:
  * {
  *   success: true,
  *   data: { ...shipmentDetails }
  * }
  */
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const { 
-      shipmentHash, 
-      supplierWallet, 
-      batchId, 
-      numberOfContainers, 
+    const {
+      shipmentHash,
+      supplierWallet,
+      batchId,
+      numberOfContainers,
       quantityPerContainer,
       assignedTransporterWallet,
-      assignedWarehouseWallet
+      assignedWarehouseWallet,
     } = req.body;
 
     // Validate required fields
-    if (!shipmentHash || !supplierWallet || !batchId || !numberOfContainers || !quantityPerContainer) {
+    if (
+      !shipmentHash ||
+      !supplierWallet ||
+      !batchId ||
+      !numberOfContainers ||
+      !quantityPerContainer
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: shipmentHash, supplierWallet, batchId, numberOfContainers, quantityPerContainer'
+        message:
+          "Missing required fields: shipmentHash, supplierWallet, batchId, numberOfContainers, quantityPerContainer",
       });
     }
 
@@ -97,75 +111,77 @@ router.post('/', async (req, res) => {
     if (!assignedTransporterWallet) {
       return res.status(400).json({
         success: false,
-        message: 'assignedTransporterWallet is required. Please select a transporter.'
+        message:
+          "assignedTransporterWallet is required. Please select a transporter.",
       });
     }
 
     if (!assignedWarehouseWallet) {
       return res.status(400).json({
         success: false,
-        message: 'assignedWarehouseWallet is required. Please select a warehouse.'
+        message:
+          "assignedWarehouseWallet is required. Please select a warehouse.",
       });
     }
 
     if (!isValidAddress(supplierWallet)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid supplier wallet address format'
+        message: "Invalid supplier wallet address format",
       });
     }
 
     if (!isValidAddress(assignedTransporterWallet)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid transporter wallet address format'
+        message: "Invalid transporter wallet address format",
       });
     }
 
     if (!isValidAddress(assignedWarehouseWallet)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid warehouse wallet address format'
+        message: "Invalid warehouse wallet address format",
       });
     }
 
     // Validate that the transporter wallet belongs to a TRANSPORTER role user
-    const transporterUser = await User.findOne({ 
+    const transporterUser = await User.findOne({
       walletAddress: assignedTransporterWallet.toLowerCase(),
-      status: 'ACTIVE'
+      status: "ACTIVE",
     });
 
     if (!transporterUser) {
       return res.status(400).json({
         success: false,
-        message: 'Assigned transporter wallet not found or inactive'
+        message: "Assigned transporter wallet not found or inactive",
       });
     }
 
-    if (transporterUser.role !== 'transporter') {
+    if (transporterUser.role !== "transporter") {
       return res.status(400).json({
         success: false,
-        message: `Invalid assignment: wallet ${assignedTransporterWallet} is not a transporter (role: ${transporterUser.role})`
+        message: `Invalid assignment: wallet ${assignedTransporterWallet} is not a transporter (role: ${transporterUser.role})`,
       });
     }
 
     // Validate that the warehouse wallet belongs to a WAREHOUSE role user
-    const warehouseUser = await User.findOne({ 
+    const warehouseUser = await User.findOne({
       walletAddress: assignedWarehouseWallet.toLowerCase(),
-      status: 'ACTIVE'
+      status: "ACTIVE",
     });
 
     if (!warehouseUser) {
       return res.status(400).json({
         success: false,
-        message: 'Assigned warehouse wallet not found or inactive'
+        message: "Assigned warehouse wallet not found or inactive",
       });
     }
 
-    if (warehouseUser.role !== 'warehouse') {
+    if (warehouseUser.role !== "warehouse") {
       return res.status(400).json({
         success: false,
-        message: `Invalid assignment: wallet ${assignedWarehouseWallet} is not a warehouse (role: ${warehouseUser.role})`
+        message: `Invalid assignment: wallet ${assignedWarehouseWallet} is not a warehouse (role: ${warehouseUser.role})`,
       });
     }
 
@@ -174,7 +190,7 @@ router.post('/', async (req, res) => {
     if (existingShipment) {
       return res.status(409).json({
         success: false,
-        message: 'Shipment with this hash already exists'
+        message: "Shipment with this hash already exists",
       });
     }
 
@@ -185,24 +201,25 @@ router.post('/', async (req, res) => {
       batchId,
       numberOfContainers: parseInt(numberOfContainers),
       quantityPerContainer: parseInt(quantityPerContainer),
-      totalQuantity: parseInt(numberOfContainers) * parseInt(quantityPerContainer),
-      status: 'CREATED', // Not yet locked on blockchain
+      totalQuantity:
+        parseInt(numberOfContainers) * parseInt(quantityPerContainer),
+      status: "CREATED", // Not yet locked on blockchain
       txHash: null,
       blockNumber: null,
       blockchainTimestamp: null,
       // Assigned stakeholders
       assignedTransporter: {
         walletAddress: transporterUser.walletAddress,
-        name: transporterUser.fullName || '',
-        organizationName: transporterUser.organizationName || '',
-        assignedAt: new Date()
+        name: transporterUser.fullName || "",
+        organizationName: transporterUser.organizationName || "",
+        assignedAt: new Date(),
       },
       assignedWarehouse: {
         walletAddress: warehouseUser.walletAddress,
-        name: warehouseUser.fullName || '',
-        organizationName: warehouseUser.organizationName || '',
-        assignedAt: new Date()
-      }
+        name: warehouseUser.fullName || "",
+        organizationName: warehouseUser.organizationName || "",
+        assignedAt: new Date(),
+      },
     });
 
     await shipment.save();
@@ -222,7 +239,7 @@ router.post('/', async (req, res) => {
         containerNumber: i,
         qrData: JSON.stringify(qrData),
         quantity: qtyPerContainer,
-        status: 'CREATED'
+        status: "CREATED",
       });
     }
 
@@ -244,36 +261,36 @@ router.post('/', async (req, res) => {
         assignedTransporter: shipment.assignedTransporter,
         assignedWarehouse: shipment.assignedWarehouse,
         createdAt: shipment.createdAt,
-        containersCreated: containers.length
-      }
+        containersCreated: containers.length,
+      },
     });
   } catch (error) {
-    console.error('Error creating shipment:', error);
+    console.error("Error creating shipment:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create shipment'
+      message: "Failed to create shipment",
     });
   }
 });
 
 /**
  * PATCH /api/shipments/:shipmentHash/lock
- * 
+ *
  * Lock a shipment on blockchain (update with txHash)
  * Called after the blockchain transaction is confirmed
- * 
+ *
  * Body:
  * - txHash: Transaction hash from blockchain
  * - blockNumber: Block number where transaction was mined
  * - blockchainTimestamp: Timestamp from blockchain
- * 
+ *
  * Response:
  * {
  *   success: true,
  *   data: { ...shipmentDetails }
  * }
  */
-router.patch('/:shipmentHash/lock', async (req, res) => {
+router.patch("/:shipmentHash/lock", async (req, res) => {
   try {
     const { shipmentHash } = req.params;
     const { txHash, blockNumber, blockchainTimestamp } = req.body;
@@ -281,7 +298,7 @@ router.patch('/:shipmentHash/lock', async (req, res) => {
     if (!txHash) {
       return res.status(400).json({
         success: false,
-        message: 'txHash is required'
+        message: "txHash is required",
       });
     }
 
@@ -289,22 +306,23 @@ router.patch('/:shipmentHash/lock', async (req, res) => {
     if (!shipment) {
       return res.status(404).json({
         success: false,
-        message: 'Shipment not found'
+        message: "Shipment not found",
       });
     }
 
     if (shipment.txHash) {
       return res.status(400).json({
         success: false,
-        message: 'Shipment is already locked on blockchain'
+        message: "Shipment is already locked on blockchain",
       });
     }
 
     // Update with blockchain data
     shipment.txHash = txHash;
     shipment.blockNumber = blockNumber || 0;
-    shipment.blockchainTimestamp = blockchainTimestamp || Math.floor(Date.now() / 1000);
-    shipment.status = 'READY_FOR_DISPATCH';
+    shipment.blockchainTimestamp =
+      blockchainTimestamp || Math.floor(Date.now() / 1000);
+    shipment.status = "READY_FOR_DISPATCH";
     shipment.updatedAt = new Date();
 
     await shipment.save();
@@ -323,29 +341,29 @@ router.patch('/:shipmentHash/lock', async (req, res) => {
         status: shipment.status,
         supportingDocuments: shipment.supportingDocuments || [],
         createdAt: shipment.createdAt,
-        updatedAt: shipment.updatedAt
-      }
+        updatedAt: shipment.updatedAt,
+      },
     });
   } catch (error) {
-    console.error('Error locking shipment:', error);
+    console.error("Error locking shipment:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to lock shipment'
+      message: "Failed to lock shipment",
     });
   }
 });
 
 /**
  * GET /api/shipments
- * 
+ *
  * List shipments with optional filtering by supplier wallet
- * 
+ *
  * Query Parameters:
  * - supplierWallet: Filter by supplier Ethereum address (optional)
  * - status: Filter by shipment status (optional)
  * - page: Page number for pagination (default: 1)
  * - limit: Items per page (default: 20, max: 100)
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -353,9 +371,10 @@ router.patch('/:shipmentHash/lock', async (req, res) => {
  *   pagination: { page, limit, total, totalPages }
  * }
  */
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const { supplierWallet, transporterWallet, warehouseWallet, status } = req.query;
+    const { supplierWallet, transporterWallet, warehouseWallet, status } =
+      req.query;
     const { page, limit } = parsePagination(req.query);
 
     // Build query
@@ -366,7 +385,7 @@ router.get('/', async (req, res) => {
       if (!isValidAddress(supplierWallet)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid supplier wallet address format'
+          message: "Invalid supplier wallet address format",
         });
       }
       query.supplierWallet = supplierWallet.toLowerCase();
@@ -377,10 +396,11 @@ router.get('/', async (req, res) => {
       if (!isValidAddress(transporterWallet)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid transporter wallet address format'
+          message: "Invalid transporter wallet address format",
         });
       }
-      query['assignedTransporter.walletAddress'] = transporterWallet.toLowerCase();
+      query["assignedTransporter.walletAddress"] =
+        transporterWallet.toLowerCase();
     }
 
     // Filter by warehouse wallet if provided
@@ -388,21 +408,27 @@ router.get('/', async (req, res) => {
       if (!isValidAddress(warehouseWallet)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid warehouse wallet address format'
+          message: "Invalid warehouse wallet address format",
         });
       }
-      query['assignedWarehouse.walletAddress'] = warehouseWallet.toLowerCase();
+      query["assignedWarehouse.walletAddress"] = warehouseWallet.toLowerCase();
     }
 
     // Filter by status if provided
     if (status) {
-      const validStatuses = Object.values(Shipment.schema.path('status').enumValues || 
-        ['READY_FOR_DISPATCH', 'IN_TRANSIT', 'AT_WAREHOUSE', 'DELIVERED']);
-      
+      const validStatuses = Object.values(
+        Shipment.schema.path("status").enumValues || [
+          "READY_FOR_DISPATCH",
+          "IN_TRANSIT",
+          "AT_WAREHOUSE",
+          "DELIVERED",
+        ]
+      );
+
       if (!validStatuses.includes(status.toUpperCase())) {
         return res.status(400).json({
           success: false,
-          message: `Invalid status. Valid values: ${validStatuses.join(', ')}`
+          message: `Invalid status. Valid values: ${validStatuses.join(", ")}`,
         });
       }
       query.status = status.toUpperCase();
@@ -419,7 +445,7 @@ router.get('/', async (req, res) => {
       .lean();
 
     // Transform to response format
-    const data = shipments.map(shipment => ({
+    const data = shipments.map((shipment) => ({
       shipmentHash: shipment.shipmentHash,
       supplierWallet: shipment.supplierWallet,
       batchId: shipment.batchId,
@@ -434,12 +460,16 @@ router.get('/', async (req, res) => {
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
       // Legacy fields for backward compatibility
-      transporterWallet: shipment.assignedTransporter?.walletAddress || shipment.transporterWallet,
-      transporterName: shipment.assignedTransporter?.name || shipment.transporterName,
-      warehouseWallet: shipment.assignedWarehouse?.walletAddress || shipment.warehouseWallet,
+      transporterWallet:
+        shipment.assignedTransporter?.walletAddress ||
+        shipment.transporterWallet,
+      transporterName:
+        shipment.assignedTransporter?.name || shipment.transporterName,
+      warehouseWallet:
+        shipment.assignedWarehouse?.walletAddress || shipment.warehouseWallet,
       warehouseName: shipment.assignedWarehouse?.name || shipment.warehouseName,
       createdAt: shipment.createdAt,
-      supportingDocuments: shipment.supportingDocuments || []
+      supportingDocuments: shipment.supportingDocuments || [],
     }));
 
     res.json({
@@ -449,40 +479,40 @@ router.get('/', async (req, res) => {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    console.error('Error fetching shipments:', error);
+    console.error("Error fetching shipments:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch shipments'
+      message: "Failed to fetch shipments",
     });
   }
 });
 
 /**
  * GET /api/shipments/:shipmentHash
- * 
+ *
  * Get detailed information about a specific shipment by its hash
- * 
+ *
  * Path Parameters:
  * - shipmentHash: The unique shipment identifier
- * 
+ *
  * Response:
  * {
  *   success: true,
  *   data: { ...shipmentDetails }
  * }
  */
-router.get('/:shipmentHash', async (req, res) => {
+router.get("/:shipmentHash", async (req, res) => {
   try {
     const { shipmentHash } = req.params;
 
-    if (!shipmentHash || shipmentHash.trim() === '') {
+    if (!shipmentHash || shipmentHash.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Shipment hash is required'
+        message: "Shipment hash is required",
       });
     }
 
@@ -492,7 +522,7 @@ router.get('/:shipmentHash', async (req, res) => {
     if (!shipment) {
       return res.status(404).json({
         success: false,
-        message: 'Shipment not found'
+        message: "Shipment not found",
       });
     }
 
@@ -513,20 +543,25 @@ router.get('/:shipmentHash', async (req, res) => {
         assignedTransporter: shipment.assignedTransporter || null,
         assignedWarehouse: shipment.assignedWarehouse || null,
         // Legacy fields for backward compatibility
-        transporterWallet: shipment.assignedTransporter?.walletAddress || shipment.transporterWallet,
-        transporterName: shipment.assignedTransporter?.name || shipment.transporterName,
-        warehouseWallet: shipment.assignedWarehouse?.walletAddress || shipment.warehouseWallet,
-        warehouseName: shipment.assignedWarehouse?.name || shipment.warehouseName,
+        transporterWallet:
+          shipment.assignedTransporter?.walletAddress ||
+          shipment.transporterWallet,
+        transporterName:
+          shipment.assignedTransporter?.name || shipment.transporterName,
+        warehouseWallet:
+          shipment.assignedWarehouse?.walletAddress || shipment.warehouseWallet,
+        warehouseName:
+          shipment.assignedWarehouse?.name || shipment.warehouseName,
         createdAt: shipment.createdAt,
         updatedAt: shipment.updatedAt,
-        supportingDocuments: shipment.supportingDocuments || []
-      }
+        supportingDocuments: shipment.supportingDocuments || [],
+      },
     });
   } catch (error) {
-    console.error('Error fetching shipment:', error);
+    console.error("Error fetching shipment:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch shipment'
+      message: "Failed to fetch shipment",
     });
   }
 });
@@ -537,18 +572,18 @@ router.get('/:shipmentHash', async (req, res) => {
 
 /**
  * GET /api/shipments/transporter/:walletAddress
- * 
+ *
  * Fetch shipments assigned to a specific transporter.
  * Transporter dashboard uses this endpoint.
- * 
+ *
  * Path Parameters:
  * - walletAddress: The transporter's wallet address
- * 
+ *
  * Query Parameters:
  * - status: Filter by shipment status (optional)
  * - page: Page number for pagination (default: 1)
  * - limit: Items per page (default: 20, max: 100)
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -556,7 +591,7 @@ router.get('/:shipmentHash', async (req, res) => {
  *   pagination: { page, limit, total, totalPages }
  * }
  */
-router.get('/transporter/:walletAddress', async (req, res) => {
+router.get("/transporter/:walletAddress", async (req, res) => {
   try {
     const { walletAddress } = req.params;
     const { status } = req.query;
@@ -565,13 +600,13 @@ router.get('/transporter/:walletAddress', async (req, res) => {
     if (!walletAddress || !isValidAddress(walletAddress)) {
       return res.status(400).json({
         success: false,
-        message: 'Valid transporter wallet address is required'
+        message: "Valid transporter wallet address is required",
       });
     }
 
     // Build query - only shipments assigned to this transporter
     const query = {
-      'assignedTransporter.walletAddress': walletAddress.toLowerCase()
+      "assignedTransporter.walletAddress": walletAddress.toLowerCase(),
     };
 
     // Filter by status if provided
@@ -590,7 +625,7 @@ router.get('/transporter/:walletAddress', async (req, res) => {
       .lean();
 
     // Transform to response format
-    const data = shipments.map(shipment => ({
+    const data = shipments.map((shipment) => ({
       shipmentHash: shipment.shipmentHash,
       supplierWallet: shipment.supplierWallet,
       batchId: shipment.batchId,
@@ -604,7 +639,7 @@ router.get('/transporter/:walletAddress', async (req, res) => {
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
       createdAt: shipment.createdAt,
-      supportingDocuments: shipment.supportingDocuments || []
+      supportingDocuments: shipment.supportingDocuments || [],
     }));
 
     res.json({
@@ -614,32 +649,32 @@ router.get('/transporter/:walletAddress', async (req, res) => {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    console.error('Error fetching transporter shipments:', error);
+    console.error("Error fetching transporter shipments:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch shipments'
+      message: "Failed to fetch shipments",
     });
   }
 });
 
 /**
  * GET /api/shipments/warehouse/:walletAddress
- * 
+ *
  * Fetch shipments assigned to a specific warehouse.
  * Warehouse dashboard uses this endpoint.
- * 
+ *
  * Path Parameters:
  * - walletAddress: The warehouse's wallet address
- * 
+ *
  * Query Parameters:
  * - status: Filter by shipment status (optional)
  * - page: Page number for pagination (default: 1)
  * - limit: Items per page (default: 20, max: 100)
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -647,7 +682,7 @@ router.get('/transporter/:walletAddress', async (req, res) => {
  *   pagination: { page, limit, total, totalPages }
  * }
  */
-router.get('/warehouse/:walletAddress', async (req, res) => {
+router.get("/warehouse/:walletAddress", async (req, res) => {
   try {
     const { walletAddress } = req.params;
     const { status } = req.query;
@@ -656,13 +691,13 @@ router.get('/warehouse/:walletAddress', async (req, res) => {
     if (!walletAddress || !isValidAddress(walletAddress)) {
       return res.status(400).json({
         success: false,
-        message: 'Valid warehouse wallet address is required'
+        message: "Valid warehouse wallet address is required",
       });
     }
 
     // Build query - only shipments assigned to this warehouse
     const query = {
-      'assignedWarehouse.walletAddress': walletAddress.toLowerCase()
+      "assignedWarehouse.walletAddress": walletAddress.toLowerCase(),
     };
 
     // Filter by status if provided
@@ -681,7 +716,7 @@ router.get('/warehouse/:walletAddress', async (req, res) => {
       .lean();
 
     // Transform to response format
-    const data = shipments.map(shipment => ({
+    const data = shipments.map((shipment) => ({
       shipmentHash: shipment.shipmentHash,
       supplierWallet: shipment.supplierWallet,
       batchId: shipment.batchId,
@@ -695,7 +730,7 @@ router.get('/warehouse/:walletAddress', async (req, res) => {
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
       createdAt: shipment.createdAt,
-      supportingDocuments: shipment.supportingDocuments || []
+      supportingDocuments: shipment.supportingDocuments || [],
     }));
 
     res.json({
@@ -705,27 +740,27 @@ router.get('/warehouse/:walletAddress', async (req, res) => {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    console.error('Error fetching warehouse shipments:', error);
+    console.error("Error fetching warehouse shipments:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch shipments'
+      message: "Failed to fetch shipments",
     });
   }
 });
 
 /**
  * GET /api/shipments/stats/summary
- * 
+ *
  * Get summary statistics for shipments
  * Optional: Filter by supplier wallet
- * 
+ *
  * Query Parameters:
  * - supplierWallet: Filter stats by supplier (optional)
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -737,17 +772,17 @@ router.get('/warehouse/:walletAddress', async (req, res) => {
  *   }
  * }
  */
-router.get('/stats/summary', async (req, res) => {
+router.get("/stats/summary", async (req, res) => {
   try {
     const { supplierWallet } = req.query;
-    
+
     // Build match stage
     const matchStage = {};
     if (supplierWallet) {
       if (!isValidAddress(supplierWallet)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid supplier wallet address format'
+          message: "Invalid supplier wallet address format",
         });
       }
       matchStage.supplierWallet = supplierWallet.toLowerCase();
@@ -760,10 +795,10 @@ router.get('/stats/summary', async (req, res) => {
         $group: {
           _id: null,
           totalShipments: { $sum: 1 },
-          totalContainers: { $sum: '$numberOfContainers' },
-          totalQuantity: { $sum: '$totalQuantity' }
-        }
-      }
+          totalContainers: { $sum: "$numberOfContainers" },
+          totalQuantity: { $sum: "$totalQuantity" },
+        },
+      },
     ]);
 
     // Get counts by status
@@ -771,21 +806,21 @@ router.get('/stats/summary', async (req, res) => {
       { $match: matchStage },
       {
         $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const byStatus = {};
-    statusCounts.forEach(item => {
+    statusCounts.forEach((item) => {
       byStatus[item._id] = item.count;
     });
 
     const summaryData = stats[0] || {
       totalShipments: 0,
       totalContainers: 0,
-      totalQuantity: 0
+      totalQuantity: 0,
     };
 
     res.json({
@@ -794,14 +829,14 @@ router.get('/stats/summary', async (req, res) => {
         totalShipments: summaryData.totalShipments,
         totalContainers: summaryData.totalContainers,
         totalQuantity: summaryData.totalQuantity,
-        byStatus
-      }
+        byStatus,
+      },
     });
   } catch (error) {
-    console.error('Error fetching shipment stats:', error);
+    console.error("Error fetching shipment stats:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch shipment statistics'
+      message: "Failed to fetch shipment statistics",
     });
   }
 });
@@ -812,17 +847,17 @@ router.get('/stats/summary', async (req, res) => {
 
 /**
  * POST /api/shipments/:shipmentHash/documents
- * 
+ *
  * Upload supporting documents for a shipment
  * Files are uploaded to Cloudinary and URLs are saved to the shipment
- * 
+ *
  * Path Parameters:
  * - shipmentHash: The unique shipment identifier
- * 
+ *
  * Body (multipart/form-data):
  * - supportingDocuments: File(s) to upload (max 10 files, 5MB each)
  * - uploadedBy: Wallet address or 'SYSTEM' (required)
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -832,108 +867,117 @@ router.get('/stats/summary', async (req, res) => {
  *   }
  * }
  */
-router.post('/:shipmentHash/documents', uploadSupportingDocuments, handleUploadErrors, async (req, res) => {
-  try {
-    const { shipmentHash } = req.params;
-    const { uploadedBy } = req.body;
+router.post(
+  "/:shipmentHash/documents",
+  uploadSupportingDocuments,
+  handleUploadErrors,
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const { uploadedBy } = req.body;
 
-    // Validate shipmentHash
-    if (!shipmentHash || shipmentHash.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'Shipment hash is required'
-      });
-    }
-
-    // Validate uploadedBy
-    if (!uploadedBy || uploadedBy.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'uploadedBy is required (wallet address or SYSTEM)'
-      });
-    }
-
-    // Check if files were uploaded
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'At least one file is required'
-      });
-    }
-
-    // Find the shipment
-    const shipment = await Shipment.findOne({ shipmentHash });
-    if (!shipment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Shipment not found'
-      });
-    }
-
-    // Check if shipment is locked (IN_TRANSIT or DELIVERED - cannot modify after dispatch)
-    const lockedStatuses = ['IN_TRANSIT', 'DELIVERED'];
-    if (lockedStatuses.includes(shipment.status)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Cannot upload documents. Shipment is in transit or delivered.'
-      });
-    }
-
-    // Upload files to Cloudinary and collect URLs
-    const uploadedDocuments = [];
-    const uploadPromises = req.files.map(async (file) => {
-      const result = await uploadToCloudinary(
-        file.buffer,
-        {
-          folder: 'sentinel/shipment-documents',
-          public_id: `${shipmentHash}_${Date.now()}_${file.originalname.replace(/\.[^/.]+$/, '')}`
-        },
-        file.mimetype
-      );
-      return {
-        url: result.secure_url,
-        uploadedBy: uploadedBy.trim(),
-        uploadedAt: new Date()
-      };
-    });
-
-    // Wait for all uploads to complete
-    const newDocuments = await Promise.all(uploadPromises);
-    uploadedDocuments.push(...newDocuments);
-
-    // Add documents to shipment and update timestamp
-    shipment.supportingDocuments = [
-      ...(shipment.supportingDocuments || []),
-      ...newDocuments
-    ];
-    shipment.updatedAt = new Date();
-    await shipment.save();
-
-    res.json({
-      success: true,
-      data: {
-        uploadedDocuments: newDocuments.map(doc => doc.url),
-        shipmentHash: shipment.shipmentHash,
-        totalDocuments: shipment.supportingDocuments.length
+      // Validate shipmentHash
+      if (!shipmentHash || shipmentHash.trim() === "") {
+        return res.status(400).json({
+          success: false,
+          message: "Shipment hash is required",
+        });
       }
-    });
-  } catch (error) {
-    console.error('Error uploading shipment documents:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to upload documents'
-    });
+
+      // Validate uploadedBy
+      if (!uploadedBy || uploadedBy.trim() === "") {
+        return res.status(400).json({
+          success: false,
+          message: "uploadedBy is required (wallet address or SYSTEM)",
+        });
+      }
+
+      // Check if files were uploaded
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one file is required",
+        });
+      }
+
+      // Find the shipment
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // Check if shipment is locked (IN_TRANSIT or DELIVERED - cannot modify after dispatch)
+      const lockedStatuses = ["IN_TRANSIT", "DELIVERED"];
+      if (lockedStatuses.includes(shipment.status)) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Cannot upload documents. Shipment is in transit or delivered.",
+        });
+      }
+
+      // Upload files to Cloudinary and collect URLs
+      const uploadedDocuments = [];
+      const uploadPromises = req.files.map(async (file) => {
+        const result = await uploadToCloudinary(
+          file.buffer,
+          {
+            folder: "sentinel/shipment-documents",
+            public_id: `${shipmentHash}_${Date.now()}_${file.originalname.replace(
+              /\.[^/.]+$/,
+              ""
+            )}`,
+          },
+          file.mimetype
+        );
+        return {
+          url: result.secure_url,
+          uploadedBy: uploadedBy.trim(),
+          uploadedAt: new Date(),
+        };
+      });
+
+      // Wait for all uploads to complete
+      const newDocuments = await Promise.all(uploadPromises);
+      uploadedDocuments.push(...newDocuments);
+
+      // Add documents to shipment and update timestamp
+      shipment.supportingDocuments = [
+        ...(shipment.supportingDocuments || []),
+        ...newDocuments,
+      ];
+      shipment.updatedAt = new Date();
+      await shipment.save();
+
+      res.json({
+        success: true,
+        data: {
+          uploadedDocuments: newDocuments.map((doc) => doc.url),
+          shipmentHash: shipment.shipmentHash,
+          totalDocuments: shipment.supportingDocuments.length,
+        },
+      });
+    } catch (error) {
+      console.error("Error uploading shipment documents:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to upload documents",
+      });
+    }
   }
-});
+);
 
 /**
  * GET /api/shipments/:shipmentHash/documents
- * 
+ *
  * Get all supporting documents for a shipment
- * 
+ *
  * Path Parameters:
  * - shipmentHash: The unique shipment identifier
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -943,14 +987,14 @@ router.post('/:shipmentHash/documents', uploadSupportingDocuments, handleUploadE
  *   }
  * }
  */
-router.get('/:shipmentHash/documents', async (req, res) => {
+router.get("/:shipmentHash/documents", async (req, res) => {
   try {
     const { shipmentHash } = req.params;
 
-    if (!shipmentHash || shipmentHash.trim() === '') {
+    if (!shipmentHash || shipmentHash.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Shipment hash is required'
+        message: "Shipment hash is required",
       });
     }
 
@@ -958,7 +1002,7 @@ router.get('/:shipmentHash/documents', async (req, res) => {
     if (!shipment) {
       return res.status(404).json({
         success: false,
-        message: 'Shipment not found'
+        message: "Shipment not found",
       });
     }
 
@@ -966,49 +1010,49 @@ router.get('/:shipmentHash/documents', async (req, res) => {
       success: true,
       data: {
         documents: shipment.supportingDocuments || [],
-        shipmentHash: shipment.shipmentHash
-      }
+        shipmentHash: shipment.shipmentHash,
+      },
     });
   } catch (error) {
-    console.error('Error fetching shipment documents:', error);
+    console.error("Error fetching shipment documents:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch documents'
+      message: "Failed to fetch documents",
     });
   }
 });
 
 /**
  * DELETE /api/shipments/:shipmentHash/documents/:docIndex
- * 
+ *
  * Delete a supporting document from a shipment
- * 
+ *
  * Path Parameters:
  * - shipmentHash: The unique shipment identifier
  * - docIndex: Index of the document to delete
- * 
+ *
  * Response:
  * {
  *   success: true,
  *   message: 'Document deleted successfully'
  * }
  */
-router.delete('/:shipmentHash/documents/:docIndex', async (req, res) => {
+router.delete("/:shipmentHash/documents/:docIndex", async (req, res) => {
   try {
     const { shipmentHash, docIndex } = req.params;
     const index = parseInt(docIndex, 10);
 
-    if (!shipmentHash || shipmentHash.trim() === '') {
+    if (!shipmentHash || shipmentHash.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Shipment hash is required'
+        message: "Shipment hash is required",
       });
     }
 
     if (isNaN(index) || index < 0) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid document index'
+        message: "Invalid document index",
       });
     }
 
@@ -1016,7 +1060,7 @@ router.delete('/:shipmentHash/documents/:docIndex', async (req, res) => {
     if (!shipment) {
       return res.status(404).json({
         success: false,
-        message: 'Shipment not found'
+        message: "Shipment not found",
       });
     }
 
@@ -1024,22 +1068,26 @@ router.delete('/:shipmentHash/documents/:docIndex', async (req, res) => {
     if (shipment.txHash) {
       return res.status(403).json({
         success: false,
-        message: 'Cannot delete documents. Shipment is locked on blockchain.'
+        message: "Cannot delete documents. Shipment is locked on blockchain.",
       });
     }
 
-    const lockedStatuses = ['IN_TRANSIT', 'DELIVERED'];
+    const lockedStatuses = ["IN_TRANSIT", "DELIVERED"];
     if (lockedStatuses.includes(shipment.status)) {
       return res.status(403).json({
         success: false,
-        message: 'Cannot delete documents. Shipment is in transit or delivered.'
+        message:
+          "Cannot delete documents. Shipment is in transit or delivered.",
       });
     }
 
-    if (!shipment.supportingDocuments || index >= shipment.supportingDocuments.length) {
+    if (
+      !shipment.supportingDocuments ||
+      index >= shipment.supportingDocuments.length
+    ) {
       return res.status(404).json({
         success: false,
-        message: 'Document not found'
+        message: "Document not found",
       });
     }
 
@@ -1051,9 +1099,12 @@ router.delete('/:shipmentHash/documents/:docIndex', async (req, res) => {
       const publicIdInfo = extractPublicIdFromUrl(docToDelete.url);
       if (publicIdInfo) {
         try {
-          await deleteFromCloudinary(publicIdInfo.publicId, publicIdInfo.resourceType);
+          await deleteFromCloudinary(
+            publicIdInfo.publicId,
+            publicIdInfo.resourceType
+          );
         } catch (cloudinaryError) {
-          console.error('Failed to delete from Cloudinary:', cloudinaryError);
+          console.error("Failed to delete from Cloudinary:", cloudinaryError);
           // Continue with DB deletion even if Cloudinary fails
         }
       }
@@ -1066,16 +1117,16 @@ router.delete('/:shipmentHash/documents/:docIndex', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Document deleted successfully',
+      message: "Document deleted successfully",
       data: {
-        remainingDocuments: shipment.supportingDocuments.length
-      }
+        remainingDocuments: shipment.supportingDocuments.length,
+      },
     });
   } catch (error) {
-    console.error('Error deleting shipment document:', error);
+    console.error("Error deleting shipment document:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete document'
+      message: "Failed to delete document",
     });
   }
 });

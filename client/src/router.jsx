@@ -12,6 +12,7 @@ import LoginPage from "./components/Admin/pages/LoginPage";
 // Dashboard Pages
 import { SupplierApp } from "./components/supplier";
 import { WarehouseApp } from "./components/warehouse";
+import WarehouseProfilePage from "./components/warehouse/pages/ProfilePage";
 import {
   RetailerApp,
   ProfileSettingsPage as RetailerProfileSettingsPage,
@@ -91,6 +92,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={["warehouse"]}>
             <WarehouseApp />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/warehouse/profile",
+        element: (
+          <ProtectedRoute allowedRoles={["warehouse"]}>
+            <WarehouseApp page="profile" />
           </ProtectedRoute>
         ),
       },
