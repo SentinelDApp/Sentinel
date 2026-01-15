@@ -1,11 +1,21 @@
+/**
+ * SupplierOverview Component
+ * 
+ * SYSTEM PRINCIPLE:
+ * Sentinel records shipment identity on-chain while enabling container-level
+ * traceability using off-chain QR codes. This component displays key metrics
+ * including container counts and blockchain verification status.
+ */
+
 import { useState } from 'react';
 import { SHIPMENT_STATUSES, CONCERN_STATUS } from '../constants';
 import { 
-  BoxIcon, 
+  ContainerIcon, 
   TruckIcon, 
   CheckCircleIcon, 
   AlertTriangleIcon, 
-  RefreshIcon 
+  RefreshIcon,
+  BlockchainIcon,
 } from '../icons/Icons';
 
 
@@ -14,13 +24,16 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
 
   // Calculate metrics
   const totalShipments = shipments.length;
+  const totalContainers = shipments.reduce((acc, s) => acc + (s.numberOfContainers || s.containers?.length || 0), 0);
   const activeShipments = shipments.filter(s => 
     s.status === SHIPMENT_STATUSES.CREATED || 
     s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH || 
-    s.status === SHIPMENT_STATUSES.IN_TRANSIT
+    s.status === SHIPMENT_STATUSES.IN_TRANSIT ||
+    s.status === SHIPMENT_STATUSES.AT_WAREHOUSE
   ).length;
   const inTransitCount = shipments.filter(s => s.status === SHIPMENT_STATUSES.IN_TRANSIT).length;
   const deliveredCount = shipments.filter(s => s.status === SHIPMENT_STATUSES.DELIVERED).length;
+  const blockchainVerifiedCount = shipments.filter(s => s.isLocked === true || s.blockchainTxHash).length;
   const concernsCount = shipments.filter(s => 
     s.concerns?.some(c => c.status === CONCERN_STATUS.OPEN || c.status === CONCERN_STATUS.ACKNOWLEDGED)
   ).length;
@@ -33,10 +46,10 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
 
   const metrics = [
     { 
-      label: 'Total Shipments', 
-      value: totalShipments.toString(), 
-      subtext: 'All shipments',
-      icon: BoxIcon,
+      label: 'Total Containers', 
+      value: totalContainers.toString(), 
+      subtext: `${totalShipments} shipments`,
+      icon: ContainerIcon,
       iconBg: isDarkMode ? 'bg-blue-500/20' : 'bg-blue-100',
       iconColor: 'text-blue-500',
       cardBg: isDarkMode ? '' : 'bg-gradient-to-br from-blue-50 to-cyan-50',
@@ -51,13 +64,13 @@ const SupplierOverview = ({ shipments = [], isDarkMode = true, onRefresh }) => {
       cardBg: isDarkMode ? '' : 'bg-gradient-to-br from-amber-50 to-yellow-50',
     },
     { 
-      label: 'Delivered', 
-      value: deliveredCount.toString(),
-      subtext: 'Completed',
-      icon: CheckCircleIcon,
-      iconBg: isDarkMode ? 'bg-green-500/20' : 'bg-green-100',
-      iconColor: 'text-green-500',
-      cardBg: isDarkMode ? '' : 'bg-gradient-to-br from-green-50 to-emerald-50',
+      label: 'Blockchain Verified', 
+      value: blockchainVerifiedCount.toString(),
+      subtext: `${deliveredCount} delivered`,
+      icon: BlockchainIcon,
+      iconBg: isDarkMode ? 'bg-emerald-500/20' : 'bg-emerald-100',
+      iconColor: 'text-emerald-500',
+      cardBg: isDarkMode ? '' : 'bg-gradient-to-br from-emerald-50 to-teal-50',
     },
     { 
       label: 'Alerts', 

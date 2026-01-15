@@ -1,5 +1,5 @@
-const SentinelUser = artifacts.require("SentinelUser");
+const SentinelShipmentRegistry = artifacts.require("SentinelShipmentRegistry");
 
 module.exports = function (deployer) {
-  deployer.deploy(SentinelUser);
+  deployer.deploy(SentinelShipmentRegistry);
 };

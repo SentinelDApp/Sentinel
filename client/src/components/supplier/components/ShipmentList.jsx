@@ -1,3 +1,12 @@
+/**
+ * ShipmentList Component
+ * 
+ * SYSTEM PRINCIPLE:
+ * Sentinel records shipment identity on-chain while enabling container-level
+ * traceability using off-chain QR codes. This list displays all shipments
+ * with their container counts and blockchain status.
+ */
+
 import { useState } from 'react';
 import { SHIPMENT_STATUSES, STATUS_COLORS, CONCERN_STATUS, formatDate } from '../constants';
 
@@ -57,7 +66,7 @@ const ShipmentList = ({ shipments, selectedShipment, onShipmentSelect, isDarkMod
                 onClick={() => handleFilterChange(value)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${
                   filter === value 
-                    ? 'bg-linear-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25' 
+                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25' 
                     : isDarkMode
                       ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -84,19 +93,19 @@ const ShipmentList = ({ shipments, selectedShipment, onShipmentSelect, isDarkMod
             <thead className={isDarkMode ? 'bg-slate-800/50' : 'bg-slate-50'}>
               <tr>
                 <th className={`text-left text-xs font-medium uppercase tracking-wider px-4 py-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Product
-                </th>
-                <th className={`text-left text-xs font-medium uppercase tracking-wider px-4 py-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Batch ID
                 </th>
                 <th className={`text-left text-xs font-medium uppercase tracking-wider px-4 py-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Quantity
+                  Containers
                 </th>
                 <th className={`text-left text-xs font-medium uppercase tracking-wider px-4 py-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Transporter
+                  Total Qty
                 </th>
                 <th className={`text-left text-xs font-medium uppercase tracking-wider px-4 py-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Status
+                </th>
+                <th className={`text-left text-xs font-medium uppercase tracking-wider px-4 py-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Blockchain
                 </th>
                 <th className={`text-left text-xs font-medium uppercase tracking-wider px-4 py-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Created
@@ -126,38 +135,29 @@ const ShipmentList = ({ shipments, selectedShipment, onShipmentSelect, isDarkMod
                         : isDarkMode ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'
                     }`}
                   >
-                    {/* Product */}
+                    {/* Batch ID */}
                     <td className="px-4 py-3">
                       <div>
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
-                          {shipment.productName}
+                        <p className={`text-sm font-mono font-medium ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+                          {shipment.batchId}
                         </p>
                         <p className={`text-xs font-mono truncate max-w-30 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} title={shipment.id}>
-                          {shipment.id.slice(0, 12)}...
+                          {(shipment.shipmentHash || shipment.id).slice(0, 12)}...
                         </p>
                       </div>
                     </td>
 
-                    {/* Batch ID */}
+                    {/* Containers */}
                     <td className="px-4 py-3">
-                      <span className={`text-sm font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                        {shipment.batchId}
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {shipment.numberOfContainers || shipment.containers?.length || 0}
                       </span>
                     </td>
 
-                    {/* Quantity */}
+                    {/* Total Quantity */}
                     <td className="px-4 py-3">
                       <span className={`text-sm ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                        {shipment.quantity} {shipment.unit}
-                      </span>
-                    </td>
-
-                    {/* Transporter */}
-                    <td className="px-4 py-3">
-                      <span className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                        {shipment.transporterName || (
-                          <span className={isDarkMode ? 'text-slate-500 italic' : 'text-slate-400 italic'}>Not assigned</span>
-                        )}
+                        {shipment.totalQuantity || 0} units
                       </span>
                     </td>
 
@@ -166,6 +166,20 @@ const ShipmentList = ({ shipments, selectedShipment, onShipmentSelect, isDarkMod
                       <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} border`}>
                         {statusStyle.label}
                       </span>
+                    </td>
+
+                    {/* Blockchain Status */}
+                    <td className="px-4 py-3">
+                      {shipment.blockchainTxHash ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Verified
+                        </span>
+                      ) : (
+                        <span className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Pending</span>
+                      )}
                     </td>
 
                     {/* Created Date */}
