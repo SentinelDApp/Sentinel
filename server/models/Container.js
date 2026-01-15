@@ -96,11 +96,23 @@ const containerSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Wallet that performed the last scan
+    // Information about who performed the last scan
+    // Stores wallet, role, and timestamp for complete audit context
     lastScannedBy: {
-      type: String,
-      lowercase: true,
-      default: null,
+      wallet: {
+        type: String,
+        lowercase: true,
+        default: null,
+      },
+      role: {
+        type: String,
+        lowercase: true,
+        default: null,
+      },
+      timestamp: {
+        type: Date,
+        default: null,
+      }
     },
 
     // When this container was created
