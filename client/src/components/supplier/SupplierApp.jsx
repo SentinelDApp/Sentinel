@@ -356,13 +356,16 @@ const SupplierDashboardContent = () => {
   // Create new shipment (adds to local state, stays on create page)
   const handleCreateShipment = async (newShipment) => {
     try {
-      // Create shipment in database (off-chain)
+      // Create shipment in database (off-chain) with assigned stakeholders
       await createShipmentApi({
         shipmentHash: newShipment.shipmentHash,
         supplierWallet: newShipment.supplierWallet || walletAddress,
         batchId: newShipment.batchId,
         numberOfContainers: newShipment.numberOfContainers,
         quantityPerContainer: newShipment.quantityPerContainer,
+        // New: Include assigned transporter and warehouse wallet addresses
+        assignedTransporterWallet: newShipment.assignedTransporterWallet,
+        assignedWarehouseWallet: newShipment.assignedWarehouseWallet,
       });
       
       // Refresh shipments list to include the new shipment

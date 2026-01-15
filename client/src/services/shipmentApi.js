@@ -89,13 +89,17 @@ const transformShipment = (backendShipment, containers = []) => {
     // Supporting documents (uploaded to Cloudinary)
     supportingDocuments: backendShipment.supportingDocuments || [],
     
-    // Transporter info
-    transporterWallet: backendShipment.transporterWallet || null,
-    transporterName: backendShipment.transporterName || null,
+    // Assigned stakeholders (new format)
+    assignedTransporter: backendShipment.assignedTransporter || null,
+    assignedWarehouse: backendShipment.assignedWarehouse || null,
     
-    // Warehouse info
-    warehouseWallet: backendShipment.warehouseWallet || null,
-    warehouseName: backendShipment.warehouseName || null,
+    // Transporter info (legacy format for backward compatibility)
+    transporterWallet: backendShipment.assignedTransporter?.walletAddress || backendShipment.transporterWallet || null,
+    transporterName: backendShipment.assignedTransporter?.name || backendShipment.transporterName || null,
+    
+    // Warehouse info (legacy format for backward compatibility)
+    warehouseWallet: backendShipment.assignedWarehouse?.walletAddress || backendShipment.warehouseWallet || null,
+    warehouseName: backendShipment.assignedWarehouse?.name || backendShipment.warehouseName || null,
     
     // UI state defaults
     concerns: [],
@@ -347,6 +351,162 @@ export const lockShipment = async (shipmentHash, lockData) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// USER FETCHING API FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Fetch users by role for assignment purposes
+ * @param {string} role - The role to filter by (TRANSPORTER, WAREHOUSE)
+ * @param {string} authToken - JWT token for authentication
+ * @returns {Promise<Array>} - Array of users
+ */
+export const fetchUsersByRole = async (role, authToken) => {
+  const response = await fetch(`${API_BASE_URL}/api/users?role=${role}`, {
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${role} users: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.message || `Failed to fetch ${role} users`);
+  }
+
+  return result.data;
+};
+
+/**
+ * Fetch all active transporters
+ * @param {string} authToken - JWT token for authentication
+ * @returns {Promise<Array>} - Array of transporter users
+ */
+export const fetchTransporters = async (authToken) => {
+  const response = await fetch(`${API_BASE_URL}/api/users/transporters`, {
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch transporters: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.message || 'Failed to fetch transporters');
+  }
+
+  return result.data;
+};
+
+/**
+ * Fetch all active warehouses
+ * @param {string} authToken - JWT token for authentication
+ * @returns {Promise<Array>} - Array of warehouse users
+ */
+export const fetchWarehouses = async (authToken) => {
+  const response = await fetch(`${API_BASE_URL}/api/users/warehouses`, {
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch warehouses: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.message || 'Failed to fetch warehouses');
+  }
+
+  return result.data;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROLE-BASED SHIPMENT FETCHING API FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Fetch shipments assigned to a transporter
+ * @param {string} transporterWallet - The transporter's wallet address
+ * @param {Object} options - Query options (page, limit, status)
+ * @returns {Promise<{shipments: Array, pagination: Object}>}
+ */
+export const fetchTransporterShipments = async (transporterWallet, options = {}) => {
+  const { page = 1, limit = 50, status } = options;
+  
+  let url = `${API_BASE_URL}/api/shipments/transporter/${transporterWallet}?page=${page}&limit=${limit}`;
+  
+  if (status) {
+    const backendStatus = REVERSE_STATUS_MAP[status] || status.toUpperCase();
+    url += `&status=${backendStatus}`;
+  }
+
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch transporter shipments: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.message || 'Failed to fetch transporter shipments');
+  }
+
+  const shipments = result.data.map(shipment => transformShipment(shipment));
+
+  return {
+    shipments,
+    pagination: result.pagination,
+  };
+};
+
+/**
+ * Fetch shipments assigned to a warehouse
+ * @param {string} warehouseWallet - The warehouse's wallet address
+ * @param {Object} options - Query options (page, limit, status)
+ * @returns {Promise<{shipments: Array, pagination: Object}>}
+ */
+export const fetchWarehouseShipments = async (warehouseWallet, options = {}) => {
+  const { page = 1, limit = 50, status } = options;
+  
+  let url = `${API_BASE_URL}/api/shipments/warehouse/${warehouseWallet}?page=${page}&limit=${limit}`;
+  
+  if (status) {
+    const backendStatus = REVERSE_STATUS_MAP[status] || status.toUpperCase();
+    url += `&status=${backendStatus}`;
+  }
+
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch warehouse shipments: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.message || 'Failed to fetch warehouse shipments');
+  }
+
+  const shipments = result.data.map(shipment => transformShipment(shipment));
+
+  return {
+    shipments,
+    pagination: result.pagination,
+  };
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -359,4 +519,11 @@ export default {
   fetchIndexerStatus,
   createShipment,
   lockShipment,
+  // User fetching
+  fetchUsersByRole,
+  fetchTransporters,
+  fetchWarehouses,
+  // Role-based shipment fetching
+  fetchTransporterShipments,
+  fetchWarehouseShipments,
 };

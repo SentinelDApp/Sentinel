@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { WarehouseThemeProvider, useWarehouseTheme } from './context/ThemeContext';
 import Header from './layout/Header';
 import WarehouseOverview from './components/WarehouseOverview';
@@ -6,6 +6,8 @@ import IncomingShipments from './components/IncomingShipments';
 import ShipmentActions from './components/ShipmentActions';
 import ShipmentDetails from './components/ShipmentDetails';
 import QRScanner from './components/QRScanner';
+import { useAuth } from '../../context/AuthContext';
+import { fetchWarehouseShipments } from '../../services/shipmentApi';
 import { 
   DEMO_SHIPMENTS, 
   SHIPMENT_STATUSES,
@@ -174,11 +176,73 @@ const DispatchForm = ({ shipment, retailers, onDispatch, isDarkMode }) => {
 // Main Warehouse Dashboard Content
 const WarehouseDashboardContent = () => {
   const { isDarkMode } = useWarehouseTheme();
-  const [shipments, setShipments] = useState(DEMO_SHIPMENTS);
+  const { user } = useAuth();
+  const [shipments, setShipments] = useState([]);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [viewingShipmentDetails, setViewingShipmentDetails] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoadingShipments, setIsLoadingShipments] = useState(true);
+  const [shipmentsError, setShipmentsError] = useState(null);
+
+  // Map backend shipment status to warehouse status
+  const mapBackendStatusToWarehouseStatus = (status) => {
+    switch (status) {
+      case 'created':
+      case 'ready_for_dispatch':
+      case 'in_transit':
+        return SHIPMENT_STATUSES.PENDING;
+      case 'at_warehouse':
+        return SHIPMENT_STATUSES.RECEIVED;
+      case 'delivered':
+        return SHIPMENT_STATUSES.DISPATCHED;
+      default:
+        return SHIPMENT_STATUSES.PENDING;
+    }
+  };
+
+  // Fetch shipments assigned to this warehouse
+  const loadShipments = useCallback(async () => {
+    if (!user?.walletAddress) return;
+    
+    setIsLoadingShipments(true);
+    setShipmentsError(null);
+    
+    try {
+      const result = await fetchWarehouseShipments(user.walletAddress);
+      // Transform shipments to warehouse format for UI compatibility
+      const warehouseShipments = result.shipments.map(shipment => ({
+        id: shipment.shipmentHash,
+        shipmentHash: shipment.shipmentHash,
+        productName: shipment.productName || `Batch ${shipment.batchId}`,
+        batchId: shipment.batchId,
+        supplierName: 'Supplier',
+        supplierWallet: shipment.supplierWallet,
+        quantity: shipment.totalQuantity,
+        numberOfContainers: shipment.numberOfContainers,
+        status: mapBackendStatusToWarehouseStatus(shipment.status),
+        createdAt: shipment.createdAt,
+        expectedArrival: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        assignedTransporter: shipment.assignedTransporter,
+        assignedWarehouse: shipment.assignedWarehouse,
+        transporterName: shipment.assignedTransporter?.name || 'Assigned Transporter',
+        concerns: [],
+      }));
+      setShipments(warehouseShipments);
+    } catch (error) {
+      console.error('Failed to fetch warehouse shipments:', error);
+      setShipmentsError('Failed to load shipments. Please try again.');
+      // Fallback to demo data for UI testing
+      setShipments(DEMO_SHIPMENTS);
+    } finally {
+      setIsLoadingShipments(false);
+    }
+  }, [user?.walletAddress]);
+
+  // Load shipments on mount and when user changes
+  useEffect(() => {
+    loadShipments();
+  }, [loadShipments]);
 
   // Receive shipment (update status to received)
   const handleReceiveShipment = (shipmentId) => {
