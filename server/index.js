@@ -40,6 +40,7 @@ const onboardingRoutes = require('./routes/onboarding.routes');
 const shipmentRoutes = require('./routes/shipmentRoutes');
 const containerRoutes = require('./routes/containerRoutes');
 const indexerRoutes = require('./routes/indexerRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 // Services
 const blockchainIndexer = require('./services/blockchainIndexer');
@@ -93,6 +94,9 @@ app.use('/api/admin', adminRoutes);
 
 // Onboarding routes (Cloudinary-based document upload)
 app.use('/api/onboarding', onboardingRoutes);
+
+// User routes (for fetching users by role)
+app.use('/api/users', userRoutes);
 
 // ================= BLOCKCHAIN INDEXER ROUTES (READ-ONLY) ================= //
 /**

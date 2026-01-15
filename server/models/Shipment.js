@@ -139,8 +139,56 @@ const shipmentSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
-  }
-  ,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ASSIGNED STAKEHOLDERS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Assigned Transporter - set during shipment creation or edit
+  assignedTransporter: {
+    walletAddress: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      validate: {
+        validator: function(v) {
+          return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid Ethereum address`
+      }
+    },
+    name: {
+      type: String,
+      trim: true
+    },
+    assignedAt: {
+      type: Date
+    }
+  },
+
+  // Assigned Warehouse - set during shipment creation or edit
+  assignedWarehouse: {
+    walletAddress: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      validate: {
+        validator: function(v) {
+          return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid Ethereum address`
+      }
+    },
+    name: {
+      type: String,
+      trim: true
+    },
+    assignedAt: {
+      type: Date
+    }
+  },
+
   // Supporting documents uploaded for this shipment
   supportingDocuments: [
     {
@@ -166,6 +214,12 @@ shipmentSchema.index({ supplierWallet: 1, createdAt: -1 });
 
 // Index for querying by batch ID
 shipmentSchema.index({ batchId: 1, createdAt: -1 });
+
+// Index for querying shipments by assigned transporter
+shipmentSchema.index({ 'assignedTransporter.walletAddress': 1, createdAt: -1 });
+
+// Index for querying shipments by assigned warehouse
+shipmentSchema.index({ 'assignedWarehouse.walletAddress': 1, createdAt: -1 });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PRE-SAVE MIDDLEWARE
@@ -237,10 +291,14 @@ shipmentSchema.methods.toResponse = function() {
     blockNumber: this.blockNumber,
     blockchainTimestamp: this.blockchainTimestamp,
     status: this.status,
-    transporterWallet: this.transporterWallet,
-    transporterName: this.transporterName,
-    warehouseWallet: this.warehouseWallet,
-    warehouseName: this.warehouseName,
+    // Assigned stakeholders
+    assignedTransporter: this.assignedTransporter || null,
+    assignedWarehouse: this.assignedWarehouse || null,
+    // Legacy fields (kept for backward compatibility)
+    transporterWallet: this.assignedTransporter?.walletAddress || this.transporterWallet || null,
+    transporterName: this.assignedTransporter?.name || this.transporterName || null,
+    warehouseWallet: this.assignedWarehouse?.walletAddress || this.warehouseWallet || null,
+    warehouseName: this.assignedWarehouse?.name || this.warehouseName || null,
     createdAt: this.createdAt,
     supportingDocuments: this.supportingDocuments || []
   };
