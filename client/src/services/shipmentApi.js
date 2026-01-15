@@ -127,18 +127,26 @@ const transformContainer = (backendContainer) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Fetch all shipments for a supplier wallet
- * @param {string} supplierWallet - The supplier's Ethereum wallet address
- * @param {Object} options - Query options (page, limit, status)
+ * Fetch all shipments with optional filters
+ * @param {string} supplierWallet - The supplier's Ethereum wallet address (optional)
+ * @param {Object} options - Query options (page, limit, status, transporterWallet, warehouseWallet)
  * @returns {Promise<{shipments: Array, pagination: Object}>}
  */
 export const fetchShipments = async (supplierWallet, options = {}) => {
-  const { page = 1, limit = 50, status } = options;
+  const { page = 1, limit = 50, status, transporterWallet, warehouseWallet } = options;
   
   let url = `${API_BASE_URL}/api/shipments?page=${page}&limit=${limit}`;
   
   if (supplierWallet) {
     url += `&supplierWallet=${supplierWallet}`;
+  }
+  
+  if (transporterWallet) {
+    url += `&transporterWallet=${transporterWallet}`;
+  }
+  
+  if (warehouseWallet) {
+    url += `&warehouseWallet=${warehouseWallet}`;
   }
   
   if (status) {

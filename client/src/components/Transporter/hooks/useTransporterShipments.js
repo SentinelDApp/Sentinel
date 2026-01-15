@@ -107,16 +107,25 @@ export const useTransporterShipments = () => {
   const [pagination, setPagination] = useState(null);
 
   /**
-   * Fetch all shipments (transporter can see all shipments in the system)
+   * Fetch shipments assigned to this transporter
    */
   const loadShipments = useCallback(async () => {
+    if (!walletAddress) {
+      setJobs([]);
+      setIsLoading(false);
+      setError('Please connect your wallet to view assigned shipments');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Fetch all shipments - transporter can see all
-      // In a real system, you might filter by transporter assignment
-      const result = await fetchShipments(null, { limit: 100 });
+      // Fetch only shipments assigned to this transporter
+      const result = await fetchShipments(null, { 
+        limit: 100,
+        transporterWallet: walletAddress 
+      });
       
       // Transform shipments to job format
       const transformedJobs = result.shipments.map(transformShipmentToJob);
@@ -130,7 +139,7 @@ export const useTransporterShipments = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [walletAddress]);
 
   /**
    * Refresh shipments
