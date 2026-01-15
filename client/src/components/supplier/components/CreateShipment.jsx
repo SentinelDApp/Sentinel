@@ -18,17 +18,16 @@
  * - Once locked, shipment becomes immutable and verifiable on-chain
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   SHIPMENT_STATUSES,
   CONTAINER_STATUSES,
-  TRANSPORTER_AGENCIES,
-  WAREHOUSES,
   generateShipmentHash,
   generateContainers,
 } from '../constants';
 import { useAuth } from '../../../context/AuthContext';
 import { useBlockchain } from '../../../hooks/useBlockchain';
+import { fetchTransporters, fetchWarehouses } from '../../../services/shipmentApi';
 import ContainerQRGrid from './ContainerQRGrid';
 import UploadMetadata from './UploadMetadata';
 
@@ -58,8 +57,8 @@ const CreateShipment = ({
     batchId: "",
     numberOfContainers: "",
     quantityPerContainer: "",
-    transporterId: "",
-    warehouseId: "",
+    transporterWallet: "",  // Changed from transporterId to walletAddress
+    warehouseWallet: "",    // Changed from warehouseId to walletAddress
   });
 
   // Use external form data if provided (for persistence), otherwise use internal
@@ -72,6 +71,36 @@ const CreateShipment = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isLocking, setIsLocking] = useState(false);
   const [lockError, setLockError] = useState(null);
+
+  // Database-fetched transporters and warehouses
+  const [transporters, setTransporters] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [usersError, setUsersError] = useState(null);
+
+  // Fetch transporters and warehouses from database on mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoadingUsers(true);
+      setUsersError(null);
+      try {
+        // Use the correct token key from AuthContext
+        const authToken = localStorage.getItem('sentinel_token');
+        const [transporterList, warehouseList] = await Promise.all([
+          fetchTransporters(authToken),
+          fetchWarehouses(authToken)
+        ]);
+        setTransporters(transporterList);
+        setWarehouses(warehouseList);
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+        setUsersError('Failed to load transporters and warehouses. Please refresh.');
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   // Calculate total quantity (system-generated)
   const totalQuantity =
@@ -88,12 +117,14 @@ const CreateShipment = ({
   // Step 1: Generate preview for user to review
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Both transporter and warehouse are now required
     if (
       !formData.productName ||
       !formData.batchId ||
       !formData.numberOfContainers ||
       !formData.quantityPerContainer ||
-      !formData.warehouseId
+      !formData.transporterWallet ||
+      !formData.warehouseWallet
     )
       return;
 
@@ -113,11 +144,11 @@ const CreateShipment = ({
       formData.batchId
     );
 
-    // Get transporter and warehouse names if selected
-    const transporter = TRANSPORTER_AGENCIES.find(
-      (t) => t.id === formData.transporterId
+    // Get transporter and warehouse details from the fetched lists
+    const transporter = transporters.find(
+      (t) => t.walletAddress === formData.transporterWallet
     );
-    const warehouse = WAREHOUSES.find((w) => w.id === formData.warehouseId);
+    const warehouse = warehouses.find((w) => w.walletAddress === formData.warehouseWallet);
 
     const shipmentPreview = {
       id: shipmentHash,
@@ -134,10 +165,16 @@ const CreateShipment = ({
       createdAt: Date.now(),
       metadata: null,
       concerns: [],
-      transporterId: formData.transporterId || null,
-      transporterName: transporter?.name || null,
-      warehouseId: formData.warehouseId || null,
-      warehouseName: warehouse?.name || null,
+      // Use wallet addresses for assignment
+      assignedTransporterWallet: formData.transporterWallet,
+      assignedTransporterName: transporter?.fullName || transporter?.organizationName || null,
+      assignedWarehouseWallet: formData.warehouseWallet,
+      assignedWarehouseName: warehouse?.fullName || warehouse?.organizationName || null,
+      // Legacy fields for display compatibility
+      transporterId: formData.transporterWallet,
+      transporterName: transporter?.fullName || transporter?.organizationName || null,
+      warehouseId: formData.warehouseWallet,
+      warehouseName: warehouse?.fullName || warehouse?.organizationName || null,
       blockchainTxHash: null,
     };
 
@@ -160,7 +197,7 @@ const CreateShipment = ({
       // Reset form for new shipment
       setPreviewShipment(null);
       setCreatedShipment(null);
-      setFormData({ productName: '', batchId: '', numberOfContainers: '', quantityPerContainer: '', transporterId: '', warehouseId: '' });
+      setFormData({ productName: '', batchId: '', numberOfContainers: '', quantityPerContainer: '', transporterWallet: '', warehouseWallet: '' });
       // Clear success message after 5 seconds
       setTimeout(() => {
         setCreateSuccess(false);
@@ -257,8 +294,8 @@ const CreateShipment = ({
       batchId: "",
       numberOfContainers: "",
       quantityPerContainer: "",
-      transporterId: "",
-      warehouseId: "",
+      transporterWallet: "",
+      warehouseWallet: "",
     });
   };
 
@@ -1459,64 +1496,69 @@ const CreateShipment = ({
           >
             Destination Warehouse <span className="text-red-400">*</span>
           </label>
-          <select
-            name="warehouseId"
-            value={formData.warehouseId}
-            onChange={handleChange}
-            required
-            className={inputClass}
-          >
-            <option
-              value=""
-              className={isDarkMode ? "bg-slate-800" : "bg-white"}
+          {isLoadingUsers ? (
+            <div className={`w-full border rounded-xl py-3 px-4 ${isDarkMode ? "bg-slate-800/50 border-slate-700 text-slate-400" : "bg-white border-slate-200 text-slate-500"}`}>
+              Loading warehouses...
+            </div>
+          ) : usersError ? (
+            <div className={`w-full border rounded-xl py-3 px-4 ${isDarkMode ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-red-50 border-red-200 text-red-600"}`}>
+              {usersError}
+            </div>
+          ) : (
+            <select
+              name="warehouseWallet"
+              value={formData.warehouseWallet}
+              onChange={handleChange}
+              required
+              className={inputClass}
             >
-              -- Select Warehouse --
-            </option>
-            {WAREHOUSES.map((w) => (
               <option
-                key={w.id}
-                value={w.id}
-                disabled={!w.available}
+                value=""
                 className={isDarkMode ? "bg-slate-800" : "bg-white"}
               >
-                {w.name} ({w.location})
-                {!w.available && ` - [${w.unavailableReason}]`}
+                -- Select Warehouse --
               </option>
-            ))}
-          </select>
+              {warehouses.map((w) => (
+                <option
+                  key={w.walletAddress}
+                  value={w.walletAddress}
+                  className={isDarkMode ? "bg-slate-800" : "bg-white"}
+                >
+                  {w.fullName || w.organizationName} {w.organizationName && w.fullName ? `(${w.organizationName})` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+          {warehouses.length === 0 && !isLoadingUsers && !usersError && (
+            <p className={`text-xs mt-1 ${isDarkMode ? "text-amber-400" : "text-amber-600"}`}>
+              No warehouses available. Please contact admin.
+            </p>
+          )}
         </div>
 
-        {/* Transporter - Optional */}
-        <div
-          className={`
-          border rounded-xl p-4
-          ${
-            isDarkMode
-              ? "bg-slate-800/30 border-slate-700/50"
-              : "bg-slate-50 border-slate-200"
-          }
-        `}
-        >
-          <p
-            className={`text-xs mb-3 font-medium flex items-center gap-2 ${
-              isDarkMode ? "text-slate-400" : "text-slate-500"
+        {/* Transporter - Now Required */}
+        <div>
+          <label
+            className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? "text-slate-300" : "text-slate-700"
             }`}
           >
-            <span className="text-blue-400">ℹ</span> Optional - Can be assigned
-            later
-          </p>
-          <div>
-            <label
-              className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? "text-slate-300" : "text-slate-700"
-              }`}
-            >
-              Transporter
-            </label>
+            Transporter <span className="text-red-400">*</span>
+          </label>
+          {isLoadingUsers ? (
+            <div className={`w-full border rounded-xl py-3 px-4 ${isDarkMode ? "bg-slate-800/50 border-slate-700 text-slate-400" : "bg-white border-slate-200 text-slate-500"}`}>
+              Loading transporters...
+            </div>
+          ) : usersError ? (
+            <div className={`w-full border rounded-xl py-3 px-4 ${isDarkMode ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-red-50 border-red-200 text-red-600"}`}>
+              {usersError}
+            </div>
+          ) : (
             <select
-              name="transporterId"
-              value={formData.transporterId}
+              name="transporterWallet"
+              value={formData.transporterWallet}
               onChange={handleChange}
+              required
               className={inputClass}
             >
               <option
@@ -1525,17 +1567,22 @@ const CreateShipment = ({
               >
                 -- Select Transporter --
               </option>
-              {TRANSPORTER_AGENCIES.map((t) => (
+              {transporters.map((t) => (
                 <option
-                  key={t.id}
-                  value={t.id}
+                  key={t.walletAddress}
+                  value={t.walletAddress}
                   className={isDarkMode ? "bg-slate-800" : "bg-white"}
                 >
-                  {t.name} ({t.specialization})
+                  {t.fullName || t.organizationName} {t.organizationName && t.fullName ? `(${t.organizationName})` : ''}
                 </option>
               ))}
             </select>
-          </div>
+          )}
+          {transporters.length === 0 && !isLoadingUsers && !usersError && (
+            <p className={`text-xs mt-1 ${isDarkMode ? "text-amber-400" : "text-amber-600"}`}>
+              No transporters available. Please contact admin.
+            </p>
+          )}
         </div>
 
         {/* System-Generated Preview */}
@@ -1613,11 +1660,13 @@ const CreateShipment = ({
           type="submit"
           disabled={
             isSubmitting ||
+            isLoadingUsers ||
             !formData.productName ||
             !formData.batchId ||
             !formData.numberOfContainers ||
             !formData.quantityPerContainer ||
-            !formData.warehouseId
+            !formData.transporterWallet ||
+            !formData.warehouseWallet
           }
           className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >

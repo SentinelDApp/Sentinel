@@ -24,6 +24,7 @@ const express = require('express');
 const router = express.Router();
 const Shipment = require('../models/Shipment');
 const Container = require('../models/Container');
+const User = require('../models/User');
 const { uploadSupportingDocuments, handleUploadErrors } = require('../middleware/upload.middleware');
 const { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } = require('../config/cloudinary.config');
 
@@ -63,6 +64,8 @@ const parsePagination = (query) => {
  * - batchId: Product batch identifier
  * - numberOfContainers: Number of containers
  * - quantityPerContainer: Quantity per container
+ * - assignedTransporterWallet: (Required) Wallet address of assigned transporter
+ * - assignedWarehouseWallet: (Required) Wallet address of assigned warehouse
  * 
  * Response:
  * {
@@ -77,7 +80,9 @@ router.post('/', async (req, res) => {
       supplierWallet, 
       batchId, 
       numberOfContainers, 
-      quantityPerContainer 
+      quantityPerContainer,
+      assignedTransporterWallet,
+      assignedWarehouseWallet
     } = req.body;
 
     // Validate required fields
@@ -88,10 +93,79 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Validate assigned transporter and warehouse (now required)
+    if (!assignedTransporterWallet) {
+      return res.status(400).json({
+        success: false,
+        message: 'assignedTransporterWallet is required. Please select a transporter.'
+      });
+    }
+
+    if (!assignedWarehouseWallet) {
+      return res.status(400).json({
+        success: false,
+        message: 'assignedWarehouseWallet is required. Please select a warehouse.'
+      });
+    }
+
     if (!isValidAddress(supplierWallet)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid supplier wallet address format'
+      });
+    }
+
+    if (!isValidAddress(assignedTransporterWallet)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid transporter wallet address format'
+      });
+    }
+
+    if (!isValidAddress(assignedWarehouseWallet)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid warehouse wallet address format'
+      });
+    }
+
+    // Validate that the transporter wallet belongs to a TRANSPORTER role user
+    const transporterUser = await User.findOne({ 
+      walletAddress: assignedTransporterWallet.toLowerCase(),
+      status: 'ACTIVE'
+    });
+
+    if (!transporterUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Assigned transporter wallet not found or inactive'
+      });
+    }
+
+    if (transporterUser.role !== 'transporter') {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid assignment: wallet ${assignedTransporterWallet} is not a transporter (role: ${transporterUser.role})`
+      });
+    }
+
+    // Validate that the warehouse wallet belongs to a WAREHOUSE role user
+    const warehouseUser = await User.findOne({ 
+      walletAddress: assignedWarehouseWallet.toLowerCase(),
+      status: 'ACTIVE'
+    });
+
+    if (!warehouseUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Assigned warehouse wallet not found or inactive'
+      });
+    }
+
+    if (warehouseUser.role !== 'warehouse') {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid assignment: wallet ${assignedWarehouseWallet} is not a warehouse (role: ${warehouseUser.role})`
       });
     }
 
@@ -104,7 +178,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create shipment off-chain (no txHash yet)
+    // Create shipment off-chain (no txHash yet) with assigned stakeholders
     const shipment = new Shipment({
       shipmentHash,
       supplierWallet: supplierWallet.toLowerCase(),
@@ -115,7 +189,18 @@ router.post('/', async (req, res) => {
       status: 'CREATED', // Not yet locked on blockchain
       txHash: null,
       blockNumber: null,
-      blockchainTimestamp: null
+      blockchainTimestamp: null,
+      // Assigned stakeholders
+      assignedTransporter: {
+        walletAddress: transporterUser.walletAddress,
+        name: transporterUser.fullName || transporterUser.organizationName || '',
+        assignedAt: new Date()
+      },
+      assignedWarehouse: {
+        walletAddress: warehouseUser.walletAddress,
+        name: warehouseUser.fullName || warehouseUser.organizationName || '',
+        assignedAt: new Date()
+      }
     });
 
     await shipment.save();
@@ -154,6 +239,8 @@ router.post('/', async (req, res) => {
         quantityPerContainer: shipment.quantityPerContainer,
         totalQuantity: shipment.totalQuantity,
         status: shipment.status,
+        assignedTransporter: shipment.assignedTransporter,
+        assignedWarehouse: shipment.assignedWarehouse,
         createdAt: shipment.createdAt,
         containersCreated: containers.length
       }
@@ -319,10 +406,14 @@ router.get('/', async (req, res) => {
       blockNumber: shipment.blockNumber,
       blockchainTimestamp: shipment.blockchainTimestamp,
       status: shipment.status,
-      transporterWallet: shipment.transporterWallet,
-      transporterName: shipment.transporterName,
-      warehouseWallet: shipment.warehouseWallet,
-      warehouseName: shipment.warehouseName,
+      // Assigned stakeholders (new format)
+      assignedTransporter: shipment.assignedTransporter || null,
+      assignedWarehouse: shipment.assignedWarehouse || null,
+      // Legacy fields for backward compatibility
+      transporterWallet: shipment.assignedTransporter?.walletAddress || shipment.transporterWallet,
+      transporterName: shipment.assignedTransporter?.name || shipment.transporterName,
+      warehouseWallet: shipment.assignedWarehouse?.walletAddress || shipment.warehouseWallet,
+      warehouseName: shipment.assignedWarehouse?.name || shipment.warehouseName,
       createdAt: shipment.createdAt,
       supportingDocuments: shipment.supportingDocuments || []
     }));
@@ -394,10 +485,14 @@ router.get('/:shipmentHash', async (req, res) => {
         blockNumber: shipment.blockNumber,
         blockchainTimestamp: shipment.blockchainTimestamp,
         status: shipment.status,
-        transporterWallet: shipment.transporterWallet,
-        transporterName: shipment.transporterName,
-        warehouseWallet: shipment.warehouseWallet,
-        warehouseName: shipment.warehouseName,
+        // Assigned stakeholders (new format)
+        assignedTransporter: shipment.assignedTransporter || null,
+        assignedWarehouse: shipment.assignedWarehouse || null,
+        // Legacy fields for backward compatibility
+        transporterWallet: shipment.assignedTransporter?.walletAddress || shipment.transporterWallet,
+        transporterName: shipment.assignedTransporter?.name || shipment.transporterName,
+        warehouseWallet: shipment.assignedWarehouse?.walletAddress || shipment.warehouseWallet,
+        warehouseName: shipment.assignedWarehouse?.name || shipment.warehouseName,
         createdAt: shipment.createdAt,
         updatedAt: shipment.updatedAt,
         supportingDocuments: shipment.supportingDocuments || []
@@ -408,6 +503,192 @@ router.get('/:shipmentHash', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch shipment'
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROLE-BASED SHIPMENT FETCH ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/shipments/transporter/:walletAddress
+ * 
+ * Fetch shipments assigned to a specific transporter.
+ * Transporter dashboard uses this endpoint.
+ * 
+ * Path Parameters:
+ * - walletAddress: The transporter's wallet address
+ * 
+ * Query Parameters:
+ * - status: Filter by shipment status (optional)
+ * - page: Page number for pagination (default: 1)
+ * - limit: Items per page (default: 20, max: 100)
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: [...shipments],
+ *   pagination: { page, limit, total, totalPages }
+ * }
+ */
+router.get('/transporter/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    const { status } = req.query;
+    const { page, limit } = parsePagination(req.query);
+
+    if (!walletAddress || !isValidAddress(walletAddress)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid transporter wallet address is required'
+      });
+    }
+
+    // Build query - only shipments assigned to this transporter
+    const query = {
+      'assignedTransporter.walletAddress': walletAddress.toLowerCase()
+    };
+
+    // Filter by status if provided
+    if (status) {
+      query.status = status.toUpperCase();
+    }
+
+    // Get total count for pagination
+    const total = await Shipment.countDocuments(query);
+
+    // Fetch shipments
+    const shipments = await Shipment.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // Transform to response format
+    const data = shipments.map(shipment => ({
+      shipmentHash: shipment.shipmentHash,
+      supplierWallet: shipment.supplierWallet,
+      batchId: shipment.batchId,
+      numberOfContainers: shipment.numberOfContainers,
+      quantityPerContainer: shipment.quantityPerContainer,
+      totalQuantity: shipment.totalQuantity,
+      txHash: shipment.txHash,
+      blockNumber: shipment.blockNumber,
+      blockchainTimestamp: shipment.blockchainTimestamp,
+      status: shipment.status,
+      assignedTransporter: shipment.assignedTransporter || null,
+      assignedWarehouse: shipment.assignedWarehouse || null,
+      createdAt: shipment.createdAt,
+      supportingDocuments: shipment.supportingDocuments || []
+    }));
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching transporter shipments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shipments'
+    });
+  }
+});
+
+/**
+ * GET /api/shipments/warehouse/:walletAddress
+ * 
+ * Fetch shipments assigned to a specific warehouse.
+ * Warehouse dashboard uses this endpoint.
+ * 
+ * Path Parameters:
+ * - walletAddress: The warehouse's wallet address
+ * 
+ * Query Parameters:
+ * - status: Filter by shipment status (optional)
+ * - page: Page number for pagination (default: 1)
+ * - limit: Items per page (default: 20, max: 100)
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: [...shipments],
+ *   pagination: { page, limit, total, totalPages }
+ * }
+ */
+router.get('/warehouse/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    const { status } = req.query;
+    const { page, limit } = parsePagination(req.query);
+
+    if (!walletAddress || !isValidAddress(walletAddress)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid warehouse wallet address is required'
+      });
+    }
+
+    // Build query - only shipments assigned to this warehouse
+    const query = {
+      'assignedWarehouse.walletAddress': walletAddress.toLowerCase()
+    };
+
+    // Filter by status if provided
+    if (status) {
+      query.status = status.toUpperCase();
+    }
+
+    // Get total count for pagination
+    const total = await Shipment.countDocuments(query);
+
+    // Fetch shipments
+    const shipments = await Shipment.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // Transform to response format
+    const data = shipments.map(shipment => ({
+      shipmentHash: shipment.shipmentHash,
+      supplierWallet: shipment.supplierWallet,
+      batchId: shipment.batchId,
+      numberOfContainers: shipment.numberOfContainers,
+      quantityPerContainer: shipment.quantityPerContainer,
+      totalQuantity: shipment.totalQuantity,
+      txHash: shipment.txHash,
+      blockNumber: shipment.blockNumber,
+      blockchainTimestamp: shipment.blockchainTimestamp,
+      status: shipment.status,
+      assignedTransporter: shipment.assignedTransporter || null,
+      assignedWarehouse: shipment.assignedWarehouse || null,
+      createdAt: shipment.createdAt,
+      supportingDocuments: shipment.supportingDocuments || []
+    }));
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching warehouse shipments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shipments'
     });
   }
 });

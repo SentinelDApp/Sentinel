@@ -10,7 +10,7 @@
  * - Animations: Smooth fade-in transitions
  */
 
-import { useState, useCallback, createContext, useContext } from 'react';
+import { useState, useCallback, createContext, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Truck,
@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import JobCard from './JobCard';
 import CargoVerification from './CargoVerification';
+import { useAuth } from '../../context/AuthContext';
+import { fetchTransporterShipments } from '../../services/shipmentApi';
 
 // ============================================================================
 // ICONS
@@ -231,6 +233,7 @@ const STATUS_CONFIG = {
 
 const TransporterDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -243,6 +246,11 @@ const TransporterDashboard = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('All');
+
+  // Shipment/Job State - Now fetched from API
+  const [shipments, setShipments] = useState([]);
+  const [isLoadingShipments, setIsLoadingShipments] = useState(true);
+  const [shipmentsError, setShipmentsError] = useState(null);
 
   // Job State
   const [selectedJob, setSelectedJob] = useState(null);
@@ -260,19 +268,76 @@ const TransporterDashboard = () => {
   // GPS State
   const [gpsLoading, setGpsLoading] = useState(false);
 
-  const notifications = [
-    { id: 1, title: 'New shipment TRK-005 assigned', time: '5 min ago', type: 'success' },
-    { id: 2, title: 'Delivery deadline approaching for TRK-002', time: '1 hour ago', type: 'warning' },
-    { id: 3, title: 'TRK-001 ready for pickup', time: '3 hours ago', type: 'info' },
-  ];
+  // Fetch shipments assigned to this transporter
+  const loadShipments = useCallback(async () => {
+    if (!user?.walletAddress) return;
+    
+    setIsLoadingShipments(true);
+    setShipmentsError(null);
+    
+    try {
+      const result = await fetchTransporterShipments(user.walletAddress);
+      // Transform shipments to job format for UI compatibility
+      const jobs = result.shipments.map(shipment => ({
+        id: shipment.shipmentHash,
+        shipmentHash: shipment.shipmentHash,
+        product: shipment.productName || `Batch ${shipment.batchId}`,
+        batchId: shipment.batchId,
+        origin: shipment.assignedWarehouse?.name || 'Supplier Location',
+        dest: shipment.assignedWarehouse?.name || 'Destination',
+        status: mapShipmentStatusToJobStatus(shipment.status),
+        expectedQuantity: shipment.totalQuantity,
+        numberOfContainers: shipment.numberOfContainers,
+        weight: `${shipment.totalQuantity} units`,
+        createdAt: new Date(shipment.createdAt).toLocaleString(),
+        supplierWallet: shipment.supplierWallet,
+        assignedTransporter: shipment.assignedTransporter,
+        assignedWarehouse: shipment.assignedWarehouse,
+      }));
+      setShipments(jobs);
+    } catch (error) {
+      console.error('Failed to fetch transporter shipments:', error);
+      setShipmentsError('Failed to load shipments. Please try again.');
+    } finally {
+      setIsLoadingShipments(false);
+    }
+  }, [user?.walletAddress]);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 1000);
+  // Map backend shipment status to UI job status
+  const mapShipmentStatusToJobStatus = (status) => {
+    switch (status) {
+      case 'created':
+      case 'ready_for_dispatch':
+        return 'New';
+      case 'in_transit':
+        return 'In Transit';
+      case 'at_warehouse':
+      case 'delivered':
+        return 'Delivered';
+      default:
+        return 'New';
+    }
   };
 
-  // Filter jobs based on search and status
-  const filteredJobs = MOCK_JOBS.filter(job => {
+  // Load shipments on mount and when user changes
+  useEffect(() => {
+    loadShipments();
+  }, [loadShipments]);
+
+  const notifications = [
+    { id: 1, title: 'New shipment assigned', time: '5 min ago', type: 'success' },
+    { id: 2, title: 'Delivery deadline approaching', time: '1 hour ago', type: 'warning' },
+    { id: 3, title: 'Shipment ready for pickup', time: '3 hours ago', type: 'info' },
+  ];
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadShipments();
+    setIsRefreshing(false);
+  };
+
+  // Filter jobs based on search and status - now uses real shipments
+  const filteredJobs = shipments.filter(job => {
     const matchesSearch = searchQuery === '' || 
       job.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.id.toLowerCase().includes(searchQuery.toLowerCase());
@@ -280,13 +345,13 @@ const TransporterDashboard = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Stats calculation
+  // Stats calculation - now uses real shipments
   const stats = {
-    total: MOCK_JOBS.length,
-    new: MOCK_JOBS.filter(j => j.status === 'New').length,
-    inTransit: MOCK_JOBS.filter(j => j.status === 'In Transit').length,
-    delivered: MOCK_JOBS.filter(j => j.status === 'Delivered').length,
-    delayed: MOCK_JOBS.filter(j => j.status === 'Delayed').length,
+    total: shipments.length,
+    new: shipments.filter(j => j.status === 'New').length,
+    inTransit: shipments.filter(j => j.status === 'In Transit').length,
+    delivered: shipments.filter(j => j.status === 'Delivered').length,
+    delayed: shipments.filter(j => j.status === 'Delayed').length,
   };
 
   const tabs = [
