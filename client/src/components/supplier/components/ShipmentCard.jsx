@@ -1,6 +1,14 @@
+/**
+ * ShipmentCard Component
+ * 
+ * SYSTEM PRINCIPLE:
+ * Sentinel records shipment identity on-chain while enabling container-level
+ * traceability using off-chain QR codes. This card displays shipment summary
+ * with container count and blockchain status.
+ */
+
 import { 
   STATUS_COLORS, 
-  TRANSPORTER_AGENCIES, 
   CONCERN_STATUS,
   formatDate,
 } from '../constants';
@@ -9,18 +17,18 @@ import {
 const ShipmentCard = ({ shipment, onSelect, isSelected, isDarkMode = true }) => {
   const { 
     id, 
+    shipmentHash,
+    productName,
     batchId, 
-    productName, 
-    quantity, 
-    unit,
+    numberOfContainers,
+    totalQuantity,
     status, 
     createdAt, 
-    transporterId,
-    transporterName,
+    isLocked,
+    blockchainTxHash,
     concerns = [],
   } = shipment;
   
-  const transporter = transporterName || TRANSPORTER_AGENCIES.find(t => t.id === transporterId)?.name;
   const statusStyle = STATUS_COLORS[status] || STATUS_COLORS.created;
   const formattedDate = formatDate(createdAt);
   
@@ -43,31 +51,57 @@ const ShipmentCard = ({ shipment, onSelect, isSelected, isDarkMode = true }) => 
     >
       {/* Header: ID and Status */}
       <div className="flex justify-between items-start mb-3">
-        <span className={`text-xs font-mono px-2 py-1 rounded-lg truncate max-w-[60%] ${isDarkMode ? 'text-slate-500 bg-slate-700/50' : 'text-slate-500 bg-slate-100'}`}>
-          {id}
-        </span>
+        <div className="flex items-center gap-2">
+          {/* Lock indicator */}
+          {isLocked && (
+            <span className="flex items-center justify-center w-5 h-5 rounded bg-amber-500/20">
+              <svg className="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </span>
+          )}
+          <span className={`text-xs font-mono px-2 py-1 rounded-lg truncate max-w-[50%] ${isDarkMode ? 'text-slate-500 bg-slate-700/50' : 'text-slate-500 bg-slate-100'}`}>
+            {(shipmentHash || id).slice(0, 16)}...
+          </span>
+        </div>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} border`}>
           {statusStyle.label}
         </span>
       </div>
       
       {/* Product Name */}
-      <h3 className={`font-semibold text-lg mb-3 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>{productName}</h3>
+      <h3 className={`font-semibold text-lg mb-1 ${isDarkMode ? 'text-slate-50' : 'text-slate-900'}`}>
+        {productName || 'Unnamed Product'}
+      </h3>
+      
+      {/* Batch ID */}
+      <p className={`text-xs font-mono mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{batchId}</p>
       
       {/* Details */}
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Batch ID:</span>
-          <span className={`font-mono ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{batchId}</span>
+          <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Containers:</span>
+          <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+            {numberOfContainers || shipment.containers?.length || 0}
+          </span>
         </div>
         <div className="flex justify-between">
-          <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Quantity:</span>
-          <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{quantity} {unit}</span>
+          <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Total Quantity:</span>
+          <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+            {totalQuantity || 0} units
+          </span>
         </div>
-        <div className="flex justify-between">
-          <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Transporter:</span>
-          <span className={`font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{transporter || 'Not assigned'}</span>
-        </div>
+        {blockchainTxHash && (
+          <div className="flex justify-between items-center">
+            <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Blockchain:</span>
+            <span className="flex items-center gap-1 text-emerald-400">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Verified
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Concerns Badge */}

@@ -4,3 +4,4 @@
  */
 
 export { default as useQRScanner, SCANNER_ROLES, SCAN_STATES } from './useQRScanner'
+export { useBlockchain } from './useBlockchain'

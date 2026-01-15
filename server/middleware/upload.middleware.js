@@ -45,6 +45,38 @@ const upload = multer({
 // Field name: 'verificationDocument'
 const uploadVerificationDocument = upload.single('verificationDocument');
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SUPPORTING DOCUMENTS UPLOAD (for shipments)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// File filter for supporting documents - only images allowed
+const supportingDocsFileFilter = (req, file, cb) => {
+  const allowedMimeTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png'
+  ];
+
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPG and PNG images are allowed.'), false);
+  }
+};
+
+// Configure multer for supporting documents (larger limit, more file types)
+const supportingDocsUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit per file
+  },
+  fileFilter: supportingDocsFileFilter
+});
+
+// Middleware for multiple supporting documents upload
+// Field name: 'supportingDocuments', max 10 files
+const uploadSupportingDocuments = supportingDocsUpload.array('supportingDocuments', 10);
+
 // Error handling wrapper for multer
 const handleUploadErrors = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -71,5 +103,6 @@ const handleUploadErrors = (err, req, res, next) => {
 
 module.exports = {
   uploadVerificationDocument,
+  uploadSupportingDocuments,
   handleUploadErrors
 };

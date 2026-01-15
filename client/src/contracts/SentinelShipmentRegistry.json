@@ -1,0 +1,177 @@
+{
+  "contractName": "SentinelShipmentRegistry",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "shipmentHash",
+          "type": "string"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "supplier",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "batchId",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "numberOfContainers",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "quantityPerContainer",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "ShipmentLocked",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "shipmentHash",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "batchId",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "numberOfContainers",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "quantityPerContainer",
+          "type": "uint256"
+        }
+      ],
+      "name": "confirmAndLockShipment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "shipmentHash",
+          "type": "string"
+        }
+      ],
+      "name": "shipmentExists",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "exists",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "shipmentHash",
+          "type": "string"
+        }
+      ],
+      "name": "isShipmentLocked",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "locked",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "shipmentHash",
+          "type": "string"
+        }
+      ],
+      "name": "getShipmentStatus",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "status",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "shipmentHash",
+          "type": "string"
+        }
+      ],
+      "name": "getShipment",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "supplier",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "batchId",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "numberOfContainers",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "quantityPerContainer",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "createdAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "status",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+}
