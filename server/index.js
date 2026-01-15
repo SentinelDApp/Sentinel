@@ -41,6 +41,7 @@ const shipmentRoutes = require('./routes/shipmentRoutes');
 const containerRoutes = require('./routes/containerRoutes');
 const indexerRoutes = require('./routes/indexerRoutes');
 const userRoutes = require('./routes/userRoutes');
+const scanRoutes = require('./routes/scanRoutes');
 
 // Services
 const blockchainIndexer = require('./services/blockchainIndexer');
@@ -109,6 +110,16 @@ app.use('/api/users', userRoutes);
 app.use('/api/shipments', shipmentRoutes);
 app.use('/api/containers', containerRoutes);
 app.use('/api/indexer', indexerRoutes);
+
+// ================= QR SCANNING & VERIFICATION ROUTES ================= //
+/**
+ * SCAN APIs
+ * 
+ * Real-time QR code scanning and verification.
+ * Validates against database and blockchain.
+ * Role-based authorization for status transitions.
+ */
+app.use('/api/scan', scanRoutes);
 
 // ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**
