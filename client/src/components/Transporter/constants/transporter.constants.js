@@ -90,5 +90,6 @@ export const STATUS_FILTERS = ['All', 'Pending', 'Ready', 'In Transit', 'At Ware
 export const NAVIGATION_TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'active', label: 'Active Jobs', icon: '🚚' },
+  { id: 'scan', label: 'Scan QR', icon: '📷' },
   { id: 'history', label: 'History', icon: '📋' },
 ];
