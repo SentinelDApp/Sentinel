@@ -63,10 +63,10 @@ const StatsCard = ({ label, value, icon: Icon, color, trend, trendUp }) => {
 
 const StatsGrid = ({ stats }) => {
   const statsConfig = [
-    { label: "Total Shipments", value: stats.total, icon: BoxIcon, color: "blue", trend: "↑ 12%", trendUp: true },
-    { label: "New Jobs", value: stats.new, icon: PackageIcon, color: "emerald", trend: "↑ 8%", trendUp: true },
-    { label: "In Transit", value: stats.inTransit, icon: TruckIcon, color: "amber", trend: "↑ 23%", trendUp: true },
-    { label: "Delayed", value: stats.delayed, icon: AlertTriangleIcon, color: "red", trend: "↓ 5%", trendUp: false },
+    { label: "Total Shipments", value: stats.total, icon: BoxIcon, color: "blue", trend: null },
+    { label: "Pending/Ready", value: stats.new, icon: PackageIcon, color: "emerald", trend: null },
+    { label: "In Transit", value: stats.inTransit, icon: TruckIcon, color: "amber", trend: null },
+    { label: "At Warehouse", value: stats.delayed, icon: AlertTriangleIcon, color: "red", trend: null },
   ];
 
   return (

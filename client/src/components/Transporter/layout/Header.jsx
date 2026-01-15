@@ -12,7 +12,7 @@ import {
   ShieldCheckIcon,
   MenuIcon,
 } from "../icons/Icons";
-import { DEMO_NOTIFICATIONS } from "../constants/transporter.constants";
+
 
 const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
   const { isDarkMode, toggleTheme } = useTransporterTheme();
@@ -160,32 +160,9 @@ const Header = ({ onMenuClick, searchQuery, setSearchQuery }) => {
                   </h3>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {DEMO_NOTIFICATIONS.map((notif) => (
-                    <div
-                      key={notif.id}
-                      className={`
-                        px-4 py-3 border-b last:border-0 cursor-pointer transition-colors
-                        ${isDarkMode ? "border-slate-700/50 hover:bg-slate-700/50" : "border-slate-100 hover:bg-slate-50"}
-                      `}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`
-                            w-2 h-2 mt-2 rounded-full shrink-0
-                            ${notif.type === "success" ? "bg-green-500" : notif.type === "warning" ? "bg-amber-500" : "bg-blue-500"}
-                          `}
-                        />
-                        <div>
-                          <p className={`text-sm font-medium ${isDarkMode ? "text-white" : "text-slate-900"}`}>
-                            {notif.title}
-                          </p>
-                          <p className={`text-xs mt-0.5 ${isDarkMode ? "text-slate-500" : "text-slate-500"}`}>
-                            {notif.time}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                  <div className={`px-4 py-8 text-center ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    <p className="text-sm">No new notifications</p>
+                  </div>
                 </div>
                 <div className={`px-4 py-3 border-t ${isDarkMode ? "border-slate-700" : "border-slate-200"}`}>
                   <button className="text-sm text-blue-500 hover:text-blue-400 font-medium w-full text-center">

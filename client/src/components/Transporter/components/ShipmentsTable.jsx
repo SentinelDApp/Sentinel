@@ -91,78 +91,105 @@ const ShipmentsTable = ({ jobs, filteredJobs, statusFilter, setStatusFilter, onJ
             </tr>
           </thead>
           <tbody className={`divide-y ${isDarkMode ? "divide-slate-800" : "divide-slate-100"}`}>
-            {filteredJobs.map((job) => (
-              <tr
-                key={job.id}
-                className={`
-                  transition-colors cursor-pointer
-                  ${isDarkMode ? "hover:bg-slate-800/50" : "hover:bg-slate-50"}
-                `}
-                onClick={() => onJobSelect(job)}
-              >
-                <td className="px-5 py-4">
-                  <div>
-                    <p className={`font-medium ${isDarkMode ? "text-white" : "text-slate-900"}`}>
-                      {job.product}
-                    </p>
-                    <p
-                      className={`text-xs mt-0.5 font-mono ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+            {filteredJobs.map((job) => {
+              // Handle potential missing status colors gracefully
+              const statusStyle = STATUS_COLORS[job.status] || {
+                bg: 'bg-slate-500/10',
+                text: 'text-slate-400',
+                border: 'border-slate-500/30',
+                lightBg: 'bg-slate-100',
+                lightText: 'text-slate-600',
+                lightBorder: 'border-slate-200',
+                dot: 'bg-slate-500',
+              };
+              
+              return (
+                <tr
+                  key={job.id}
+                  className={`
+                    transition-colors cursor-pointer
+                    ${isDarkMode ? "hover:bg-slate-800/50" : "hover:bg-slate-50"}
+                  `}
+                  onClick={() => onJobSelect(job)}
+                >
+                  <td className="px-5 py-4">
+                    <div>
+                      <p className={`font-medium ${isDarkMode ? "text-white" : "text-slate-900"}`}>
+                        {job.product || `Batch ${job.batchId}`}
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 font-mono ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+                      >
+                        {job.batchId || job.id?.slice(0, 12) + '...'}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div>
+                      <p className={`text-sm font-mono truncate max-w-[120px] ${isDarkMode ? "text-slate-400" : "text-slate-600"}`} title={job.id}>
+                        {job.id?.slice(0, 12)}...
+                      </p>
+                      {job.isLocked && (
+                        <span className="text-xs text-emerald-500">🔗 On-chain</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className={`px-5 py-4 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <div>
+                      <p>{job.expectedQuantity} items</p>
+                      {job.numberOfContainers > 0 && (
+                        <p className={`text-xs ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                          {job.numberOfContainers} containers
+                        </p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div
+                      className={`flex items-center gap-1.5 text-sm ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}
                     >
-                      {job.id}
-                    </p>
-                  </div>
-                </td>
-                <td className={`px-5 py-4 text-sm font-mono ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
-                  {job.id}
-                </td>
-                <td className={`px-5 py-4 text-sm ${isDarkMode ? "text-slate-300" : "text-slate-700"}`}>
-                  {job.expectedQuantity} items
-                </td>
-                <td className="px-5 py-4">
-                  <div
-                    className={`flex items-center gap-1.5 text-sm ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}
-                  >
-                    <span className="truncate max-w-[80px]">{job.origin.split(" ")[0]}</span>
-                    <ArrowRightIcon className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate max-w-[80px]">{job.dest.split(" ")[0]}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-4">
-                  <span
-                    className={`
-                      inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
-                      ${isDarkMode
-                        ? `${STATUS_COLORS[job.status]?.bg} ${STATUS_COLORS[job.status]?.text} ${STATUS_COLORS[job.status]?.border}`
-                        : `${STATUS_COLORS[job.status]?.lightBg} ${STATUS_COLORS[job.status]?.lightText} ${STATUS_COLORS[job.status]?.lightBorder}`
-                      }
-                    `}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_COLORS[job.status]?.dot}`} />
-                    {job.status}
-                  </span>
-                </td>
-                <td className={`px-5 py-4 text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                  {job.createdAt}
-                </td>
-                <td className="px-5 py-4">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onJobSelect(job);
-                    }}
-                    className={`
-                      text-sm font-medium transition-colors
-                      ${isDarkMode
-                        ? "text-blue-400 hover:text-blue-300"
-                        : "text-blue-600 hover:text-blue-700"
-                      }
-                    `}
-                  >
-                    Manage
-                  </button>
-                </td>
-              </tr>
-            ))}
+                      <span className="truncate max-w-[80px]">{(job.origin || 'Origin').split(" ")[0]}</span>
+                      <ArrowRightIcon className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate max-w-[80px]">{(job.dest || 'Destination').split(" ")[0]}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`
+                        inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
+                        ${isDarkMode
+                          ? `${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`
+                          : `${statusStyle.lightBg} ${statusStyle.lightText} ${statusStyle.lightBorder}`
+                        }
+                      `}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
+                      {job.status}
+                    </span>
+                  </td>
+                  <td className={`px-5 py-4 text-sm ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    {job.createdAt || 'N/A'}
+                  </td>
+                  <td className="px-5 py-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onJobSelect(job);
+                      }}
+                      className={`
+                        text-sm font-medium transition-colors
+                        ${isDarkMode
+                          ? "text-blue-400 hover:text-blue-300"
+                          : "text-blue-600 hover:text-blue-700"
+                        }
+                      `}
+                    >
+                      Manage
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

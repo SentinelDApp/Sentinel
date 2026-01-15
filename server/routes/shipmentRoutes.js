@@ -355,7 +355,7 @@ router.patch('/:shipmentHash/lock', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const { supplierWallet, status } = req.query;
+    const { supplierWallet, transporterWallet, warehouseWallet, status } = req.query;
     const { page, limit } = parsePagination(req.query);
 
     // Build query
@@ -370,6 +370,28 @@ router.get('/', async (req, res) => {
         });
       }
       query.supplierWallet = supplierWallet.toLowerCase();
+    }
+
+    // Filter by transporter wallet if provided
+    if (transporterWallet) {
+      if (!isValidAddress(transporterWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid transporter wallet address format'
+        });
+      }
+      query['assignedTransporter.walletAddress'] = transporterWallet.toLowerCase();
+    }
+
+    // Filter by warehouse wallet if provided
+    if (warehouseWallet) {
+      if (!isValidAddress(warehouseWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid warehouse wallet address format'
+        });
+      }
+      query['assignedWarehouse.walletAddress'] = warehouseWallet.toLowerCase();
     }
 
     // Filter by status if provided
