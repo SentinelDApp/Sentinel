@@ -162,6 +162,10 @@ const shipmentSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
+    organizationName: {
+      type: String,
+      trim: true
+    },
     assignedAt: {
       type: Date
     }
@@ -181,6 +185,10 @@ const shipmentSchema = new mongoose.Schema({
       }
     },
     name: {
+      type: String,
+      trim: true
+    },
+    organizationName: {
       type: String,
       trim: true
     },

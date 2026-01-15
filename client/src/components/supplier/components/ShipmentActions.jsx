@@ -83,11 +83,16 @@ const ShipmentActions = ({
   const openConcerns = shipment.concerns?.filter(c => c.status === CONCERN_STATUS.OPEN) || [];
   const acknowledgedConcerns = shipment.concerns?.filter(c => c.status === CONCERN_STATUS.ACKNOWLEDGED) || [];
   const canMarkReady = isCreated && !isLocked;
-  const canAssignTransporter = isCreated && !isLocked && !shipment.transporterId;
   
-  // Get current transporter and warehouse info
-  const currentTransporter = TRANSPORTER_AGENCIES.find(t => t.id === shipment.transporterId);
-  const currentWarehouse = WAREHOUSES.find(w => w.id === shipment.warehouseId);
+  // Check if transporter is assigned using new format first, then fallback to legacy
+  const hasTransporter = !!(shipment.assignedTransporter?.walletAddress || shipment.transporterId || shipment.transporterWallet);
+  const canAssignTransporter = isCreated && !isLocked && !hasTransporter;
+  
+  // Get current transporter and warehouse info from the new assigned fields
+  const currentTransporterName = shipment.assignedTransporter?.name || shipment.transporterName || null;
+  const currentTransporterOrg = shipment.assignedTransporter?.organizationName || null;
+  const currentWarehouseName = shipment.assignedWarehouse?.name || shipment.warehouseName || null;
+  const currentWarehouseOrg = shipment.assignedWarehouse?.organizationName || null;
 
   // Assign transporter
   const handleSaveTransporter = async () => {
@@ -296,18 +301,28 @@ const ShipmentActions = ({
                 </p>
               )}
               {/* Show assigned transporter/warehouse even when locked */}
-              {(currentTransporter || currentWarehouse) && (
+              {(currentTransporterName || currentWarehouseName) && (
                 <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-                  {currentTransporter && (
+                  {currentTransporterName && (
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>🚚 Transporter:</span>
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{currentTransporter.name}</span>
+                      <div className="flex flex-col">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{currentTransporterName}</span>
+                        {currentTransporterOrg && (
+                          <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentTransporterOrg}</span>
+                        )}
+                      </div>
                     </div>
                   )}
-                  {currentWarehouse && (
+                  {currentWarehouseName && (
                     <div className="flex items-center gap-2">
                       <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>🏭 Warehouse:</span>
-                      <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{currentWarehouse.name}</span>
+                      <div className="flex flex-col">
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{currentWarehouseName}</span>
+                        {currentWarehouseOrg && (
+                          <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentWarehouseOrg}</span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -397,16 +412,26 @@ const ShipmentActions = ({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>🏭 Warehouse:</span>
-                    {currentWarehouse ? (
-                      <span className="text-sm font-medium text-emerald-400">{currentWarehouse.name}</span>
+                    {currentWarehouseName ? (
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-emerald-400">{currentWarehouseName}</span>
+                        {currentWarehouseOrg && (
+                          <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentWarehouseOrg}</p>
+                        )}
+                      </div>
                     ) : (
                       <span className={`text-sm italic ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Not assigned</span>
                     )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>🚚 Transporter:</span>
-                    {currentTransporter ? (
-                      <span className="text-sm font-medium text-emerald-400">{currentTransporter.name}</span>
+                    {currentTransporterName ? (
+                      <div className="text-right">
+                        <span className="text-sm font-medium text-emerald-400">{currentTransporterName}</span>
+                        {currentTransporterOrg && (
+                          <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentTransporterOrg}</p>
+                        )}
+                      </div>
                     ) : (
                       <span className={`text-sm italic ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Not assigned</span>
                     )}

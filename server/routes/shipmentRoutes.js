@@ -193,12 +193,14 @@ router.post('/', async (req, res) => {
       // Assigned stakeholders
       assignedTransporter: {
         walletAddress: transporterUser.walletAddress,
-        name: transporterUser.fullName || transporterUser.organizationName || '',
+        name: transporterUser.fullName || '',
+        organizationName: transporterUser.organizationName || '',
         assignedAt: new Date()
       },
       assignedWarehouse: {
         walletAddress: warehouseUser.walletAddress,
-        name: warehouseUser.fullName || warehouseUser.organizationName || '',
+        name: warehouseUser.fullName || '',
+        organizationName: warehouseUser.organizationName || '',
         assignedAt: new Date()
       }
     });
