@@ -1,8 +1,10 @@
 node_modules/
 dist/
+build/
 client/src/App.jsx
 client/package-lock.json
 server/package-lock.json
 blockchain/build/
 client/.env
 */.env
+
