@@ -6,8 +6,8 @@ export { default } from "./TransporterApp";
 export { TransporterThemeProvider, useTransporterTheme } from "./context/ThemeContext";
 
 // Layout Components
-export { default as TransporterLayout } from "./layout/TransporterLayout";
 export { default as Header } from "./layout/Header";
+export { default as LeftSidebar } from "./layout/LeftSidebar";
 
 // Page Components
 export { default as DashboardPage } from "./pages/DashboardPage";
@@ -15,12 +15,7 @@ export { default as DashboardPage } from "./pages/DashboardPage";
 // UI Components
 export { StatsCard, StatsGrid } from "./components/StatsCard";
 export { default as ShipmentsTable } from "./components/ShipmentsTable";
-export { NavigationTabs, DashboardHeader } from "./components/NavigationTabs";
 export { default as JobDetailView } from "./components/JobDetailView";
-
-// Legacy Components (for backward compatibility)
-export { default as JobCard } from "./JobCard";
-export { default as CargoVerification } from "./CargoVerification";
 
 // Icons
 export * from "./icons/Icons";
