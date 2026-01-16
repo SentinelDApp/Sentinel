@@ -26,9 +26,6 @@ import { AdminApp, ThemeProvider } from "./components/Admin";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 
-// Test Pages
-import ScanTestPage from "./components/shared/ScanTestPage";
-
 // Root layout that wraps all routes with AuthProvider
 const RootLayout = () => (
   <AuthProvider>
@@ -161,19 +158,6 @@ export const router = createBrowserRouter([
           { path: "verification", element: null },
           { path: "users", element: null },
         ],
-      },
-
-      // ============================================
-      // QR Scan Test Page (for development/testing)
-      // Suppliers CREATE QR codes, they don't scan them
-      // ============================================
-      {
-        path: "/test-scan",
-        element: (
-          <ProtectedRoute allowedRoles={["transporter", "warehouse", "retailer", "admin"]}>
-            <ScanTestPage />
-          </ProtectedRoute>
-        ),
       },
 
       // ============================================
