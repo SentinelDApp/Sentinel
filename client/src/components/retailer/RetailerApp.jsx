@@ -132,49 +132,40 @@ function RetailerDashboardContent() {
       case "dashboard":
         return (
           <>
-            {/* Greeting Section */}
-            <div
-              className={`
-              rounded-2xl p-6 mb-2 border
-              ${
-                isDarkMode
-                  ? "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-slate-700/50"
-                  : "bg-gradient-to-r from-cyan-50 to-blue-50 border-slate-200"
-              }
-            `}
-            >
+            {/* Welcome Section */}
+            <div className="mb-2">
               <h1
                 className={`text-2xl font-bold ${
                   isDarkMode ? "text-white" : "text-slate-900"
                 }`}
               >
-                Hello, {profileName}! 👋
+                Welcome, {profileName} 👋
               </h1>
               <p
                 className={`mt-1 text-sm ${
                   isDarkMode ? "text-slate-400" : "text-slate-600"
                 }`}
               >
-                {greeting}! Welcome back to your dashboard.
+                Here's what's happening with your store today
               </p>
             </div>
 
             {/* Stats Cards */}
             <StatsCards />
 
-            {/* Section Divider */}
-            <div className="flex items-center gap-4 pt-2">
+            {/* Incoming Shipments Section */}
+            <div className="flex items-center gap-4 pt-4">
               <div className="flex items-center gap-3">
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-lg ${
                     isDarkMode
-                      ? "bg-cyan-500/10 border border-cyan-500/20"
-                      : "bg-cyan-50 border border-cyan-200"
+                      ? "bg-amber-500/10 border border-amber-500/20"
+                      : "bg-amber-50 border border-amber-200"
                   }`}
                 >
                   <svg
                     className={`h-4 w-4 ${
-                      isDarkMode ? "text-cyan-400" : "text-cyan-600"
+                      isDarkMode ? "text-amber-400" : "text-amber-600"
                     }`}
                     fill="none"
                     viewBox="0 0 24 24"
@@ -184,7 +175,7 @@ function RetailerDashboardContent() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
                     />
                   </svg>
                 </div>
@@ -194,14 +185,14 @@ function RetailerDashboardContent() {
                       isDarkMode ? "text-white" : "text-slate-900"
                     }`}
                   >
-                    Store Operations
+                    Incoming Shipments
                   </h2>
                   <p
                     className={`text-xs ${
                       isDarkMode ? "text-slate-500" : "text-slate-400"
                     }`}
                   >
-                    Scan products & manage orders
+                    {receivedShipments.length} shipment{receivedShipments.length !== 1 ? 's' : ''} assigned to you
                   </p>
                 </div>
               </div>
@@ -212,16 +203,83 @@ function RetailerDashboardContent() {
                     : "bg-gradient-to-r from-slate-200 to-transparent"
                 }`}
               ></div>
+              <button
+                onClick={() => setShowAllShipments(true)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDarkMode
+                    ? "hover:bg-slate-800 text-slate-400 hover:text-white"
+                    : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
             </div>
 
-            {/* QR Scanner + Orders */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <SalesOverview
-                onExpandChange={setScannerExpanded}
-                onShipmentConfirmed={handleShipmentReceived}
-              />
-              <OrdersTable expandedMode={scannerExpanded} />
+            {/* Received Shipments List */}
+            <ReceivedShipments
+              shipments={receivedShipments}
+              onViewAll={() => setShowAllShipments(true)}
+            />
+          </>
+        );
+
+      case "incoming":
+        return (
+          <div className="space-y-6">
+            {/* Welcome */}
+            <div className="mb-2">
+              <h1
+                className={`text-2xl font-bold ${
+                  isDarkMode ? "text-white" : "text-slate-900"
+                }`}
+              >
+                Incoming Shipments
+              </h1>
+              <p
+                className={`mt-1 text-sm ${
+                  isDarkMode ? "text-slate-400" : "text-slate-600"
+                }`}
+              >
+                View and manage shipments arriving at your store
+              </p>
             </div>
+
+            {/* Received Shipments */}
+            <ReceivedShipments
+              shipments={receivedShipments}
+              onViewAll={() => setShowAllShipments(true)}
+            />
+          </div>
+        );
+
+      case "qr-scan":
+        return (
+          <div className="space-y-6">
+            {/* Welcome */}
+            <div className="mb-2">
+              <h1
+                className={`text-2xl font-bold ${
+                  isDarkMode ? "text-white" : "text-slate-900"
+                }`}
+              >
+                QR Scanner
+              </h1>
+              <p
+                className={`mt-1 text-sm ${
+                  isDarkMode ? "text-slate-400" : "text-slate-600"
+                }`}
+              >
+                Scan QR codes to receive and verify shipments
+              </p>
+            </div>
+
+            {/* QR Scanner */}
+            <SalesOverview
+              onExpandChange={setScannerExpanded}
+              onShipmentConfirmed={handleShipmentReceived}
+            />
 
             {/* Received Shipments Section */}
             <div className="flex items-center gap-4 pt-2">
@@ -279,85 +337,32 @@ function RetailerDashboardContent() {
               shipments={receivedShipments}
               onViewAll={() => setShowAllShipments(true)}
             />
-          </>
-        );
-
-      case "inventory":
-        return (
-          <div
-            className={`rounded-2xl p-8 text-center ${
-              isDarkMode
-                ? "bg-slate-900/60 border border-slate-700/50"
-                : "bg-white border border-slate-200"
-            }`}
-          >
-            <div
-              className={`flex h-16 w-16 mx-auto items-center justify-center rounded-2xl ${
-                isDarkMode ? "bg-cyan-500/10" : "bg-cyan-50"
-              } mb-4`}
-            >
-              <span className="text-3xl">📦</span>
-            </div>
-            <h3
-              className={`text-xl font-semibold ${
-                isDarkMode ? "text-white" : "text-slate-900"
-              }`}
-            >
-              Inventory Management
-            </h3>
-            <p
-              className={`mt-2 ${
-                isDarkMode ? "text-slate-400" : "text-slate-500"
-              }`}
-            >
-              Track and manage your store inventory
-            </p>
-            <p
-              className={`mt-1 text-sm ${
-                isDarkMode ? "text-slate-500" : "text-slate-400"
-              }`}
-            >
-              Coming soon...
-            </p>
           </div>
         );
 
-      case "orders":
+      case "manage":
         return (
           <div className="space-y-6">
-            <OrdersTable expandedMode={true} />
-          </div>
-        );
-
-      case "shipments":
-        return (
-          <div className="space-y-6">
-            {/* Incoming Shipments */}
-            <div
-              className={`rounded-2xl p-6 ${
-                isDarkMode
-                  ? "bg-slate-900/60 border border-slate-700/50"
-                  : "bg-white border border-slate-200"
-              }`}
-            >
-              <h3
-                className={`text-lg font-semibold mb-4 ${
+            {/* Welcome */}
+            <div className="mb-2">
+              <h1
+                className={`text-2xl font-bold ${
                   isDarkMode ? "text-white" : "text-slate-900"
                 }`}
               >
-                Incoming Shipments
-              </h3>
-              <SalesOverview
-                onExpandChange={() => {}}
-                onShipmentConfirmed={handleShipmentReceived}
-              />
+                Manage Store
+              </h1>
+              <p
+                className={`mt-1 text-sm ${
+                  isDarkMode ? "text-slate-400" : "text-slate-600"
+                }`}
+              >
+                Manage orders and store operations
+              </p>
             </div>
 
-            {/* Received Shipments */}
-            <ReceivedShipments
-              shipments={receivedShipments}
-              onViewAll={() => setShowAllShipments(true)}
-            />
+            {/* Orders Table */}
+            <OrdersTable expandedMode={true} />
           </div>
         );
 
@@ -375,13 +380,16 @@ function RetailerDashboardContent() {
       {/* Header */}
       <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
-      {/* Navigation Tabs */}
-      <NavigationTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Main Layout with Sidebar */}
+      <div className="flex">
+        {/* Sidebar Navigation */}
+        <NavigationTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {renderTabContent()}
-      </main>
+        {/* Main Content */}
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-20 lg:pb-6">
+          {renderTabContent()}
+        </main>
+      </div>
 
       {/* All Shipments Modal */}
       <ShipmentsModal

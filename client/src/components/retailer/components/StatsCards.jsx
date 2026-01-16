@@ -5,8 +5,8 @@
 
 import StatsCard from './StatsCard';
 
-function StatsCards() {
-  return <StatsCard />;
+function StatsCards({ stats }) {
+  return <StatsCard stats={stats} />;
 }
 
 export default StatsCards;

@@ -1,18 +1,27 @@
 // Retailer Dashboard Constants and Utilities
 
-// Navigation Tabs
+// Navigation Tabs (Sidebar)
 export const NAVIGATION_TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'orders', label: 'Orders', icon: '📋' },
-  { id: 'shipments', label: 'Shipments', icon: '🚛' },
+  { id: 'incoming', label: 'Incoming', icon: '📦' },
+  { id: 'qr-scan', label: 'QR Scan', icon: '📷' },
+  { id: 'manage', label: 'Manage', icon: '⚙️' },
 ];
 
-// Demo Notifications
-export const DEMO_NOTIFICATIONS = [
-  { id: 1, title: 'New shipment SHP-1024 arrived', time: '5 min ago', type: 'success' },
-  { id: 2, title: 'Low stock alert: Basmati Rice', time: '1 hour ago', type: 'warning' },
-  { id: 3, title: 'Order ORD-1045 ready for delivery', time: '3 hours ago', type: 'info' },
-];
+// Notification helper function - dispatches notifications to the Header
+export const dispatchNotification = (title, message = '', type = 'info') => {
+  window.dispatchEvent(new CustomEvent('retailer-notification', {
+    detail: { title, message, type }
+  }));
+};
+
+// Notification types
+export const NOTIFICATION_TYPES = {
+  SUCCESS: 'success',
+  WARNING: 'warning',
+  ERROR: 'error',
+  INFO: 'info',
+};
 
 // Order Status Constants
 export const ORDER_STATUSES = {
@@ -80,35 +89,35 @@ export const SHIPMENT_STATUS_COLORS = {
 // Sample Orders Data (empty - will be populated from API)
 export const DEMO_ORDERS = [];
 
-// Store Stats Configuration
+// Store Stats Configuration (matches warehouse style)
 export const STORE_STATS = [
   {
-    id: 'products',
-    title: 'Total Products',
-    description: 'Items available in your shop',
+    id: 'pending',
+    title: 'Pending Arrival',
+    description: 'Shipments on the way',
     value: '0',
-    iconPath: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+    color: 'amber',
   },
   {
-    id: 'stock',
-    title: 'Stock Available',
-    description: 'Total quantity in store',
+    id: 'received',
+    title: 'Received',
+    description: 'Scanned today',
     value: '0',
-    iconPath: 'M3 7h18M3 12h18M3 17h18',
+    color: 'blue',
   },
   {
-    id: 'orders',
-    title: 'Orders Pending',
-    description: 'Orders waiting to be delivered',
+    id: 'verified',
+    title: 'Verified & Stored',
+    description: 'Ready for sale',
     value: '0',
-    iconPath: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
+    color: 'emerald',
   },
   {
-    id: 'shipments',
-    title: 'Shipments Coming',
-    description: 'Products arriving soon',
+    id: 'concerns',
+    title: 'Concerns',
+    description: 'Issues reported',
     value: '0',
-    iconPath: 'M9 17a2 2 0 104 0m-4 0a2 2 0 114 0m6-10l2 2v6a2 2 0 01-2 2h-1m-6-1h6M3 5h11a2 2 0 012 2v10H3V5z',
+    color: 'rose',
   },
 ];
 
