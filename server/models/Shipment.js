@@ -127,7 +127,11 @@ const shipmentSchema = new mongoose.Schema({
     default: SHIPMENT_STATUS.CREATED,
     index: true
   },
-
+      // Last updated by (wallet or SYSTEM)
+  lastUpdatedBy: {
+    type: String,
+    default: 'SYSTEM'
+  },
   // When this record was indexed into MongoDB
   createdAt: {
     type: Date,
