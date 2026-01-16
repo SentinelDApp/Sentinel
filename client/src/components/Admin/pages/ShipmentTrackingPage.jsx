@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import ShipmentTimeline from "../components/ShipmentTimeline";
 import StatsCard from "../components/StatsCard";
@@ -95,6 +95,25 @@ const ShipmentTrackingPage = () => {
   useEffect(() => {
     loadShipments();
   }, [loadShipments]);
+
+  // Live polling for containers when a shipment is selected
+  useEffect(() => {
+    if (!selectedShipment?.shipmentHash) return;
+    
+    const pollContainers = async () => {
+      try {
+        const containerResult = await fetchContainers(selectedShipment.shipmentHash);
+        setContainers(containerResult.containers || []);
+      } catch (err) {
+        console.error("Failed to poll containers:", err);
+      }
+    };
+
+    // Poll every 10 seconds for live updates
+    const interval = setInterval(pollContainers, 10000);
+    
+    return () => clearInterval(interval);
+  }, [selectedShipment?.shipmentHash]);
 
   // Search for a specific shipment
   const handleSearch = async () => {
@@ -318,7 +337,7 @@ const ShipmentTrackingPage = () => {
                                 {truncateHash(shipment.shipmentHash)}
                               </p>
                               <p className={`text-sm ${textMuted}`}>
-                                Batch: {shipment.batchId} • {shipment.numberOfContainers} containers
+                                Batch: {shipment.batchId} � {shipment.numberOfContainers} containers
                               </p>
                             </div>
                           </div>
@@ -375,7 +394,7 @@ const ShipmentTrackingPage = () => {
                 }}
                 className={`flex items-center gap-2 text-sm font-medium transition-colors ${textSecondary} hover:${textPrimary}`}
               >
-                ← Back to all shipments
+                ? Back to all shipments
               </button>
 
               {/* Shipment Header Card */}
@@ -482,22 +501,51 @@ const ShipmentTrackingPage = () => {
                   {activeTab === "overview" && (
                     <div className="space-y-6">
                       <div>
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className={`font-medium ${textPrimary}`}>Container Progress</h4>
-                          <span className={`text-sm ${textSecondary}`}>
-                            {containers.length} / {selectedShipment.numberOfContainers} containers
-                          </span>
-                        </div>
-                        <div className={`h-3 rounded-full overflow-hidden ${isDarkMode ? "bg-slate-800" : "bg-slate-200"}`}>
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
-                            style={{
-                              width: `${selectedShipment.numberOfContainers > 0
-                                ? (containers.length / selectedShipment.numberOfContainers) * 100
-                                : 0}%`
-                            }}
-                          />
-                        </div>
+                        {/* Calculate scanned containers (status !== CREATED means scanned) */}
+                        {(() => {
+                          const scannedCount = containers.filter(c => c.status !== 'CREATED').length;
+                          const totalCount = selectedShipment.numberOfContainers || 0;
+                          const progressPercent = totalCount > 0 ? (scannedCount / totalCount) * 100 : 0;
+                          
+                          return (
+                            <>
+                              <div className="flex items-center justify-between mb-4">
+                                <h4 className={`font-medium ${textPrimary}`}>Container Scan Progress</h4>
+                                <span className={`text-sm font-medium ${
+                                  scannedCount === totalCount && totalCount > 0
+                                    ? isDarkMode ? "text-emerald-400" : "text-emerald-600"
+                                    : textSecondary
+                                }`}>
+                                  {scannedCount} / {totalCount} scanned
+                                </span>
+                              </div>
+                              <div className={`h-3 rounded-full overflow-hidden ${isDarkMode ? "bg-slate-800" : "bg-slate-200"}`}>
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    progressPercent === 100 
+                                      ? "bg-gradient-to-r from-emerald-500 to-teal-500"
+                                      : progressPercent >= 50
+                                        ? "bg-gradient-to-r from-blue-500 to-cyan-500"
+                                        : progressPercent > 0
+                                          ? "bg-gradient-to-r from-amber-500 to-yellow-500"
+                                          : "bg-slate-600"
+                                  }`}
+                                  style={{ width: `${progressPercent}%` }}
+                                />
+                              </div>
+                              {scannedCount === 0 && totalCount > 0 && (
+                                <p className={`text-xs mt-2 ${isDarkMode ? "text-amber-400" : "text-amber-600"}`}>
+                                  ?? No containers have been scanned yet
+                                </p>
+                              )}
+                              {scannedCount === totalCount && totalCount > 0 && (
+                                <p className={`text-xs mt-2 ${isDarkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                                  ? All containers scanned successfully
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <StatsCard
@@ -590,7 +638,7 @@ const ShipmentTrackingPage = () => {
                         }] : []),
                       ].map((event, index) => (
                         <div key={index} className="flex items-start gap-4">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
                             isDarkMode ? "bg-slate-800" : "bg-slate-100"
                           }`}>
                             {event.type === "blockchain" ? (
@@ -619,7 +667,7 @@ const ShipmentTrackingPage = () => {
                             href={doc.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`p-4 rounded-xl flex items-center gap-3 cursor-pointer transition-colors block ${
+                            className={`p-4 rounded-xl flex items-center gap-3 cursor-pointer transition-colors ${
                               isDarkMode ? "bg-slate-800/50 hover:bg-slate-800" : "bg-slate-50 hover:bg-slate-100"
                             }`}
                           >
