@@ -108,6 +108,59 @@ const canSetInTransit = async (shipmentId) => {
   }
 };
 
+// Only allow AT_WAREHOUSE if all containers are at warehouse
+const canSetAtWarehouse = async (shipmentId) => {
+  try {
+    // Find shipment by hash or _id (only use _id if it's a valid ObjectId format)
+    const mongoose = require('mongoose');
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
+    
+    const query = isValidObjectId 
+      ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
+      : { shipmentHash: shipmentId };
+    
+    const shipment = await Shipment.findOne(query);
+    
+    if (!shipment) {
+      console.log('canSetAtWarehouse: Shipment not found for ID:', shipmentId);
+      return false;
+    }
+    
+    // Find all containers for this shipment
+    const containers = await Container.find({ shipmentHash: shipment.shipmentHash });
+    
+    console.log('canSetAtWarehouse check:', {
+      shipmentHash: shipment.shipmentHash,
+      shipmentCurrentStatus: shipment.status,
+      totalContainers: containers.length,
+      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status })),
+      uniqueStatuses: [...new Set(containers.map(c => c.status))]
+    });
+    
+    if (containers.length === 0) {
+      console.log('canSetAtWarehouse: No containers found for shipment');
+      return false;
+    }
+    
+    // Check each container status
+    const statusCheck = containers.map(c => {
+      const isValid = c.status === "AT_WAREHOUSE" || c.status === "DELIVERED";
+      return { id: c.containerId, status: c.status, isValid };
+    });
+    
+    console.log('Container status validation for AT_WAREHOUSE:', statusCheck);
+    
+    // All must be AT_WAREHOUSE or DELIVERED
+    const allAtWarehouse = containers.every((c) => c.status === "AT_WAREHOUSE" || c.status === "DELIVERED");
+    console.log('canSetAtWarehouse result:', allAtWarehouse);
+    
+    return allAtWarehouse;
+  } catch (error) {
+    console.error('Error in canSetAtWarehouse:', error);
+    return false;
+  }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1300,10 +1353,16 @@ router.put('/:shipmentId/status', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Status is required' });
     }
     
+    // Validate status-specific requirements
     if (status === 'IN_TRANSIT') {
       const allowed = await canSetInTransit(shipmentId);
       if (!allowed) {
         return res.status(400).json({ success: false, message: 'All containers must be scanned before setting shipment IN_TRANSIT' });
+      }
+    } else if (status === 'AT_WAREHOUSE') {
+      const allowed = await canSetAtWarehouse(shipmentId);
+      if (!allowed) {
+        return res.status(400).json({ success: false, message: 'All containers must be received at warehouse before updating status' });
       }
     }
     
@@ -1315,9 +1374,19 @@ router.put('/:shipmentId/status', async (req, res) => {
       ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
       : { shipmentHash: shipmentId };
     
+    // Prepare update data
+    const updateData = { status };
+    
+    // Set warehouse received timestamp for AT_WAREHOUSE status
+    if (status === 'AT_WAREHOUSE') {
+      updateData.warehouseReceivedAt = new Date();
+      // Note: warehouseCommittedBy should be set from authenticated user if available
+      // For now, we'll let it be set by the scan controller or keep existing value
+    }
+    
     const shipment = await Shipment.findOneAndUpdate(
       query,
-      { $set: { status } },
+      { $set: updateData },
       { new: true }
     );
     

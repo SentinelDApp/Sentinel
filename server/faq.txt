@@ -1,0 +1,245 @@
+================================================================================
+                    SENTINEL SUPPLY CHAIN PLATFORM - FAQ & GUIDES
+================================================================================
+
+--------------------------------------------------------------------------------
+SECTION 1: HOW TO LOGIN
+--------------------------------------------------------------------------------
+
+Q: How do I login to the Sentinel platform?
+A: Follow these steps to login:
+   1. Make sure you have MetaMask browser extension installed
+   2. Go to the Sentinel homepage and click "Connect Wallet"
+   3. MetaMask will pop up - approve the connection request
+   4. The system will check if your wallet is registered
+   5. If registered, you'll be asked to sign a verification message
+   6. Sign the message in MetaMask (this proves you own the wallet)
+   7. You'll be redirected to your role-specific dashboard
+
+Q: What is wallet-based authentication?
+A: Sentinel uses Web3 authentication instead of passwords. Your MetaMask wallet 
+   serves as your identity. You prove ownership by signing a message with your 
+   private key. This is more secure than traditional passwords because:
+   - No password to steal or forget
+   - Cryptographic proof of identity
+   - Works across all blockchain applications
+
+Q: Why does MetaMask ask me to sign a message?
+A: Signing the message proves you own the wallet address. The message contains 
+   a unique nonce (one-time code) that prevents replay attacks. You're not 
+   sending any transaction or spending any gas - it's just a signature.
+
+--------------------------------------------------------------------------------
+SECTION 2: HOW TO REGISTER
+--------------------------------------------------------------------------------
+
+Q: How do I register as a new user?
+A: To register on Sentinel:
+   1. Click "Register" on the homepage
+   2. Connect your MetaMask wallet
+   3. Fill in your business details:
+      - Full Name / Business Name
+      - Email Address
+      - Phone Number
+      - Business Address
+      - Upload verification documents (business license, ID)
+   4. Select your role: Supplier, Transporter, Warehouse, or Retailer
+   5. Submit your registration
+   6. Wait for admin approval (usually 24-48 hours)
+   7. You'll receive an email when approved
+
+Q: What roles are available?
+A: Sentinel has five main roles:
+   - ADMIN: Platform administrator who approves registrations
+   - SUPPLIER: Creates shipments and initiates the supply chain
+   - TRANSPORTER: Moves goods between locations, updates transit status
+   - WAREHOUSE: Receives and stores goods, manages inventory
+   - RETAILER: Final recipient of goods, confirms delivery
+
+Q: Why is my registration pending?
+A: All registrations require admin approval to ensure platform security. The 
+   admin verifies your business documents and credentials. This typically takes 
+   24-48 hours. You'll receive an email notification once approved.
+
+--------------------------------------------------------------------------------
+SECTION 3: HOW TO CREATE A SHIPMENT (SUPPLIERS ONLY)
+--------------------------------------------------------------------------------
+
+Q: How do I create a new shipment?
+A: As a Supplier, follow these steps:
+   1. Go to your Supplier Dashboard
+   2. Click "Create Shipment" or the "+" button
+   3. Fill in the shipment details:
+      - Product Name: What you're shipping
+      - Quantity: Number of units
+      - Description: Additional details about the product
+      - Origin Location: Where the shipment starts
+      - Destination: Final delivery address
+      - Select Transporter: Choose from approved transporters
+      - Select Warehouse: Choose intermediate storage (optional)
+      - Select Retailer: Final recipient
+   4. Review all details carefully
+   5. Click "Create Shipment"
+   6. Confirm the blockchain transaction in MetaMask
+   7. Wait for transaction confirmation
+   8. Your shipment is now created with a unique ID!
+
+Q: What happens after I create a shipment?
+A: When you create a shipment:
+   1. A unique Shipment ID is generated
+   2. The shipment is recorded on the blockchain
+   3. A QR code is generated for tracking
+   4. The assigned transporter is notified
+   5. Status is set to "CREATED"
+   6. You can track it from your dashboard
+
+Q: How much does it cost to create a shipment?
+A: Creating a shipment requires a small gas fee (paid in ETH) for the 
+   blockchain transaction. On our testnet (Ganache), this is free test ETH.
+   On mainnet, costs vary based on network congestion.
+
+--------------------------------------------------------------------------------
+SECTION 4: HOW TO SCAN QR CODES
+--------------------------------------------------------------------------------
+
+Q: How do I scan a QR code?
+A: To scan a shipment QR code:
+   1. Go to your dashboard
+   2. Click the "Scan QR" or camera icon
+   3. Allow camera access when prompted
+   4. Point your camera at the QR code
+   5. Hold steady until the code is recognized
+   6. The shipment details will appear
+   7. You can then update the status or view history
+
+Q: What information is in the QR code?
+A: The QR code contains:
+   - Shipment ID (unique identifier)
+   - Blockchain contract reference
+   - Verification data
+   When scanned, it fetches the full shipment details from the blockchain.
+
+Q: Can I upload a QR code image instead of scanning?
+A: Yes! If you have a QR code image:
+   1. Click "Upload QR" instead of "Scan"
+   2. Select the image file from your device
+   3. The system will read the QR code from the image
+   4. Works with PNG, JPG, and other image formats
+
+Q: The scanner isn't working, what should I do?
+A: Try these troubleshooting steps:
+   1. Make sure you've allowed camera permissions
+   2. Ensure good lighting on the QR code
+   3. Hold the camera steady, about 6-12 inches away
+   4. Make sure the entire QR code is visible in frame
+   5. Try the "Upload Image" option as an alternative
+   6. Check if another app is using the camera
+   7. Refresh the page and try again
+
+--------------------------------------------------------------------------------
+SECTION 5: SHIPMENT STATUS UPDATES
+--------------------------------------------------------------------------------
+
+Q: What are the different shipment statuses?
+A: Shipments go through these stages:
+   - CREATED: Shipment has been created by supplier
+   - PICKED_UP: Transporter has collected the goods
+   - IN_TRANSIT: Goods are being transported
+   - AT_WAREHOUSE: Goods arrived at warehouse storage
+   - OUT_FOR_DELIVERY: Final delivery in progress
+   - DELIVERED: Successfully delivered to retailer
+   - CANCELLED: Shipment was cancelled
+
+Q: How do I update a shipment status?
+A: To update status (based on your role):
+   1. Scan the shipment QR code
+   2. Or search by Shipment ID in your dashboard
+   3. Click "Update Status"
+   4. Select the new status from available options
+   5. Add any notes or comments
+   6. Confirm the blockchain transaction
+   7. Status is updated and recorded permanently
+
+Q: Can I track a shipment without logging in?
+A: Yes! Use the public tracking feature:
+   1. Go to the Sentinel homepage
+   2. Enter the Shipment ID in the tracking box
+   3. Click "Track"
+   4. View the shipment's current status and history
+   Note: Full details require authentication.
+
+--------------------------------------------------------------------------------
+SECTION 6: TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Q: MetaMask won't connect, what should I do?
+A: Try these solutions:
+   1. Make sure MetaMask extension is installed and unlocked
+   2. Check you're on the correct network (Ganache for testnet)
+   3. Refresh the page and try connecting again
+   4. Disable other wallet extensions that might conflict
+   5. Clear browser cache and cookies
+   6. Try in an incognito/private window
+   7. Update MetaMask to the latest version
+
+Q: Transaction failed, what went wrong?
+A: Common causes and solutions:
+   1. Insufficient gas: Add more ETH to your wallet
+   2. Network congestion: Wait and try again
+   3. Nonce error: Reset your MetaMask account (Settings > Advanced)
+   4. Contract error: The operation may not be allowed
+   5. Check the error message for specific details
+
+Q: I can't see my shipments on the dashboard
+A: Try these steps:
+   1. Make sure you're logged in with the correct wallet
+   2. Check you're on the right network in MetaMask
+   3. Wait a moment for data to load from blockchain
+   4. Click the refresh button on the dashboard
+   5. Clear browser cache and reload the page
+
+Q: My registration was rejected, why?
+A: Registrations may be rejected if:
+   1. Documents were unclear or invalid
+   2. Business information couldn't be verified
+   3. Duplicate registration attempt
+   4. Incomplete information provided
+   Contact support@sentinel.com for specific reasons.
+
+Q: How do I contact support?
+A: You can reach Sentinel support through:
+   - Email: support@sentinel.com
+   - This AI chatbot (I'm here to help!)
+   - Dashboard: Click "Help" or "Support"
+   - Response time: Usually within 24 hours
+
+--------------------------------------------------------------------------------
+SECTION 7: BLOCKCHAIN & SECURITY
+--------------------------------------------------------------------------------
+
+Q: What is blockchain and why does Sentinel use it?
+A: Blockchain is a distributed ledger technology that:
+   - Records transactions permanently and transparently
+   - Cannot be altered once data is written
+   - Provides proof of authenticity and ownership
+   - Enables trustless verification between parties
+   Sentinel uses blockchain to create tamper-proof supply chain records.
+
+Q: Is my data secure on Sentinel?
+A: Yes, Sentinel ensures security through:
+   - Blockchain immutability (records cannot be changed)
+   - Cryptographic authentication (no passwords to hack)
+   - Role-based access control
+   - Encrypted data transmission (HTTPS)
+   - No central point of failure
+
+Q: What network does Sentinel run on?
+A: Sentinel can run on:
+   - Local Ganache (for development/testing)
+   - Ethereum Testnets (Sepolia, Goerli)
+   - Ethereum Mainnet (for production)
+   Check with your administrator for the current network.
+
+================================================================================
+                              END OF FAQ DOCUMENT
+================================================================================
