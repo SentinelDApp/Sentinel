@@ -123,18 +123,30 @@ const getShipmentStatus = async (shipmentId) => {
     let Shipment;
     try {
       Shipment = require('../models/Shipment');
-      const dbShipment = await Shipment.findOne({ shipmentId: shipmentId });
+      
+      // Try multiple fields to find the shipment
+      const dbShipment = await Shipment.findOne({
+        $or: [
+          { shipmentHash: shipmentId },
+          { shipmentHash: { $regex: shipmentId, $options: 'i' } },
+          { batchId: shipmentId },
+          { batchId: { $regex: shipmentId, $options: 'i' } }
+        ]
+      });
       
       if (dbShipment) {
         return JSON.stringify({
           found: true,
           source: 'database',
-          shipmentId: shipmentId,
+          shipmentId: dbShipment.shipmentHash,
+          batchId: dbShipment.batchId || 'N/A',
           status: dbShipment.status || 'PENDING',
-          productName: dbShipment.productName || 'N/A',
+          containers: dbShipment.numberOfContainers || 0,
+          quantityPerContainer: dbShipment.quantityPerContainer || 0,
+          totalQuantity: dbShipment.totalQuantity || 0,
           origin: dbShipment.origin || 'N/A',
           destination: dbShipment.destination || 'N/A',
-          message: `📦 Shipment ${shipmentId} found! Status: **${dbShipment.status || 'PENDING'}**. Note: This shipment has not been recorded on the blockchain yet.`
+          message: `📦 Shipment found! **ID:** ${dbShipment.shipmentHash}\n**Batch:** ${dbShipment.batchId || 'N/A'}\n**Status:** ${dbShipment.status || 'PENDING'}\n**Containers:** ${dbShipment.numberOfContainers || 0}\n**Qty/Container:** ${dbShipment.quantityPerContainer || 0}`
         });
       }
     } catch (dbError) {

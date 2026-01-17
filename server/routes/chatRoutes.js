@@ -160,17 +160,16 @@ RESPONSE GUIDELINES:
 - Personalize responses based on user's role when relevant
 - If unsure, ask clarifying questions
 - Never make up shipment data - always use the tool
-- IMPORTANT: Always end your response with "Hope this solves your problem!! If not, feel free to ask what's the problem?" instead of "How can I assist you today?" or similar phrases.
 
 EXAMPLE INTERACTIONS:
 User: "How do I login?"
-→ Check reference material → Found → Answer from FAQ → End with "Hope this solves your problem!!"
+→ Check reference material → Found → Answer from FAQ"
 
 User: "What is a smart contract?"
-→ Check reference material → Not found → Use general knowledge → End with "Hope this solves your problem!!"
+→ Check reference material → Not found → Use general knowledge "
 
 User: "Where is shipment 101?"
-→ Shipment ID detected → Use get_shipment_status tool → End with "Hope this solves your problem!!"
+→ Shipment ID detected → Use get_shipment_status tool"
       `
     });
 
