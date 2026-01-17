@@ -1,5 +1,5 @@
 import { useTransporterTheme } from "../context/ThemeContext";
-import { BoxIcon, TruckIcon, PackageIcon, AlertTriangleIcon } from "../icons/Icons";
+import { BoxIcon, TruckIcon, PackageIcon, CheckCircleIcon } from "../icons/Icons";
 
 const StatsCard = ({ label, value, icon: Icon, color, trend, trendUp }) => {
   const { isDarkMode } = useTransporterTheme();
@@ -66,7 +66,7 @@ const StatsGrid = ({ stats }) => {
     { label: "Total Shipments", value: stats.total, icon: BoxIcon, color: "blue", trend: null },
     { label: "Pending/Ready", value: stats.new, icon: PackageIcon, color: "emerald", trend: null },
     { label: "In Transit", value: stats.inTransit, icon: TruckIcon, color: "amber", trend: null },
-    { label: "At Warehouse", value: stats.delayed, icon: AlertTriangleIcon, color: "red", trend: null },
+    { label: "Delivered", value: stats.delivered, icon: CheckCircleIcon, color: "emerald", trend: null },
   ];
 
   return (

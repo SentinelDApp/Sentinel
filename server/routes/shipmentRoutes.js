@@ -58,10 +58,16 @@ const parsePagination = (query) => {
 // Only allow IN_TRANSIT if all containers are scanned
 const canSetInTransit = async (shipmentId) => {
   try {
-    // Find shipment by hash or _id
-    const shipment = await Shipment.findOne({
-      $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }],
-    });
+    // Find shipment by hash or _id (only use _id if it's a valid ObjectId format)
+    const mongoose = require('mongoose');
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
+    
+    const query = isValidObjectId 
+      ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
+      : { shipmentHash: shipmentId };
+    
+    const shipment = await Shipment.findOne(query);
+    
     if (!shipment) {
       console.log('canSetInTransit: Shipment not found for ID:', shipmentId);
       return false;
@@ -72,14 +78,24 @@ const canSetInTransit = async (shipmentId) => {
     
     console.log('canSetInTransit check:', {
       shipmentHash: shipment.shipmentHash,
+      shipmentCurrentStatus: shipment.status,
       totalContainers: containers.length,
-      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status }))
+      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status })),
+      uniqueStatuses: [...new Set(containers.map(c => c.status))]
     });
     
     if (containers.length === 0) {
       console.log('canSetInTransit: No containers found for shipment');
       return false;
     }
+    
+    // Check each container status
+    const statusCheck = containers.map(c => {
+      const isValid = c.status === "IN_TRANSIT" || c.status === "DELIVERED";
+      return { id: c.containerId, status: c.status, isValid };
+    });
+    
+    console.log('Container status validation:', statusCheck);
     
     // All must be IN_TRANSIT or DELIVERED
     const allScanned = containers.every((c) => c.status === "IN_TRANSIT" || c.status === "DELIVERED");
@@ -1190,8 +1206,16 @@ router.put('/:shipmentId/status', async (req, res) => {
       }
     }
     
+    // Only use _id if it's a valid ObjectId format
+    const mongoose = require('mongoose');
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
+    
+    const query = isValidObjectId 
+      ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
+      : { shipmentHash: shipmentId };
+    
     const shipment = await Shipment.findOneAndUpdate(
-      { $or: [ { shipmentHash: shipmentId }, { _id: shipmentId } ] },
+      query,
       { $set: { status } },
       { new: true }
     );

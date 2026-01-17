@@ -309,39 +309,12 @@ const scanContainerAsTransporter = async (req, res) => {
     );
 
     // ═════════════════════════════════════════════════════════════════════
-    // STEP 7b: Derive and update shipment status from containers
-    // Shipment moves to IN_TRANSIT when FIRST container is scanned
+    // STEP 7b: DO NOT auto-update shipment status during scanning
+    // Shipment status will be manually updated via API after all containers scanned
     // ═════════════════════════════════════════════════════════════════════
     
-    // Fetch all containers for this shipment
-    const allContainers = await Container.find({ shipmentHash: shipment.shipmentHash }).lean();
-    
-    // Update the scanned container's status in our local array
-    const updatedContainers = allContainers.map(c => 
-      c.containerId === normalizedContainerId 
-        ? { ...c, status: nextContainerStatus }
-        : c
-    );
-    
-    const derivedShipmentStatus = deriveShipmentStatusFromContainers(updatedContainers);
     const previousShipmentStatus = shipment.status;
-    let shipmentStatusChanged = false;
-    
-    // Only update shipment if status actually changed
-    if (derivedShipmentStatus !== previousShipmentStatus) {
-      shipmentStatusChanged = true;
-      
-      await Shipment.updateOne(
-        { shipmentHash: shipment.shipmentHash },
-        {
-          $set: {
-            status: derivedShipmentStatus,
-            lastUpdatedBy: actorWallet,
-            updatedAt: now
-          }
-        }
-      );
-    }
+    const shipmentStatusChanged = false;
 
     // ═════════════════════════════════════════════════════════════════════
     // STEP 8: Handle concern if provided
@@ -406,8 +379,8 @@ const scanContainerAsTransporter = async (req, res) => {
         shipmentHash: shipment.shipmentHash,
         batchId: shipment.batchId,
         previousStatus: previousShipmentStatus,
-        currentStatus: derivedShipmentStatus,
-        statusChanged: shipmentStatusChanged,
+        currentStatus: previousShipmentStatus, // Status unchanged during scan
+        statusChanged: shipmentStatusChanged, // Always false now
         numberOfContainers: shipment.numberOfContainers,
         isLockedOnBlockchain: true,
         txHash: shipment.txHash,

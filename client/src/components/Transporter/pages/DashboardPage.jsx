@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTransporterTheme } from "../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import { StatsGrid } from "../components/StatsCard";
@@ -7,6 +7,7 @@ import JobDetailView from "../components/JobDetailView";
 import LeftSidebar from "../layout/LeftSidebar";
 import { useTransporterShipments } from "../hooks/useTransporterShipments";
 import TransporterScanPage from "./TransporterScanPage";
+import { getTransporterAssignedContainers } from "../../../services/scanApi";
 
 const DashboardPage = () => {
   const { isDarkMode } = useTransporterTheme();
@@ -19,13 +20,53 @@ const DashboardPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [showScanMode, setShowScanMode] = useState(false);
+  const [shipmentContainerStats, setShipmentContainerStats] = useState(null);
+
+  // Fetch container stats when a shipment is selected
+  useEffect(() => {
+    const fetchShipmentStats = async () => {
+      if (!selectedShipment) {
+        setShipmentContainerStats(null);
+        return;
+      }
+
+      try {
+        const response = await getTransporterAssignedContainers();
+        if (response.success && response.data.shipments) {
+          const shipment = response.data.shipments.find(
+            s => s.shipmentHash === selectedShipment.shipmentHash ||
+                 s.shipmentId === selectedShipment.id ||
+                 s.batchId === selectedShipment.batchId
+          );
+          if (shipment) {
+            setShipmentContainerStats({
+              total: shipment.totalContainers,
+              scanned: shipment.scannedCount,
+              pending: shipment.pendingScans
+            });
+          } else {
+            // Fallback to shipment data
+            setShipmentContainerStats({
+              total: selectedShipment.numberOfContainers || 0,
+              scanned: 0,
+              pending: selectedShipment.numberOfContainers || 0
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch shipment container stats:', error);
+      }
+    };
+
+    fetchShipmentStats();
+  }, [selectedShipment]);
 
   // Calculate stats based on mapped transporter statuses
   const stats = useMemo(() => ({
     total: jobs.length,
     new: jobs.filter((j) => j.status === "Pending" || j.status === "Ready").length,
     inTransit: jobs.filter((j) => j.status === "In Transit").length,
-    delayed: jobs.filter((j) => j.status === "At Warehouse").length,
+    delivered: jobs.filter((j) => j.status === "Delivered").length,
   }), [jobs]);
 
   // Filter jobs based on tab and status
@@ -340,6 +381,23 @@ const DashboardPage = () => {
                         </svg>
                         On Chain
                       </span>
+                    )}
+                    {shipmentContainerStats && (
+                      shipmentContainerStats.pending === 0 ? (
+                        <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-lg">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          QR Scanned
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded-lg">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          QR Scan Pending ({shipmentContainerStats.scanned}/{shipmentContainerStats.total})
+                        </span>
+                      )
                     )}
                   </div>
                   <p className={`text-xs font-mono mb-2 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
