@@ -394,7 +394,7 @@ const ShipmentTrackingPage = () => {
                 }}
                 className={`flex items-center gap-2 text-sm font-medium transition-colors ${textSecondary} hover:${textPrimary}`}
               >
-                ? Back to all shipments
+                Back to all shipments
               </button>
 
               {/* Shipment Header Card */}
@@ -501,10 +501,47 @@ const ShipmentTrackingPage = () => {
                   {activeTab === "overview" && (
                     <div className="space-y-6">
                       <div>
-                        {/* Calculate scanned containers (status !== CREATED means scanned) */}
+                        {/* Calculate scanned containers based on current shipment phase */}
                         {(() => {
-                          const scannedCount = containers.filter(c => c.status !== 'CREATED').length;
+                          const shipmentStatus = selectedShipment.status;
                           const totalCount = selectedShipment.numberOfContainers || 0;
+                          
+                          // Determine which container statuses count as "scanned" for current phase
+                          // Each phase has its own scan requirement:
+                          // - created/ready_for_dispatch: Supplier scans (status >= SCANNED)
+                          // - in_transit: Transporter scans (status >= IN_TRANSIT)
+                          // - at_warehouse: Warehouse scans (status >= AT_WAREHOUSE)
+                          // - delivered: Final scan (status === DELIVERED)
+                          let scannedCount = 0;
+                          let phaseLabel = "scanned";
+                          
+                          if (shipmentStatus === 'in_transit') {
+                            // In transit phase: count containers scanned by transporter
+                            scannedCount = containers.filter(c => 
+                              c.status === 'IN_TRANSIT' || 
+                              c.status === 'AT_WAREHOUSE' || 
+                              c.status === 'DELIVERED'
+                            ).length;
+                            phaseLabel = "scanned by transporter";
+                          } else if (shipmentStatus === 'at_warehouse') {
+                            // Warehouse phase: count containers received at warehouse
+                            scannedCount = containers.filter(c => 
+                              c.status === 'AT_WAREHOUSE' || 
+                              c.status === 'DELIVERED'
+                            ).length;
+                            phaseLabel = "received at warehouse";
+                          } else if (shipmentStatus === 'delivered') {
+                            // Delivered phase: count delivered containers
+                            scannedCount = containers.filter(c => 
+                              c.status === 'DELIVERED'
+                            ).length;
+                            phaseLabel = "delivered";
+                          } else {
+                            // Created or ready_for_dispatch: count supplier scans
+                            scannedCount = containers.filter(c => c.status !== 'CREATED').length;
+                            phaseLabel = "scanned";
+                          }
+                          
                           const progressPercent = totalCount > 0 ? (scannedCount / totalCount) * 100 : 0;
                           
                           return (
@@ -516,7 +553,7 @@ const ShipmentTrackingPage = () => {
                                     ? isDarkMode ? "text-emerald-400" : "text-emerald-600"
                                     : textSecondary
                                 }`}>
-                                  {scannedCount} / {totalCount} scanned
+                                  {scannedCount} / {totalCount} {phaseLabel}
                                 </span>
                               </div>
                               <div className={`h-3 rounded-full overflow-hidden ${isDarkMode ? "bg-slate-800" : "bg-slate-200"}`}>
@@ -535,12 +572,12 @@ const ShipmentTrackingPage = () => {
                               </div>
                               {scannedCount === 0 && totalCount > 0 && (
                                 <p className={`text-xs mt-2 ${isDarkMode ? "text-amber-400" : "text-amber-600"}`}>
-                                  ?? No containers have been scanned yet
+                                  ⚠ No containers have been {phaseLabel} yet
                                 </p>
                               )}
                               {scannedCount === totalCount && totalCount > 0 && (
                                 <p className={`text-xs mt-2 ${isDarkMode ? "text-emerald-400" : "text-emerald-600"}`}>
-                                  ? All containers scanned successfully
+                                  ✓ All containers {phaseLabel} successfully
                                 </p>
                               )}
                             </>

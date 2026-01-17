@@ -166,6 +166,9 @@ export const router = createBrowserRouter([
           { path: "live", element: null },
           { path: "verification", element: null },
           { path: "users", element: null },
+          { path: "products", element: null },
+          { path: "warehouse", element: null },
+          { path: "settings", element: null },
         ],
       },
 
