@@ -1,39 +1,39 @@
 /**
  * Container Routes
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  * API ENDPOINTS FOR CONTAINER DATA AND SCANNING
  * ═══════════════════════════════════════════════════════════════════════════
- * 
- * Sentinel backend acts as a blockchain indexer, transforming immutable 
- * on-chain shipment events into queryable off-chain records for dashboards 
+ *
+ * Sentinel backend acts as a blockchain indexer, transforming immutable
+ * on-chain shipment events into queryable off-chain records for dashboards
  * and analytics.
- * 
+ *
  * Containers are OFF-CHAIN entities created when ShipmentLocked events are
  * indexed. Each container has a unique ID and QR code for physical tracking.
- * 
+ *
  * READ ENDPOINTS:
  * ✅ GET  /api/containers/:shipmentHash     - Get containers for shipment
  * ✅ GET  /api/containers/single/:containerId - Get single container
  * ✅ GET  /api/containers/:shipmentHash/stats - Get container stats
- * 
+ *
  * SCAN ENDPOINT:
  * ✅ POST /api/containers/scan              - Scan a container QR code
- * 
+ *
  * ❌ NO CREATE/UPDATE/DELETE OPERATIONS (except via scan)
  * ❌ NO BLOCKCHAIN WRITES
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Container = require('../models/Container');
-const Shipment = require('../models/Shipment');
-const authMiddleware = require('../middleware/authMiddleware');
-const roleMiddleware = require('../middleware/roleMiddleware');
-const scanController = require('../controllers/scanController');
-const transporterScanController = require('../controllers/transporterScanController');
+const Container = require("../models/Container");
+const Shipment = require("../models/Shipment");
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+const scanController = require("../controllers/scanController");
+const transporterScanController = require("../controllers/transporterScanController");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VALIDATION HELPERS
@@ -53,23 +53,23 @@ const parsePagination = (query) => {
  */
 const validateContainerScanRequest = (req, res, next) => {
   const { containerId } = req.body;
-  
-  if (!containerId || typeof containerId !== 'string') {
+
+  if (!containerId || typeof containerId !== "string") {
     return res.status(400).json({
       success: false,
-      message: 'containerId is required and must be a string'
+      message: "containerId is required and must be a string",
     });
   }
-  
+
   // Basic format validation for container ID
   const trimmed = containerId.trim();
   if (trimmed.length < 5 || trimmed.length > 100) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid containerId format'
+      message: "Invalid containerId format",
     });
   }
-  
+
   next();
 };
 
@@ -79,27 +79,27 @@ const validateContainerScanRequest = (req, res, next) => {
 
 /**
  * POST /api/containers/scan
- * 
+ *
  * Scan a container QR code
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  * CRITICAL DOMAIN RULES:
  * - QR codes contain ONLY containerId (no shipmentHash, no metadata)
  * - Containers can ONLY be scanned IF parent shipment has valid txHash
  * - If txHash is missing → FAIL with "Shipment is not marked ready for dispatch"
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * Requires: Authentication
  * Allowed Roles: transporter, warehouse, retailer
- * 
+ *
  * Request Body:
  * {
  *   containerId: string    // From QR scan (the ONLY data in QR code)
  * }
- * 
+ *
  * Note: actorWallet and role are extracted from authenticated user (req.user)
  *       and are NOT accepted from request body for security.
- * 
+ *
  * Response (Success):
  * {
  *   success: true,
@@ -108,7 +108,7 @@ const validateContainerScanRequest = (req, res, next) => {
  *   container: { containerId, previousStatus, currentStatus, ... },
  *   shipment: { shipmentHash, previousStatus, currentStatus, txHash, ... }
  * }
- * 
+ *
  * Response (Failure - Not Ready):
  * {
  *   success: false,
@@ -118,11 +118,11 @@ const validateContainerScanRequest = (req, res, next) => {
  * }
  */
 router.post(
-  '/scan',
+  "/scan",
   authMiddleware,
-  roleMiddleware(['transporter', 'warehouse', 'retailer']),
+  roleMiddleware(["transporter", "warehouse", "retailer"]),
   validateContainerScanRequest,
-  scanController.scanContainer
+  scanController.scanContainer,
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -131,13 +131,13 @@ router.post(
 
 /**
  * POST /api/containers/scan/transporter
- * 
+ *
  * Transporter-specific container scanning endpoint with strict domain rules:
  * - ONLY transporters can use this endpoint
  * - Container must belong to a blockchain-locked shipment (txHash required)
  * - Container can only be scanned ONCE by transporter
  * - Optional concern can be raised during scan
- * 
+ *
  * Request Body:
  * {
  *   containerId: string,    // From QR scan
@@ -145,23 +145,23 @@ router.post(
  * }
  */
 router.post(
-  '/scan/transporter',
+  "/scan/transporter",
   authMiddleware,
-  roleMiddleware(['transporter']),
+  roleMiddleware(["transporter"]),
   validateContainerScanRequest,
-  transporterScanController.scanContainerAsTransporter
+  transporterScanController.scanContainerAsTransporter,
 );
 
 /**
  * GET /api/containers/scan/transporter/assigned
- * 
+ *
  * Get containers assigned to the current transporter that are ready to scan
  */
 router.get(
-  '/scan/transporter/assigned',
+  "/scan/transporter/assigned",
   authMiddleware,
-  roleMiddleware(['transporter']),
-  transporterScanController.getAssignedContainers
+  roleMiddleware(["transporter"]),
+  transporterScanController.getAssignedContainers,
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -170,17 +170,17 @@ router.get(
 
 /**
  * GET /api/containers/:shipmentHash
- * 
+ *
  * Get all containers for a specific shipment
- * 
+ *
  * Path Parameters:
  * - shipmentHash: The shipment identifier
- * 
+ *
  * Query Parameters:
  * - status: Filter by container status (optional)
  * - page: Page number for pagination (default: 1)
  * - limit: Items per page (default: 50, max: 100)
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -191,16 +191,16 @@ router.get(
  *   pagination: { page, limit, total, totalPages }
  * }
  */
-router.get('/:shipmentHash', async (req, res) => {
+router.get("/:shipmentHash", async (req, res) => {
   try {
     const { shipmentHash } = req.params;
     const { status } = req.query;
     const { page, limit } = parsePagination(req.query);
 
-    if (!shipmentHash || shipmentHash.trim() === '') {
+    if (!shipmentHash || shipmentHash.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Shipment hash is required'
+        message: "Shipment hash is required",
       });
     }
 
@@ -209,7 +209,7 @@ router.get('/:shipmentHash', async (req, res) => {
     if (!shipment) {
       return res.status(404).json({
         success: false,
-        message: 'Shipment not found'
+        message: "Shipment not found",
       });
     }
 
@@ -218,11 +218,17 @@ router.get('/:shipmentHash', async (req, res) => {
 
     // Filter by status if provided
     if (status) {
-      const validStatuses = ['CREATED', 'SCANNED', 'IN_TRANSIT', 'AT_WAREHOUSE', 'DELIVERED'];
+      const validStatuses = [
+        "CREATED",
+        "SCANNED",
+        "IN_TRANSIT",
+        "AT_WAREHOUSE",
+        "DELIVERED",
+      ];
       if (!validStatuses.includes(status.toUpperCase())) {
         return res.status(400).json({
           success: false,
-          message: `Invalid status. Valid values: ${validStatuses.join(', ')}`
+          message: `Invalid status. Valid values: ${validStatuses.join(", ")}`,
         });
       }
       query.status = status.toUpperCase();
@@ -239,7 +245,7 @@ router.get('/:shipmentHash', async (req, res) => {
       .lean();
 
     // Transform to response format
-    const containerData = containers.map(container => ({
+    const containerData = containers.map((container) => ({
       containerId: container.containerId,
       containerNumber: container.containerNumber,
       quantity: container.quantity,
@@ -248,7 +254,7 @@ router.get('/:shipmentHash', async (req, res) => {
       lastScanLocation: container.lastScanLocation,
       lastScanAt: container.lastScanAt,
       lastScannedBy: container.lastScannedBy,
-      createdAt: container.createdAt
+      createdAt: container.createdAt,
     }));
 
     res.json({
@@ -261,35 +267,37 @@ router.get('/:shipmentHash', async (req, res) => {
           numberOfContainers: shipment.numberOfContainers,
           quantityPerContainer: shipment.quantityPerContainer,
           totalQuantity: shipment.totalQuantity,
-          status: shipment.status
+          status: shipment.status,
+          txHash: shipment.txHash,
+          productName: shipment.productName,
         },
-        containers: containerData
+        containers: containerData,
       },
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    console.error('Error fetching containers:', error);
+    console.error("Error fetching containers:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch containers'
+      message: "Failed to fetch containers",
     });
   }
 });
 
 /**
  * GET /api/containers/single/:containerId
- * 
+ *
  * Get a specific container by its unique ID
  * Useful for QR code scanning lookups
- * 
+ *
  * Path Parameters:
  * - containerId: The unique container identifier
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -299,14 +307,14 @@ router.get('/:shipmentHash', async (req, res) => {
  *   }
  * }
  */
-router.get('/single/:containerId', async (req, res) => {
+router.get("/single/:containerId", async (req, res) => {
   try {
     const { containerId } = req.params;
 
-    if (!containerId || containerId.trim() === '') {
+    if (!containerId || containerId.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Container ID is required'
+        message: "Container ID is required",
       });
     }
 
@@ -316,13 +324,13 @@ router.get('/single/:containerId', async (req, res) => {
     if (!container) {
       return res.status(404).json({
         success: false,
-        message: 'Container not found'
+        message: "Container not found",
       });
     }
 
     // Get parent shipment
-    const shipment = await Shipment.findOne({ 
-      shipmentHash: container.shipmentHash 
+    const shipment = await Shipment.findOne({
+      shipmentHash: container.shipmentHash,
     }).lean();
 
     res.json({
@@ -338,38 +346,40 @@ router.get('/single/:containerId', async (req, res) => {
           lastScanLocation: container.lastScanLocation,
           lastScanAt: container.lastScanAt,
           lastScannedBy: container.lastScannedBy,
-          createdAt: container.createdAt
+          createdAt: container.createdAt,
         },
-        shipment: shipment ? {
-          shipmentHash: shipment.shipmentHash,
-          batchId: shipment.batchId,
-          supplierWallet: shipment.supplierWallet,
-          numberOfContainers: shipment.numberOfContainers,
-          quantityPerContainer: shipment.quantityPerContainer,
-          totalQuantity: shipment.totalQuantity,
-          status: shipment.status,
-          txHash: shipment.txHash,
-          blockNumber: shipment.blockNumber
-        } : null
-      }
+        shipment: shipment
+          ? {
+              shipmentHash: shipment.shipmentHash,
+              batchId: shipment.batchId,
+              supplierWallet: shipment.supplierWallet,
+              numberOfContainers: shipment.numberOfContainers,
+              quantityPerContainer: shipment.quantityPerContainer,
+              totalQuantity: shipment.totalQuantity,
+              status: shipment.status,
+              txHash: shipment.txHash,
+              blockNumber: shipment.blockNumber,
+            }
+          : null,
+      },
     });
   } catch (error) {
-    console.error('Error fetching container:', error);
+    console.error("Error fetching container:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch container'
+      message: "Failed to fetch container",
     });
   }
 });
 
 /**
  * GET /api/containers/:shipmentHash/stats
- * 
+ *
  * Get container statistics for a shipment
- * 
+ *
  * Path Parameters:
  * - shipmentHash: The shipment identifier
- * 
+ *
  * Response:
  * {
  *   success: true,
@@ -379,14 +389,14 @@ router.get('/single/:containerId', async (req, res) => {
  *   }
  * }
  */
-router.get('/:shipmentHash/stats', async (req, res) => {
+router.get("/:shipmentHash/stats", async (req, res) => {
   try {
     const { shipmentHash } = req.params;
 
-    if (!shipmentHash || shipmentHash.trim() === '') {
+    if (!shipmentHash || shipmentHash.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: 'Shipment hash is required'
+        message: "Shipment hash is required",
       });
     }
 
@@ -395,7 +405,7 @@ router.get('/:shipmentHash/stats', async (req, res) => {
     if (!shipmentExists) {
       return res.status(404).json({
         success: false,
-        message: 'Shipment not found'
+        message: "Shipment not found",
       });
     }
 
@@ -407,14 +417,14 @@ router.get('/:shipmentHash/stats', async (req, res) => {
       { $match: { shipmentHash } },
       {
         $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const byStatus = {};
-    statusCounts.forEach(item => {
+    statusCounts.forEach((item) => {
       byStatus[item._id] = item.count;
     });
 
@@ -422,14 +432,14 @@ router.get('/:shipmentHash/stats', async (req, res) => {
       success: true,
       data: {
         total,
-        byStatus
-      }
+        byStatus,
+      },
     });
   } catch (error) {
-    console.error('Error fetching container stats:', error);
+    console.error("Error fetching container stats:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch container statistics'
+      message: "Failed to fetch container statistics",
     });
   }
 });

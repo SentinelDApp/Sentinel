@@ -8,8 +8,9 @@ import WarehouseOverview from "./components/WarehouseOverview";
 import IncomingShipments from "./components/IncomingShipments";
 import ShipmentActions from "./components/ShipmentActions";
 import ShipmentDetails from "./components/ShipmentDetails";
-import QRScanner from "./components/QRScanner";
+import WarehouseQRScanPanel from "./components/WarehouseQRScanPanel";
 import ProfilePage from "./pages/ProfilePage";
+import CommittedShipmentsPage from "./pages/CommittedShipmentsPage";
 import { useAuth } from "../../context/AuthContext";
 import { fetchWarehouseShipments } from "../../services/shipmentApi";
 import {
@@ -27,6 +28,7 @@ const NavigationTabs = ({
   setActiveTab,
   alertCount,
   dispatchCount,
+  committedCount,
   isDarkMode,
 }) => {
   const tabs = [
@@ -37,6 +39,12 @@ const NavigationTabs = ({
       label: "Order Dispatch",
       icon: "🚚",
       badge: dispatchCount > 0 ? dispatchCount : null,
+    },
+    {
+      id: "committed",
+      label: "Committed",
+      icon: "✅",
+      badge: committedCount > 0 ? committedCount : null,
     },
     {
       id: "manage",
@@ -68,8 +76,8 @@ const NavigationTabs = ({
                   ? "bg-slate-800 text-white"
                   : "bg-slate-100 text-slate-900"
                 : isDarkMode
-                ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             <span>{tab.icon}</span>
@@ -92,6 +100,7 @@ const MobileNav = ({
   setActiveTab,
   alertCount,
   dispatchCount,
+  committedCount,
   isDarkMode,
 }) => {
   const tabs = [
@@ -102,6 +111,12 @@ const MobileNav = ({
       label: "Dispatch",
       icon: "🚚",
       badge: dispatchCount > 0 ? dispatchCount : null,
+    },
+    {
+      id: "committed",
+      label: "Committed",
+      icon: "✅",
+      badge: committedCount > 0 ? committedCount : null,
     },
     {
       id: "manage",
@@ -133,8 +148,8 @@ const MobileNav = ({
                   ? "text-white"
                   : "text-slate-900"
                 : isDarkMode
-                ? "text-slate-500"
-                : "text-slate-400"
+                  ? "text-slate-500"
+                  : "text-slate-400"
             }`}
           >
             <span className="text-lg">{tab.icon}</span>
@@ -323,7 +338,7 @@ const WarehouseDashboardContent = ({ page }) => {
         rawStatus: shipment.status, // Keep original status for reference
         createdAt: shipment.createdAt,
         expectedArrival: new Date(
-          Date.now() + 24 * 60 * 60 * 1000
+          Date.now() + 24 * 60 * 60 * 1000,
         ).toISOString(),
         assignedTransporter: shipment.assignedTransporter,
         assignedWarehouse: shipment.assignedWarehouse,
@@ -374,8 +389,8 @@ const WarehouseDashboardContent = ({ page }) => {
               receivedAt: new Date().toISOString(),
               blockchainTxId: generateTxHash(),
             }
-          : s
-      )
+          : s,
+      ),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -399,8 +414,8 @@ const WarehouseDashboardContent = ({ page }) => {
               verification: verificationData,
               blockchainTxId: generateTxHash(),
             }
-          : s
-      )
+          : s,
+      ),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -428,8 +443,8 @@ const WarehouseDashboardContent = ({ page }) => {
               storageZoneName: zone?.name,
               blockchainTxId: generateTxHash(),
             }
-          : s
-      )
+          : s,
+      ),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -454,8 +469,8 @@ const WarehouseDashboardContent = ({ page }) => {
               readyAt: new Date().toISOString(),
               blockchainTxId: generateTxHash(),
             }
-          : s
-      )
+          : s,
+      ),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -482,8 +497,8 @@ const WarehouseDashboardContent = ({ page }) => {
               retailerName: retailer?.name,
               blockchainTxId: generateTxHash(),
             }
-          : s
-      )
+          : s,
+      ),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -515,8 +530,8 @@ const WarehouseDashboardContent = ({ page }) => {
               status: SHIPMENT_STATUSES.CONCERN_RAISED,
               concern,
             }
-          : s
-      )
+          : s,
+      ),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -544,7 +559,7 @@ const WarehouseDashboardContent = ({ page }) => {
             resolution,
           },
         };
-      })
+      }),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -575,14 +590,14 @@ const WarehouseDashboardContent = ({ page }) => {
 
   // Count shipments with open concerns for badge
   const alertCount = shipments.filter(
-    (s) => s.concern?.status === CONCERN_STATUS.OPEN
+    (s) => s.concern?.status === CONCERN_STATUS.OPEN,
   ).length;
 
   // Count shipments ready for dispatch
   const dispatchCount = shipments.filter(
     (s) =>
       s.status === SHIPMENT_STATUSES.STORED ||
-      s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH
+      s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH,
   ).length;
 
   // Filter shipments based on search
@@ -591,7 +606,7 @@ const WarehouseDashboardContent = ({ page }) => {
       s.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.productName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.supplierName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.batchId?.toLowerCase().includes(searchQuery.toLowerCase())
+      s.batchId?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -613,6 +628,7 @@ const WarehouseDashboardContent = ({ page }) => {
           setActiveTab={setActiveTab}
           alertCount={alertCount}
           dispatchCount={dispatchCount}
+          committedCount={0}
           isDarkMode={isDarkMode}
         />
 
@@ -636,7 +652,7 @@ const WarehouseDashboardContent = ({ page }) => {
                   shipments={filteredShipments.filter(
                     (s) =>
                       s.status === SHIPMENT_STATUSES.PENDING ||
-                      s.status === SHIPMENT_STATUSES.RECEIVED
+                      s.status === SHIPMENT_STATUSES.RECEIVED,
                   )}
                   selectedShipment={selectedShipment}
                   onShipmentSelect={handleSelectShipment}
@@ -645,12 +661,15 @@ const WarehouseDashboardContent = ({ page }) => {
                 />
               </div>
               <div>
-                <QRScanner
-                  onScanComplete={(data) => {
-                    const shipment = shipments.find((s) => s.id === data);
-                    if (shipment) handleSelectShipment(shipment);
+                <WarehouseQRScanPanel
+                  onComplete={(data) => {
+                    console.log("Warehouse scan complete:", data);
+                    // Refresh shipments after scan completion
+                    fetchShipmentsData();
                   }}
-                  isDarkMode={isDarkMode}
+                  onError={(error) => {
+                    console.error("Warehouse scan error:", error);
+                  }}
                 />
               </div>
             </div>
@@ -675,7 +694,7 @@ const WarehouseDashboardContent = ({ page }) => {
                   >
                     {
                       shipments.filter(
-                        (s) => s.status === SHIPMENT_STATUSES.STORED
+                        (s) => s.status === SHIPMENT_STATUSES.STORED,
                       ).length
                     }
                   </p>
@@ -701,7 +720,8 @@ const WarehouseDashboardContent = ({ page }) => {
                   >
                     {
                       shipments.filter(
-                        (s) => s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH
+                        (s) =>
+                          s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH,
                       ).length
                     }
                   </p>
@@ -727,7 +747,7 @@ const WarehouseDashboardContent = ({ page }) => {
                   >
                     {
                       shipments.filter(
-                        (s) => s.status === SHIPMENT_STATUSES.DISPATCHED
+                        (s) => s.status === SHIPMENT_STATUSES.DISPATCHED,
                       ).length
                     }
                   </p>
@@ -802,7 +822,7 @@ const WarehouseDashboardContent = ({ page }) => {
                       {filteredShipments.filter(
                         (s) =>
                           s.status === SHIPMENT_STATUSES.STORED ||
-                          s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH
+                          s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH,
                       ).length === 0 ? (
                         <div className="p-8 text-center">
                           <span className="text-4xl">📦</span>
@@ -826,7 +846,7 @@ const WarehouseDashboardContent = ({ page }) => {
                           .filter(
                             (s) =>
                               s.status === SHIPMENT_STATUSES.STORED ||
-                              s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH
+                              s.status === SHIPMENT_STATUSES.READY_FOR_DISPATCH,
                           )
                           .map((shipment) => (
                             <div
@@ -838,8 +858,8 @@ const WarehouseDashboardContent = ({ page }) => {
                                     ? "bg-blue-500/10 border-l-2 border-l-blue-500"
                                     : "bg-blue-50 border-l-2 border-l-blue-500"
                                   : isDarkMode
-                                  ? "hover:bg-slate-800/50"
-                                  : "hover:bg-slate-50"
+                                    ? "hover:bg-slate-800/50"
+                                    : "hover:bg-slate-50"
                               }`}
                             >
                               <div className="flex items-center justify-between">
@@ -912,8 +932,8 @@ const WarehouseDashboardContent = ({ page }) => {
                                     {shipment.priority === "critical"
                                       ? "🔴"
                                       : shipment.priority === "high"
-                                      ? "🟡"
-                                      : "⚪"}
+                                        ? "🟡"
+                                        : "⚪"}
                                   </span>
                                 </div>
                               </div>
@@ -1062,6 +1082,9 @@ const WarehouseDashboardContent = ({ page }) => {
             </div>
           )}
 
+          {/* Committed Shipments Tab */}
+          {activeTab === "committed" && <CommittedShipmentsPage />}
+
           {/* Manage Tab */}
           {activeTab === "manage" && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1138,6 +1161,7 @@ const WarehouseDashboardContent = ({ page }) => {
         setActiveTab={setActiveTab}
         alertCount={alertCount}
         dispatchCount={dispatchCount}
+        committedCount={0}
         isDarkMode={isDarkMode}
       />
 
