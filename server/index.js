@@ -42,6 +42,7 @@ const containerRoutes = require('./routes/containerRoutes');
 const indexerRoutes = require('./routes/indexerRoutes');
 const userRoutes = require('./routes/userRoutes');
 const scanRoutes = require('./routes/scanRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 // Services
 const blockchainIndexer = require('./services/blockchainIndexer');
@@ -120,6 +121,16 @@ app.use('/api/indexer', indexerRoutes);
  * Role-based authorization for status transitions.
  */
 app.use('/api/scan', scanRoutes);
+
+// ================= AI CHATBOT ROUTES ================= //
+/**
+ * CHATBOT APIs
+ * 
+ * AI-powered supply chain assistant using LangChain & Google Gemini.
+ * Can query blockchain for shipment information.
+ * Natural language interface for shipment tracking.
+ */
+app.use('/api/chat', chatRoutes);
 
 // ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**

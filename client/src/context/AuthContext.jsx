@@ -192,6 +192,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('sentinel_user', JSON.stringify(verifyData.user));
       localStorage.setItem('sentinel_wallet', wallet);
 
+      // Dispatch custom event to notify App component (for ChatBot visibility)
+      window.dispatchEvent(new Event('sentinel-auth-change'));
+
       setIsLoading(false);
       return { 
         success: true, 
@@ -218,6 +221,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('sentinel_token');
     localStorage.removeItem('sentinel_user');
     localStorage.removeItem('sentinel_wallet');
+
+    // Dispatch custom event to notify App component (for ChatBot visibility)
+    window.dispatchEvent(new Event('sentinel-auth-change'));
   }, []);
 
   /**
