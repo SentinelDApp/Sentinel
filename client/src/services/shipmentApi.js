@@ -565,7 +565,7 @@ export const updateShipmentStatus = async (
   notes = "",
 ) => {
   // Get auth token from localStorage
-  const authToken = localStorage.getItem("token");
+  const authToken = localStorage.getItem("sentinel_token");
 
   if (!authToken) {
     throw new Error("Authentication required");
