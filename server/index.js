@@ -126,9 +126,10 @@ app.use('/api/scan', scanRoutes);
 /**
  * CHATBOT APIs
  * 
- * AI-powered supply chain assistant using LangChain & Google Gemini.
- * Can query blockchain for shipment information.
- * Natural language interface for shipment tracking.
+ * Sentinel AI assistant chatbot with Google Gemini integration for
+ * supply chain insights and shipment/container queries.
+ * Provides a natural language interface for tracking and querying
+ * indexed shipment data (and related on-chain information) via /api/chat.
  */
 app.use('/api/chat', chatRoutes);
 

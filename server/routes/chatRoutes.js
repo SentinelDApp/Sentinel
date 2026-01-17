@@ -62,7 +62,12 @@ try {
 // 2. INITIALIZE GOOGLE AI CLIENT
 // ═══════════════════════════════════════════════════════════════════════════
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+const googleApiKey = process.env.GOOGLE_API_KEY;
+if (!googleApiKey) {
+  console.error('❌ [ChatBot] GOOGLE_API_KEY environment variable is not set. Please configure it before starting the server.');
+  throw new Error('GOOGLE_API_KEY environment variable is required for GoogleGenerativeAI client initialization.');
+}
+const genAI = new GoogleGenerativeAI(googleApiKey);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. TOOL DEFINITION FOR GEMINI

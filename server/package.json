@@ -18,16 +18,13 @@
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@langchain/core": "^1.1.15",
-    "@langchain/google-genai": "^2.1.10",
-    "@langchain/langgraph": "^1.1.0",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "ethers": "^6.16.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "langchain": "^1.2.10",
+    
     "mongoose": "^9.0.2",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.12"

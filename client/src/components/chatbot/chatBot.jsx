@@ -132,7 +132,7 @@ const ChatBot = () => {
       type: 'bot',
       text: `👋 Hello! I'm Sentinel AI, your supply chain assistant.
 
-How can I can help you!`,
+How can I help you today?`,
       timestamp: new Date(),
     },
   ]);

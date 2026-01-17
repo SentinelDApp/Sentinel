@@ -20,7 +20,7 @@ const path = require('path');
 const GANACHE_URL = process.env.GANACHE_URL || 'http://127.0.0.1:7545';
 
 // Contract address (deployed on Ganache)
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0x3A4e162AdcF4ba2218D8297506E409A7e4228C2c';
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
 
 // Load contract ABI
 let CONTRACT_ABI;
