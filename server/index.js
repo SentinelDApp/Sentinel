@@ -42,6 +42,7 @@ const containerRoutes = require('./routes/containerRoutes');
 const indexerRoutes = require('./routes/indexerRoutes');
 const userRoutes = require('./routes/userRoutes');
 const scanRoutes = require('./routes/scanRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 // Services
 const blockchainIndexer = require('./services/blockchainIndexer');
@@ -120,6 +121,17 @@ app.use('/api/indexer', indexerRoutes);
  * Role-based authorization for status transitions.
  */
 app.use('/api/scan', scanRoutes);
+
+// ================= AI CHATBOT ROUTES ================= //
+/**
+ * CHATBOT APIs
+ * 
+ * Sentinel AI assistant chatbot with Google Gemini integration for
+ * supply chain insights and shipment/container queries.
+ * Provides a natural language interface for tracking and querying
+ * indexed shipment data (and related on-chain information) via /api/chat.
+ */
+app.use('/api/chat', chatRoutes);
 
 // ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**

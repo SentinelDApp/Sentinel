@@ -1238,17 +1238,11 @@ const scanContainerForWarehouse = async (req, res) => {
     // ═══════════════════════════════════════════════════════════════════════
 
     if (!containerId || typeof containerId !== "string") {
-      const scanLog = await ScanLog.logRejected(
-        baseScanData,
-        REJECTION_REASONS.INVALID_QR_FORMAT,
-      );
-
       return res.status(400).json({
         success: false,
         status: "REJECTED",
         reason: "Container ID is required",
-        code: REJECTION_REASONS.INVALID_QR_FORMAT,
-        scanId: scanLog.scanId,
+        code: REJECTION_REASONS.INVALID_QR_FORMAT
       });
     }
 
@@ -1265,18 +1259,12 @@ const scanContainerForWarehouse = async (req, res) => {
     });
 
     if (!container) {
-      const scanLog = await ScanLog.logRejected(
-        baseScanData,
-        REJECTION_REASONS.CONTAINER_NOT_FOUND,
-      );
-
       return res.status(404).json({
         success: false,
         status: "REJECTED",
         reason: "Container not found in system",
         code: REJECTION_REASONS.CONTAINER_NOT_FOUND,
-        scanId: scanLog.scanId,
-        message: `Container ${normalizedContainerId} does not exist`,
+        message: `Container ${normalizedContainerId} does not exist`
       });
     }
 
@@ -1289,17 +1277,11 @@ const scanContainerForWarehouse = async (req, res) => {
     });
 
     if (!shipment) {
-      const scanLog = await ScanLog.logRejected(
-        baseScanData,
-        REJECTION_REASONS.SHIPMENT_NOT_FOUND,
-      );
-
       return res.status(404).json({
         success: false,
         status: "REJECTED",
         reason: "Parent shipment not found",
-        code: REJECTION_REASONS.SHIPMENT_NOT_FOUND,
-        scanId: scanLog.scanId,
+        code: REJECTION_REASONS.SHIPMENT_NOT_FOUND
       });
     }
 
@@ -1307,19 +1289,13 @@ const scanContainerForWarehouse = async (req, res) => {
 
     // Verify shipment is locked on blockchain
     if (!shipment.txHash) {
-      const scanLog = await ScanLog.logRejected(
-        baseScanData,
-        REJECTION_REASONS.NOT_READY_FOR_DISPATCH,
-      );
-
       return res.status(400).json({
         success: false,
         status: "REJECTED",
         reason: "Shipment not locked on blockchain",
         code: REJECTION_REASONS.NOT_READY_FOR_DISPATCH,
-        scanId: scanLog.scanId,
         message:
-          "This container cannot be scanned because its shipment is not locked on the blockchain yet.",
+          "This container cannot be scanned because its shipment is not locked on the blockchain yet."
       });
     }
 
@@ -1332,39 +1308,27 @@ const scanContainerForWarehouse = async (req, res) => {
     if (!validStatuses.includes(container.status)) {
       // Check if it was already scanned by warehouse
       if (container.status === "DELIVERED") {
-        const scanLog = await ScanLog.logRejected(
-          baseScanData,
-          REJECTION_REASONS.ALREADY_DELIVERED,
-        );
-
         return res.status(400).json({
           success: false,
           status: "REJECTED",
           reason: "Container already delivered",
-          code: REJECTION_REASONS.ALREADY_DELIVERED,
-          scanId: scanLog.scanId,
+          code: REJECTION_REASONS.ALREADY_DELIVERED
         });
       }
 
       // Container not yet scanned by transporter
-      const scanLog = await ScanLog.logRejected(
-        baseScanData,
-        "NOT_SCANNED_BY_TRANSPORTER",
-      );
-
       return res.status(400).json({
         success: false,
         status: "REJECTED",
         reason: "Container must be scanned by transporter first",
         code: "NOT_SCANNED_BY_TRANSPORTER",
-        scanId: scanLog.scanId,
         message:
           "This container has not been picked up by the transporter yet. Current status: " +
           container.status,
         container: {
           containerId: container.containerId,
-          status: container.status,
-        },
+          status: container.status
+        }
       });
     }
 
@@ -1457,7 +1421,9 @@ const scanContainerForWarehouse = async (req, res) => {
     );
 
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 9: Check if all containers are now at warehouse and update shipment
+    // STEP 9: DO NOT auto-update shipment status during scanning
+    // Shipment status will be manually updated via API after all containers scanned
+    // Keep previous shipment status for response
     // ═══════════════════════════════════════════════════════════════════════
 
     const allContainers = await Container.find({
@@ -1477,59 +1443,18 @@ const scanContainerForWarehouse = async (req, res) => {
     const totalContainers = allContainers.length;
     const allAtWarehouse = atWarehouseCount === totalContainers;
 
-    // Derive new shipment status
-    const derivedShipmentStatus =
-      deriveShipmentStatusFromContainers(updatedContainers);
-
-    // Update shipment status if changed OR if all containers are at warehouse
-    if (derivedShipmentStatus !== shipment.status || allAtWarehouse) {
-      const finalStatus = allAtWarehouse
-        ? "AT_WAREHOUSE"
-        : derivedShipmentStatus;
-
-      await Shipment.updateOne(
-        { shipmentHash: shipment.shipmentHash },
-        {
-          $set: {
-            status: finalStatus,
-            warehouseReceivedAt: allAtWarehouse
-              ? now
-              : shipment.warehouseReceivedAt,
-            warehouseCommittedBy: allAtWarehouse
-              ? actorWallet
-              : shipment.warehouseCommittedBy,
-            updatedAt: now,
-          },
-          $push: {
-            statusHistory: {
-              status: finalStatus,
-              changedBy: actorWallet,
-              changedAt: now,
-              action: allAtWarehouse
-                ? "WAREHOUSE_COMMITTED"
-                : "WAREHOUSE_CONTAINER_SCAN",
-              notes: allAtWarehouse
-                ? `All ${totalContainers} containers received at warehouse. Shipment committed.`
-                : `Container ${normalizedContainerId} received at warehouse. ${atWarehouseCount}/${totalContainers} containers at warehouse.`,
-            },
-          },
-        },
-      );
-    }
+    const previousShipmentStatus = shipment.status;
+    const shipmentStatusChanged = false;
 
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 10: Return success response with snapshot and verification
     // ═══════════════════════════════════════════════════════════════════════
 
-    const finalShipmentStatus = allAtWarehouse
-      ? "AT_WAREHOUSE"
-      : derivedShipmentStatus;
-
     return res.status(200).json({
       success: true,
       status: "VERIFIED",
       message: allAtWarehouse
-        ? "All containers received! Shipment committed to warehouse."
+        ? "All containers received! Click 'Update Status' to commit shipment."
         : "Container scanned and received successfully",
       scanId: scanLog.scanId,
       scannedAt: scanLog.scannedAt,
@@ -1548,7 +1473,8 @@ const scanContainerForWarehouse = async (req, res) => {
       shipment: {
         shipmentHash: shipment.shipmentHash,
         batchId: shipment.batchId,
-        status: finalShipmentStatus,
+        status: previousShipmentStatus, // Status unchanged during scan
+        statusChanged: shipmentStatusChanged, // Always false now
         numberOfContainers: totalContainers,
         containersAtWarehouse: atWarehouseCount,
         allContainersReceived: allAtWarehouse,
