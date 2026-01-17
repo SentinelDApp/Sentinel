@@ -1,13 +1,15 @@
+import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import StatsCard from "../components/StatsCard";
 import {
   BoxIcon,
   TruckIcon,
   CheckCircleIcon,
-  AlertIcon,
   RefreshIcon,
   LocationIcon,
+  WarehouseIcon,
 } from "../icons/Icons";
+import { fetchShipments, fetchContainers } from "../../../services/shipmentApi";
 
 // Pie Chart Component
 const PieChart = ({ data, size = 160 }) => {
@@ -82,52 +84,134 @@ const PieChart = ({ data, size = 160 }) => {
 };
 
 // Stats data - empty/zero values (will be populated from API)
-const statsData = [
+const defaultStatsData = [
   {
-    title: "Total Products",
+    title: "Total Shipments",
     value: "0",
     subtitle: "No data yet",
     icon: BoxIcon,
     color: "blue",
-    trend: "up",
-    trendValue: "0%",
   },
   {
-    title: "Active Shipments",
+    title: "In Transit",
     value: "0",
-    subtitle: "0 in transit",
+    subtitle: "Currently moving",
     icon: TruckIcon,
     color: "amber",
-    trend: "up",
-    trendValue: "0%",
+  },
+  {
+    title: "At Warehouse",
+    value: "0",
+    subtitle: "In storage",
+    icon: WarehouseIcon,
+    color: "purple",
   },
   {
     title: "Delivered",
     value: "0",
-    subtitle: "This month",
+    subtitle: "Completed",
     icon: CheckCircleIcon,
     color: "green",
-    trend: "up",
-    trendValue: "0%",
-  },
-  {
-    title: "Alerts",
-    value: "0",
-    subtitle: "All clear",
-    icon: AlertIcon,
-    color: "red",
-    trend: "down",
-    trendValue: "0%",
   },
 ];
 
-// Empty shipments array (will be populated from API)
-const activeShipments = [];
-
-const recentShipments = activeShipments.slice(0, 3);
-
 const SupplierDashboard = () => {
   const { isDarkMode } = useTheme();
+  const [shipments, setShipments] = useState([]);
+  const [allContainers, setAllContainers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Calculate stats from real data
+  const stats = {
+    total: shipments.length,
+    inTransit: shipments.filter(s => s.status === "in_transit").length,
+    atWarehouse: shipments.filter(s => s.status === "at_warehouse").length,
+    delivered: shipments.filter(s => s.status === "delivered").length,
+    created: shipments.filter(s => s.status === "created" || s.status === "ready_for_dispatch").length,
+  };
+
+  // Calculate scan progress from containers
+  const scanProgress = {
+    total: allContainers.length,
+    scanned: allContainers.filter(c => c.status !== 'CREATED').length,
+    verified: allContainers.filter(c => c.status === 'DELIVERED').length,
+    pending: allContainers.filter(c => c.status === 'CREATED').length,
+  };
+
+  const statsData = [
+    {
+      title: "Total Shipments",
+      value: stats.total.toString(),
+      subtitle: `${stats.created} pending dispatch`,
+      icon: BoxIcon,
+      color: "blue",
+    },
+    {
+      title: "In Transit",
+      value: stats.inTransit.toString(),
+      subtitle: "Currently moving",
+      icon: TruckIcon,
+      color: "amber",
+    },
+    {
+      title: "At Warehouse",
+      value: stats.atWarehouse.toString(),
+      subtitle: "In storage",
+      icon: WarehouseIcon,
+      color: "purple",
+    },
+    {
+      title: "Delivered",
+      value: stats.delivered.toString(),
+      subtitle: "Completed",
+      icon: CheckCircleIcon,
+      color: "green",
+    },
+  ];
+
+  // Fetch shipments and containers
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const result = await fetchShipments(null, { limit: 100 });
+      const shipmentsData = result.shipments || [];
+      setShipments(shipmentsData);
+
+      // Fetch containers for all shipments
+      const containersPromises = shipmentsData.map(s => 
+        fetchContainers(s.shipmentHash).catch(() => ({ containers: [] }))
+      );
+      const containersResults = await Promise.all(containersPromises);
+      const allContainersData = containersResults.flatMap(r => r.containers || []);
+      setAllContainers(allContainersData);
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData();
+    setIsRefreshing(false);
+  };
+
+  // Get recent shipments (last 5)
+  const recentShipments = shipments.slice(0, 5).map(s => ({
+    id: s.shipmentHash?.slice(0, 8) + '...' + s.shipmentHash?.slice(-6),
+    fullId: s.shipmentHash,
+    status: s.status,
+    destination: s.warehouseName || 'Warehouse',
+    boxes: s.numberOfContainers || 0,
+    scanned: allContainers.filter(c => c.shipmentHash === s.shipmentHash && c.status !== 'CREATED').length,
+    lastUpdate: new Date(s.createdAt).toLocaleDateString(),
+  }));
 
   const handleViewShipment = (id) => {
     console.log("Viewing shipment:", id);
@@ -156,6 +240,8 @@ const SupplierDashboard = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
             className={`
               flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors
               ${
@@ -163,10 +249,11 @@ const SupplierDashboard = () => {
                   ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
                   : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm"
               }
+              ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}
             `}
           >
-            <RefreshIcon className="w-4 h-4" />
-            Refresh
+            <RefreshIcon className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
         </div>
       </div>
@@ -219,10 +306,10 @@ const SupplierDashboard = () => {
             <div className="relative flex justify-center mb-6">
               <PieChart
                 data={[
-                  { label: "Scanned", value: 0, color: "#3b82f6" },
+                  { label: "Scanned", value: scanProgress.scanned || 0, color: "#3b82f6" },
                   {
                     label: "Not Scanned",
-                    value: 1,
+                    value: scanProgress.pending || 1,
                     color: isDarkMode ? "#334155" : "#e2e8f0",
                   },
                 ]}
@@ -235,24 +322,24 @@ const SupplierDashboard = () => {
               {[
                 {
                   label: "Total Scanned",
-                  value: "0",
-                  total: "0",
+                  value: scanProgress.scanned.toString(),
+                  total: scanProgress.total.toString(),
                   color: "bg-blue-500",
-                  percent: "0%",
+                  percent: scanProgress.total > 0 ? Math.round((scanProgress.scanned / scanProgress.total) * 100) + "%" : "0%",
                 },
                 {
-                  label: "Verified",
-                  value: "0",
-                  total: "0",
+                  label: "Delivered",
+                  value: scanProgress.verified.toString(),
+                  total: scanProgress.total.toString(),
                   color: "bg-green-500",
-                  percent: "0%",
+                  percent: scanProgress.total > 0 ? Math.round((scanProgress.verified / scanProgress.total) * 100) + "%" : "0%",
                 },
                 {
                   label: "Pending",
-                  value: "0",
-                  total: "0",
+                  value: scanProgress.pending.toString(),
+                  total: scanProgress.total.toString(),
                   color: "bg-amber-500",
-                  percent: "0%",
+                  percent: scanProgress.total > 0 ? Math.round((scanProgress.pending / scanProgress.total) * 100) + "%" : "0%",
                 },
               ].map((item, index) => (
                 <div key={index} className="flex items-center justify-between">
@@ -324,29 +411,39 @@ const SupplierDashboard = () => {
             </div>
 
             <div className="space-y-3">
-              {recentShipments.map((shipment) => {
+              {loading ? (
+                <div className="py-8 text-center">
+                  <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                  <p className={`mt-4 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Loading shipments...</p>
+                </div>
+              ) : recentShipments.length === 0 ? (
+                <div className="py-8 text-center">
+                  <BoxIcon className={`w-12 h-12 mx-auto ${isDarkMode ? "text-slate-600" : "text-slate-300"}`} />
+                  <p className={`mt-4 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>No shipments yet</p>
+                </div>
+              ) : recentShipments.map((shipment) => {
                 const statusConfig = {
-                  "in-transit": {
+                  "in_transit": {
                     color: "bg-blue-500",
                     text: "In Transit",
                     textColor: "text-blue-400",
                   },
-                  warehouse: {
-                    color: "bg-amber-500",
+                  "at_warehouse": {
+                    color: "bg-purple-500",
                     text: "At Warehouse",
+                    textColor: "text-purple-400",
+                  },
+                  "ready_for_dispatch": {
+                    color: "bg-amber-500",
+                    text: "Ready for Dispatch",
                     textColor: "text-amber-400",
                   },
-                  created: {
+                  "created": {
                     color: "bg-slate-500",
                     text: "Created",
                     textColor: "text-slate-400",
                   },
-                  delayed: {
-                    color: "bg-red-500",
-                    text: "Delayed",
-                    textColor: "text-red-400",
-                  },
-                  delivered: {
+                  "delivered": {
                     color: "bg-green-500",
                     text: "Delivered",
                     textColor: "text-green-400",
@@ -357,8 +454,8 @@ const SupplierDashboard = () => {
 
                 return (
                   <div
-                    key={shipment.id}
-                    onClick={() => handleViewShipment(shipment.id)}
+                    key={shipment.fullId}
+                    onClick={() => handleViewShipment(shipment.fullId)}
                     className={`
                       flex items-center justify-between p-4 rounded-xl cursor-pointer
                       transition-all duration-200

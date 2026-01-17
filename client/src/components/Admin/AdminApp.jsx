@@ -9,6 +9,9 @@ import LiveDashboard from "./pages/LiveDashboard";
 import CustomerVerificationPage from "./pages/CustomerVerificationPage";
 import UsersPage from "./pages/UsersPage";
 import RequestsPage from "./pages/RequestsPage";
+import ProductsPage from "./pages/ProductsPage";
+import WarehousePage from "./pages/WarehousePage";
+import SettingsPage from "./pages/SettingsPage";
 
 // Main Admin App - Contains all admin-specific logic
 function AdminApp({ role = "admin" }) {
@@ -24,6 +27,9 @@ function AdminApp({ role = "admin" }) {
     if (path.includes('/verification')) return 'verification';
     if (path.includes('/users')) return 'users';
     if (path.includes('/requests')) return 'requests';
+    if (path.includes('/products')) return 'products';
+    if (path.includes('/warehouse')) return 'warehouse';
+    if (path.includes('/settings')) return 'settings';
     return 'dashboard';
   };
   
@@ -53,6 +59,15 @@ function AdminApp({ role = "admin" }) {
       case 'requests':
         navigate('/admin/requests');
         break;
+      case 'products':
+        navigate('/admin/products');
+        break;
+      case 'warehouse':
+        navigate('/admin/warehouse');
+        break;
+      case 'settings':
+        navigate('/admin/settings');
+        break;
       default:
         navigate('/admin/dashboard');
     }
@@ -74,6 +89,12 @@ function AdminApp({ role = "admin" }) {
         return <UsersPage />;
       case "requests":
         return <RequestsPage />;
+      case "products":
+        return <ProductsPage />;
+      case "warehouse":
+        return <WarehousePage />;
+      case "settings":
+        return <SettingsPage />;
       default:
         return <SupplierDashboard />;
     }

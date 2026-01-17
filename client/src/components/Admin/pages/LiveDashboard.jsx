@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import {
   AlertIcon,
@@ -11,36 +11,106 @@ import {
   BellIcon,
   XMarkIcon,
   EyeIcon,
+  WarehouseIcon,
 } from "../icons/Icons";
+import { fetchShipments, fetchContainers } from "../../../services/shipmentApi";
 
-// Empty shipment tracking data (will be populated from API)
-const shipmentsData = [];
+// Status mapping for display
+const STATUS_LABELS = {
+  created: "Created",
+  ready_for_dispatch: "Ready for Dispatch",
+  in_transit: "In Transit",
+  at_warehouse: "At Warehouse",
+  delivered: "Delivered",
+};
 
 const LiveDashboard = () => {
   const { isDarkMode } = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedShipment, setSelectedShipment] = useState(null);
+  const [shipments, setShipments] = useState([]);
+  const [containers, setContainers] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Fetch shipments
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const result = await fetchShipments(null, { limit: 50 });
+      const shipmentsData = result.shipments || [];
+      setShipments(shipmentsData);
+      
+      // Fetch containers for each shipment
+      const containersMap = {};
+      await Promise.all(
+        shipmentsData.slice(0, 10).map(async (s) => {
+          try {
+            const containerResult = await fetchContainers(s.shipmentHash);
+            containersMap[s.shipmentHash] = containerResult.containers || [];
+          } catch (err) {
+            containersMap[s.shipmentHash] = [];
+          }
+        })
+      );
+      setContainers(containersMap);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setLastRefresh(new Date());
+      loadData();
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      setLastRefresh(new Date());
-    }, 1000);
+    await loadData();
+    setIsRefreshing(false);
   };
 
   const handleTrack = (shipment) => {
-    setSelectedShipment(selectedShipment?.id === shipment.id ? null : shipment);
+    setSelectedShipment(selectedShipment?.shipmentHash === shipment.shipmentHash ? null : shipment);
   };
+
+  // Calculate stats
+  const stats = {
+    total: shipments.length,
+    inTransit: shipments.filter(s => s.status === "in_transit").length,
+    atWarehouse: shipments.filter(s => s.status === "at_warehouse").length,
+    delivered: shipments.filter(s => s.status === "delivered").length,
+  };
+
+  // Transform shipment data for table
+  const shipmentsData = shipments.map(s => {
+    const shipmentContainers = containers[s.shipmentHash] || [];
+    const scannedCount = shipmentContainers.filter(c => c.status !== 'CREATED').length;
+    const totalCount = s.numberOfContainers || 0;
+    const progress = totalCount > 0 ? Math.round((scannedCount / totalCount) * 100) : 0;
+    
+    return {
+      id: s.shipmentHash,
+      displayId: (s.shipmentHash?.slice(0, 8) || '') + '...' + (s.shipmentHash?.slice(-6) || ''),
+      productId: s.batchId || 'N/A',
+      status: s.status,
+      progress,
+      lastUpdatedBy: s.supplierWallet || 'Unknown',
+      location: s.warehouseName || 'In Transit',
+      lastUpdateAt: new Date(s.createdAt).toLocaleDateString(),
+      containers: shipmentContainers,
+    };
+  });
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -183,14 +253,28 @@ const LiveDashboard = () => {
                 isDarkMode ? "divide-slate-800" : "divide-slate-100"
               }`}
             >
-              {shipmentsData.map((shipment) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-12 text-center">
+                    <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                    <p className={`mt-4 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>Loading shipments...</p>
+                  </td>
+                </tr>
+              ) : shipmentsData.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-12 text-center">
+                    <BoxIcon className={`w-12 h-12 mx-auto ${isDarkMode ? "text-slate-600" : "text-slate-300"}`} />
+                    <p className={`mt-4 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>No shipments found</p>
+                  </td>
+                </tr>
+              ) : shipmentsData.map((shipment) => (
                 <>
                   <tr
                     key={shipment.id}
                     className={`transition-colors ${
                       isDarkMode ? "hover:bg-slate-800/50" : "hover:bg-slate-50"
                     } ${
-                      selectedShipment?.id === shipment.id
+                      selectedShipment?.shipmentHash === shipment.id
                         ? isDarkMode
                           ? "bg-slate-800/30"
                           : "bg-blue-50/50"
@@ -203,7 +287,7 @@ const LiveDashboard = () => {
                           isDarkMode ? "text-white" : "text-slate-900"
                         }`}
                       >
-                        {shipment.id}
+                        {shipment.displayId}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -247,8 +331,8 @@ const LiveDashboard = () => {
                             : "bg-slate-100 text-slate-700"
                         }`}
                       >
-                        {shipment.lastUpdatedBy.slice(0, 10)}...
-                        {shipment.lastUpdatedBy.slice(-6)}
+                        {shipment.lastUpdatedBy?.slice(0, 10) || 'N/A'}...
+                        {shipment.lastUpdatedBy?.slice(-6) || ''}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -290,7 +374,7 @@ const LiveDashboard = () => {
                           inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
                           transition-all duration-200
                           ${
-                            selectedShipment?.id === shipment.id
+                            selectedShipment?.shipmentHash === shipment.id
                               ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25"
                               : isDarkMode
                               ? "bg-slate-800 text-blue-400 hover:bg-slate-700"
@@ -299,16 +383,16 @@ const LiveDashboard = () => {
                         `}
                       >
                         <EyeIcon className="w-4 h-4" />
-                        {selectedShipment?.id === shipment.id
+                        {selectedShipment?.shipmentHash === shipment.id
                           ? "Hide"
                           : "Track"}
                       </button>
                     </td>
                   </tr>
 
-                  {/* Activity Table - Shown when Track is clicked */}
-                  {selectedShipment?.id === shipment.id && (
-                    <tr key={`${shipment.id}-activity`}>
+                  {/* Container Details - Shown when Track is clicked */}
+                  {selectedShipment?.shipmentHash === shipment.id && (
+                    <tr key={`${shipment.id}-details`}>
                       <td colSpan="7" className="px-6 py-4">
                         <div
                           className={`
@@ -333,7 +417,7 @@ const LiveDashboard = () => {
                                 isDarkMode ? "text-white" : "text-slate-900"
                               }`}
                             >
-                              Activity History for {shipment.id}
+                              Containers for {shipment.displayId}
                             </h4>
                           </div>
 
@@ -347,12 +431,10 @@ const LiveDashboard = () => {
                                       : "text-slate-500"
                                   }`}
                                 >
-                                  <th className="pb-3 pr-4">Activity</th>
-                                  <th className="pb-3 pr-4">
-                                    Done By (Hash ID)
-                                  </th>
-                                  <th className="pb-3 pr-4">Location</th>
-                                  <th className="pb-3">Timestamp</th>
+                                  <th className="pb-3 pr-4">Container ID</th>
+                                  <th className="pb-3 pr-4">Status</th>
+                                  <th className="pb-3 pr-4">Quantity</th>
+                                  <th className="pb-3">Last Scan</th>
                                 </tr>
                               </thead>
                               <tbody
@@ -362,60 +444,61 @@ const LiveDashboard = () => {
                                     : "divide-slate-200"
                                 }`}
                               >
-                                {shipment.activities.map((activity, idx) => (
+                                {shipment.containers.length === 0 ? (
+                                  <tr>
+                                    <td colSpan="4" className="py-4 text-center">
+                                      <span className={isDarkMode ? "text-slate-500" : "text-slate-400"}>
+                                        No containers found
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ) : shipment.containers.map((container, idx) => {
+                                  const statusColors = {
+                                    'CREATED': 'bg-slate-500',
+                                    'SCANNED': 'bg-blue-500',
+                                    'IN_TRANSIT': 'bg-amber-500',
+                                    'AT_WAREHOUSE': 'bg-purple-500',
+                                    'DELIVERED': 'bg-green-500',
+                                  };
+                                  return (
                                   <tr key={idx} className="transition-colors">
                                     <td className="py-3 pr-4">
                                       <div className="flex items-center gap-2">
                                         <div
-                                          className={`w-2 h-2 rounded-full ${
-                                            idx === 0
-                                              ? "bg-green-500"
-                                              : isDarkMode
-                                              ? "bg-slate-600"
-                                              : "bg-slate-300"
-                                          }`}
+                                          className={`w-2 h-2 rounded-full ${statusColors[container.status] || 'bg-slate-500'}`}
                                         />
                                         <span
-                                          className={`text-sm ${
+                                          className={`text-sm font-mono ${
                                             isDarkMode
                                               ? "text-slate-200"
                                               : "text-slate-700"
                                           }`}
                                         >
-                                          {activity.activity}
+                                          {container.containerId?.slice(-12) || `Container ${idx + 1}`}
                                         </span>
                                       </div>
                                     </td>
                                     <td className="py-3 pr-4">
                                       <span
-                                        className={`font-mono text-xs px-2 py-1 rounded ${
+                                        className={`text-xs px-2 py-1 rounded ${
                                           isDarkMode
                                             ? "bg-slate-700 text-slate-300"
                                             : "bg-slate-200 text-slate-600"
                                         }`}
                                       >
-                                        {activity.doneBy}
+                                        {container.status || 'CREATED'}
                                       </span>
                                     </td>
                                     <td className="py-3 pr-4">
-                                      <div className="flex items-center gap-1">
-                                        <MapPinIcon
-                                          className={`w-3.5 h-3.5 ${
-                                            isDarkMode
-                                              ? "text-slate-500"
-                                              : "text-slate-400"
-                                          }`}
-                                        />
-                                        <span
-                                          className={`text-sm ${
-                                            isDarkMode
-                                              ? "text-slate-300"
-                                              : "text-slate-600"
-                                          }`}
-                                        >
-                                          {activity.location}
-                                        </span>
-                                      </div>
+                                      <span
+                                        className={`text-sm ${
+                                          isDarkMode
+                                            ? "text-slate-300"
+                                            : "text-slate-600"
+                                        }`}
+                                      >
+                                        {container.quantity || 0} units
+                                      </span>
                                     </td>
                                     <td className="py-3">
                                       <span
@@ -425,11 +508,11 @@ const LiveDashboard = () => {
                                             : "text-slate-500"
                                         }`}
                                       >
-                                        {activity.timestamp}
+                                        {container.lastScanAt ? new Date(container.lastScanAt).toLocaleString() : 'Not scanned'}
                                       </span>
                                     </td>
                                   </tr>
-                                ))}
+                                )})}
                               </tbody>
                             </table>
                           </div>
@@ -443,40 +526,41 @@ const LiveDashboard = () => {
           </table>
         </div>
       </div>
-
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
-            label: "Active Shipments",
-            value: "48",
-            change: "+5",
-            icon: TruckIcon,
+            label: "Total Shipments",
+            value: stats.total.toString(),
+            icon: BoxIcon,
             color: "blue",
           },
           {
-            label: "Delivered Today",
-            value: "12",
-            change: "+3",
-            icon: CheckCircleIcon,
-            color: "green",
-          },
-          {
-            label: "Delayed",
-            value: "3",
-            change: "-2",
-            icon: AlertIcon,
+            label: "In Transit",
+            value: stats.inTransit.toString(),
+            icon: TruckIcon,
             color: "amber",
           },
           {
-            label: "Avg Transit Time",
-            value: "2.4d",
-            change: "-15%",
-            icon: ClockIcon,
+            label: "At Warehouse",
+            value: stats.atWarehouse.toString(),
+            icon: WarehouseIcon,
             color: "purple",
+          },
+          {
+            label: "Delivered",
+            value: stats.delivered.toString(),
+            icon: CheckCircleIcon,
+            color: "green",
           },
         ].map((stat, index) => {
           const Icon = stat.icon;
+          const colorClasses = {
+            blue: isDarkMode ? "text-blue-400" : "text-blue-500",
+            amber: isDarkMode ? "text-amber-400" : "text-amber-500",
+            purple: isDarkMode ? "text-purple-400" : "text-purple-500",
+            green: isDarkMode ? "text-green-400" : "text-green-500",
+          };
           return (
             <div
               key={index}
@@ -491,26 +575,8 @@ const LiveDashboard = () => {
             >
               <div className="flex items-center justify-between mb-3">
                 <Icon
-                  className={`w-5 h-5 ${
-                    isDarkMode ? "text-slate-500" : "text-slate-400"
-                  }`}
+                  className={`w-5 h-5 ${colorClasses[stat.color]}`}
                 />
-                <span
-                  className={`
-                    text-xs font-medium px-2 py-0.5 rounded-full
-                    ${
-                      stat.change.startsWith("+")
-                        ? isDarkMode
-                          ? "bg-green-500/10 text-green-400"
-                          : "bg-green-50 text-green-600"
-                        : isDarkMode
-                        ? "bg-red-500/10 text-red-400"
-                        : "bg-red-50 text-red-600"
-                    }
-                  `}
-                >
-                  {stat.change}
-                </span>
               </div>
               <p
                 className={`text-2xl font-bold ${
