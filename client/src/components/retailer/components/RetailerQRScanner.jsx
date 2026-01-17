@@ -1,67 +1,26 @@
 /**
  * RetailerQRScanner Component
  * 
- * Beautiful, theme-aware QR scanner specifically designed for retailer delivery scanning.
- * Supports both camera and image upload modes with smooth animations.
+ * Camera-based QR scanner for retailer delivery scanning.
+ * Theme-aware component matching the shared QRCameraScanner design.
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { useRetailerTheme } from '../context/ThemeContext';
+import { 
+  Camera, 
+  CameraOff, 
+  RefreshCw, 
+  SwitchCamera, 
+  Zap, 
+  AlertCircle, 
+  Aperture, 
+  Loader2 
+} from 'lucide-react';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ICONS
-// ═══════════════════════════════════════════════════════════════════════════
-
-const CameraIcon = ({ className = "w-6 h-6" }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-
-const CameraOffIcon = ({ className = "w-6 h-6" }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-  </svg>
-);
-
-const SwitchCameraIcon = ({ className = "w-5 h-5" }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-  </svg>
-);
-
-const FlashIcon = ({ className = "w-5 h-5" }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-);
-
-const CaptureIcon = ({ className = "w-6 h-6" }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <circle cx="12" cy="12" r="10" strokeWidth={2} />
-    <circle cx="12" cy="12" r="6" fill="currentColor" />
-  </svg>
-);
-
-const AlertIcon = ({ className = "w-6 h-6" }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-  </svg>
-);
-
-const QRCodeIcon = ({ className = "w-12 h-12" }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h2m14 0h2M6 20h2M6 8h2m8 0h2M6 4h2m8 0h2" />
-  </svg>
-);
-
-// ═══════════════════════════════════════════════════════════════════════════
-// SCANNER CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════════════
-
-const SCANNER_CONFIG = {
+// Scanner Configuration
+const DEFAULT_CONFIG = {
   fps: 10,
   qrbox: { width: 250, height: 250 },
   aspectRatio: 1.0,
@@ -71,14 +30,13 @@ const SCANNER_CONFIG = {
   }
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
-
 const RetailerQRScanner = ({
   onScan,
   onError,
   disabled = false,
+  className = '',
+  showControls = true,
+  autoStart = true,
   scanDelay = 1500,
 }) => {
   const { isDarkMode } = useRetailerTheme();
@@ -89,26 +47,24 @@ const RetailerQRScanner = ({
   const [cameras, setCameras] = useState([]);
   const [selectedCamera, setSelectedCamera] = useState(null);
   const [error, setError] = useState(null);
+  const [lastScannedData, setLastScannedData] = useState(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [lastScannedData, setLastScannedData] = useState(null);
-  
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+
   // Refs
   const scannerRef = useRef(null);
-  const scannerContainerId = useRef(`retailer-scanner-${Date.now()}`);
+  const scannerContainerId = useRef(`retailer-qr-scanner-${Date.now()}`);
   const lastScanTime = useRef(0);
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // CAMERA DETECTION
-  // ═══════════════════════════════════════════════════════════════════════
-
+  // Detect cameras
   const detectCameras = useCallback(async () => {
     try {
       const devices = await Html5Qrcode.getCameras();
       setCameras(devices);
       
       if (devices.length > 0) {
-        // Prefer back camera
         const backCamera = devices.find(
           (device) => device.label.toLowerCase().includes('back') ||
                       device.label.toLowerCase().includes('rear')
@@ -124,9 +80,9 @@ const RetailerQRScanner = ({
       
       if (err.message?.includes('Permission')) {
         setPermissionDenied(true);
-        setError('Camera permission denied');
+        setError('Camera permission denied. Please allow camera access.');
       } else {
-        setError('Failed to detect cameras');
+        setError('Failed to detect cameras: ' + err.message);
       }
       
       if (onError) onError(err);
@@ -134,10 +90,7 @@ const RetailerQRScanner = ({
     }
   }, [onError]);
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // SCANNER LIFECYCLE
-  // ═══════════════════════════════════════════════════════════════════════
-
+  // Start scanner
   const startScanner = useCallback(async () => {
     if (disabled || isScanning || isInitializing || !selectedCamera) return;
     
@@ -152,13 +105,15 @@ const RetailerQRScanner = ({
               state === Html5QrcodeScannerState.PAUSED) {
             await scannerRef.current.stop();
           }
-        } catch (e) {}
+        } catch (stopErr) {
+          console.warn('Error stopping previous scanner:', stopErr);
+        }
         scannerRef.current = null;
       }
       
       scannerRef.current = new Html5Qrcode(scannerContainerId.current);
 
-      const onScanSuccess = (decodedText) => {
+      const onScanSuccess = (decodedText, decodedResult) => {
         const now = Date.now();
         
         if (now - lastScanTime.current < scanDelay) return;
@@ -168,14 +123,16 @@ const RetailerQRScanner = ({
         setLastScannedData(decodedText);
 
         if (navigator.vibrate) navigator.vibrate(100);
-        if (onScan) onScan(decodedText);
+        if (onScan) onScan(decodedText, decodedResult);
       };
 
-      const onScanError = () => {};
+      const onScanError = (errorMessage) => {
+        // Ignore normal scan errors
+      };
 
       await scannerRef.current.start(
         selectedCamera.id,
-        SCANNER_CONFIG,
+        DEFAULT_CONFIG,
         onScanSuccess,
         onScanError
       );
@@ -189,10 +146,17 @@ const RetailerQRScanner = ({
       if (err.message?.includes('Permission') || err.name === 'NotAllowedError') {
         setPermissionDenied(true);
         setError('Camera permission denied');
-      } else if (err.message?.includes('in use')) {
-        setError('Camera is in use by another application');
+      } else if (err.message?.includes('in use') || err.name === 'NotReadableError') {
+        setError('Camera is in use by another application or tab.');
+      } else if (err.message?.includes('transition')) {
+        setError('Scanner busy, retrying...');
+        setTimeout(() => {
+          setError(null);
+          setIsInitializing(false);
+        }, 1000);
+        return;
       } else {
-        setError('Failed to start camera');
+        setError('Failed to start camera: ' + (err.message || 'Unknown error'));
       }
       
       if (onError) onError(err);
@@ -201,15 +165,18 @@ const RetailerQRScanner = ({
     }
   }, [disabled, isScanning, isInitializing, selectedCamera, scanDelay, lastScannedData, onScan, onError]);
 
+  // Stop scanner
   const stopScanner = useCallback(async () => {
     if (!scannerRef.current) return;
 
     try {
       const state = scannerRef.current.getState();
+      
       if (state === Html5QrcodeScannerState.SCANNING ||
           state === Html5QrcodeScannerState.PAUSED) {
         await scannerRef.current.stop();
       }
+      
       setIsScanning(false);
       setIsPaused(false);
     } catch (err) {
@@ -217,6 +184,7 @@ const RetailerQRScanner = ({
     }
   }, []);
 
+  // Pause/Resume
   const togglePause = useCallback(async () => {
     if (!scannerRef.current || !isScanning) return;
 
@@ -233,6 +201,7 @@ const RetailerQRScanner = ({
     }
   }, [isScanning, isPaused]);
 
+  // Switch camera
   const switchCamera = useCallback(async () => {
     if (cameras.length < 2) return;
 
@@ -244,19 +213,90 @@ const RetailerQRScanner = ({
     setSelectedCamera(nextCamera);
   }, [cameras, selectedCamera, stopScanner]);
 
+  // Restart scanner
   const restartScanner = useCallback(async () => {
     await stopScanner();
     setError(null);
     setLastScannedData(null);
-    setTimeout(() => startScanner(), 500);
+    setCapturedImage(null);
+    
+    setTimeout(() => {
+      startScanner();
+    }, 500);
   }, [stopScanner, startScanner]);
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // EFFECTS
-  // ═══════════════════════════════════════════════════════════════════════
+  // Capture and scan
+  const captureAndScan = useCallback(async () => {
+    if (!scannerRef.current || !isScanning) {
+      setError('Camera not ready. Please start the scanner first.');
+      return;
+    }
 
+    setIsCapturing(true);
+    setError(null);
+    setCapturedImage(null);
+
+    try {
+      const container = document.getElementById(scannerContainerId.current);
+      const video = container?.querySelector('video');
+      
+      if (!video) throw new Error('Video element not found');
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob(resolve, 'image/png', 1.0);
+      });
+      
+      if (!blob) throw new Error('Failed to capture image');
+
+      const file = new File([blob], 'capture.png', { type: 'image/png' });
+      const imageUrl = URL.createObjectURL(blob);
+      setCapturedImage(imageUrl);
+
+      const tempScannerId = `temp-scanner-${Date.now()}`;
+      let tempElement = document.createElement('div');
+      tempElement.id = tempScannerId;
+      tempElement.style.display = 'none';
+      document.body.appendChild(tempElement);
+
+      const tempScanner = new Html5Qrcode(tempScannerId);
+      
+      try {
+        const result = await tempScanner.scanFile(file, true);
+        
+        setLastScannedData(result);
+        if (navigator.vibrate) navigator.vibrate(200);
+        if (onScan) onScan(result);
+      } finally {
+        try {
+          await tempScanner.clear();
+        } catch (e) {}
+        tempElement.remove();
+      }
+    } catch (err) {
+      console.error('Capture and scan error:', err);
+      
+      if (err.message?.includes('No QR code') || err.message?.includes('No MultiFormat')) {
+        setError('No QR code found in captured image. Try adjusting the camera position.');
+      } else {
+        setError('Failed to scan: ' + (err.message || 'Unknown error'));
+      }
+      
+      if (onError) onError(err);
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [isScanning, onScan, onError]);
+
+  // Effects
   useEffect(() => {
     detectCameras();
+    
     return () => {
       if (scannerRef.current) {
         stopScanner().then(() => {
@@ -267,10 +307,10 @@ const RetailerQRScanner = ({
   }, []);
 
   useEffect(() => {
-    if (selectedCamera && !isScanning && !disabled && !error && !isInitializing) {
+    if (autoStart && selectedCamera && !isScanning && !disabled && !error && !isInitializing) {
       startScanner();
     }
-  }, [selectedCamera, disabled, error, isInitializing]);
+  }, [selectedCamera, autoStart, disabled, error, isInitializing]);
 
   useEffect(() => {
     if (disabled && isScanning) {
@@ -278,47 +318,30 @@ const RetailerQRScanner = ({
     }
   }, [disabled, isScanning, stopScanner]);
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // THEME CLASSES
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const bgClass = isDarkMode ? 'bg-slate-900' : 'bg-slate-100';
-  const textClass = isDarkMode ? 'text-white' : 'text-slate-900';
-  const mutedClass = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const borderClass = isDarkMode ? 'border-slate-700' : 'border-slate-300';
-  const cardBg = isDarkMode ? 'bg-slate-800/80' : 'bg-white/80';
-  const btnPrimary = 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600';
-  const btnSecondary = isDarkMode 
-    ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' 
-    : 'bg-slate-200 text-slate-700 hover:bg-slate-300';
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════════════════════════
+  // Theme classes
+  const bgMuted = isDarkMode ? 'bg-slate-900' : 'bg-gray-50';
+  const textPrimary = isDarkMode ? 'text-white' : 'text-gray-900';
+  const textMuted = isDarkMode ? 'text-slate-400' : 'text-gray-500';
 
   // Permission denied
   if (permissionDenied) {
     return (
-      <div className={`relative rounded-2xl overflow-hidden ${bgClass} p-8`}>
-        <div className="flex flex-col items-center justify-center text-center">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-red-500/20' : 'bg-red-100'}`}>
-            <CameraOffIcon className={`w-10 h-10 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} />
-          </div>
-          <h3 className={`text-lg font-bold mb-2 ${textClass}`}>Camera Access Required</h3>
-          <p className={`text-sm mb-6 max-w-xs ${mutedClass}`}>
-            Please allow camera access in your browser settings to scan QR codes.
-          </p>
-          <button
-            onClick={() => {
-              setPermissionDenied(false);
-              setError(null);
-              detectCameras();
-            }}
-            className={`px-6 py-2.5 rounded-xl font-medium transition-all ${btnPrimary}`}
-          >
-            Try Again
-          </button>
-        </div>
+      <div className={`flex flex-col items-center justify-center p-6 rounded-xl ${isDarkMode ? 'bg-red-500/10' : 'bg-red-50'} ${className}`}>
+        <AlertCircle className={`w-12 h-12 mb-4 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} />
+        <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-red-300' : 'text-red-800'}`}>Camera Access Required</h3>
+        <p className={`text-sm text-center mb-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+          Please allow camera access in your browser settings to scan QR codes.
+        </p>
+        <button
+          onClick={() => {
+            setPermissionDenied(false);
+            setError(null);
+            detectCameras();
+          }}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -326,185 +349,239 @@ const RetailerQRScanner = ({
   // No cameras
   if (cameras.length === 0 && !isInitializing && !error) {
     return (
-      <div className={`relative rounded-2xl overflow-hidden ${bgClass} p-8`}>
-        <div className="flex flex-col items-center justify-center text-center">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
-            <CameraOffIcon className={`w-10 h-10 ${mutedClass}`} />
-          </div>
-          <h3 className={`text-lg font-bold mb-2 ${textClass}`}>No Camera Found</h3>
-          <p className={`text-sm max-w-xs ${mutedClass}`}>
-            Please connect a camera or use a device with a camera to scan QR codes.
-          </p>
-        </div>
+      <div className={`flex flex-col items-center justify-center p-6 rounded-xl ${bgMuted} ${className}`}>
+        <CameraOff className={`w-12 h-12 mb-4 ${textMuted}`} />
+        <h3 className={`text-lg font-semibold mb-2 ${textPrimary}`}>No Camera Found</h3>
+        <p className={`text-sm text-center ${textMuted}`}>
+          Please connect a camera or use a device with a camera.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="relative">
+    <div className={`relative ${className}`}>
       {/* Scanner Container */}
-      <div className={`relative rounded-2xl overflow-hidden ${isDarkMode ? 'bg-slate-950' : 'bg-slate-900'}`}>
+      <div className={`relative overflow-hidden rounded-xl ${isDarkMode ? 'bg-slate-950' : 'bg-black'}`}>
         {/* Video Element Container */}
         <div
           id={scannerContainerId.current}
-          className="w-full aspect-[4/3] min-h-[320px]"
+          className="w-full aspect-square"
+          style={{ minHeight: '300px' }}
         />
 
-        {/* Beautiful Scanning Overlay */}
+        {/* Scanning Overlay */}
         {isScanning && !isPaused && (
           <div className="absolute inset-0 pointer-events-none">
-            {/* Gradient Vignette */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40" />
-            
-            {/* Scanning Frame */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative w-64 h-64">
-                {/* Animated Corner Brackets */}
-                <div className="absolute -top-1 -left-1 w-12 h-12">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-transparent rounded-full animate-pulse" />
-                  <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-emerald-400 to-transparent rounded-full animate-pulse" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-12 h-12">
-                  <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-emerald-400 to-transparent rounded-full animate-pulse" />
-                  <div className="absolute top-0 right-0 w-1 h-full bg-gradient-to-b from-emerald-400 to-transparent rounded-full animate-pulse" />
-                </div>
-                <div className="absolute -bottom-1 -left-1 w-12 h-12">
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-transparent rounded-full animate-pulse" />
-                  <div className="absolute bottom-0 left-0 w-1 h-full bg-gradient-to-t from-emerald-400 to-transparent rounded-full animate-pulse" />
-                </div>
-                <div className="absolute -bottom-1 -right-1 w-12 h-12">
-                  <div className="absolute bottom-0 right-0 w-full h-1 bg-gradient-to-l from-emerald-400 to-transparent rounded-full animate-pulse" />
-                  <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-t from-emerald-400 to-transparent rounded-full animate-pulse" />
-                </div>
-                
-                {/* Scanning Line */}
-                <div className="absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent rounded-full animate-scanner-line" />
-                
-                {/* Center Crosshair */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                  <div className="w-8 h-8 border-2 border-emerald-400/50 rounded-full animate-ping" />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Indicator */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2">
-              <div className={`px-4 py-2 rounded-full backdrop-blur-md ${isDarkMode ? 'bg-black/40' : 'bg-white/40'} flex items-center gap-2`}>
-                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-white">Scanning...</span>
-              </div>
+            {/* Corner Markers - Emerald theme */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64">
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-lg" />
+              
+              {/* Scanning Line Animation */}
+              <div className="absolute inset-x-2 h-0.5 bg-emerald-400 animate-scan-line" />
             </div>
           </div>
         )}
 
-        {/* Initializing State */}
+        {/* Loading State */}
         {isInitializing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <div className="text-center">
-              <div className="relative w-16 h-16 mx-auto mb-4">
-                <div className="absolute inset-0 border-4 border-emerald-500/20 rounded-full" />
-                <div className="absolute inset-0 border-4 border-transparent border-t-emerald-500 rounded-full animate-spin" />
-                <div className="absolute inset-2 border-4 border-transparent border-b-teal-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-              </div>
-              <p className="text-white font-medium">Initializing camera...</p>
-              <p className="text-slate-400 text-sm mt-1">Please wait</p>
+              <RefreshCw className="w-10 h-10 text-white animate-spin mx-auto mb-2" />
+              <p className="text-white text-sm">Initializing camera...</p>
             </div>
           </div>
         )}
 
         {/* Paused Overlay */}
         {isPaused && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <div className="text-center">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-slate-700`}>
-                <CameraIcon className="w-8 h-8 text-white" />
-              </div>
-              <p className="text-white font-medium">Scanner Paused</p>
-              <p className="text-slate-400 text-sm mt-1">Tap resume to continue</p>
+              <Camera className="w-10 h-10 text-white mx-auto mb-2" />
+              <p className="text-white text-sm">Scanner paused</p>
             </div>
-          </div>
-        )}
-
-        {/* Floating Controls */}
-        {isScanning && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-            {/* Pause/Resume */}
-            <button
-              onClick={togglePause}
-              className={`p-3 rounded-full backdrop-blur-md transition-all ${
-                isPaused 
-                  ? 'bg-emerald-500 text-white' 
-                  : isDarkMode ? 'bg-black/50 text-white hover:bg-black/70' : 'bg-white/50 text-slate-900 hover:bg-white/70'
-              }`}
-            >
-              <FlashIcon className="w-5 h-5" />
-            </button>
-            
-            {/* Switch Camera */}
-            {cameras.length > 1 && (
-              <button
-                onClick={switchCamera}
-                disabled={isInitializing}
-                className={`p-3 rounded-full backdrop-blur-md transition-all disabled:opacity-50 ${
-                  isDarkMode ? 'bg-black/50 text-white hover:bg-black/70' : 'bg-white/50 text-slate-900 hover:bg-white/70'
-                }`}
-              >
-                <SwitchCameraIcon className="w-5 h-5" />
-              </button>
-            )}
           </div>
         )}
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className={`mt-4 p-4 rounded-xl border ${isDarkMode ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}`}>
-          <div className="flex items-start gap-3">
-            <AlertIcon className={`w-5 h-5 flex-shrink-0 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} />
-            <div className="flex-1">
-              <p className={`text-sm font-medium ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>{error}</p>
-              <button
-                onClick={restartScanner}
-                className={`mt-2 text-sm underline ${isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}`}
-              >
-                Try again
-              </button>
-            </div>
+        <div className={`mt-3 p-3 rounded-lg border ${isDarkMode ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}`}>
+          <div className="flex items-center gap-2">
+            <AlertCircle className={`w-5 h-5 shrink-0 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} />
+            <p className={`text-sm ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>{error}</p>
           </div>
-        </div>
-      )}
-
-      {/* Camera Controls (when not scanning) */}
-      {!isScanning && !isInitializing && !error && selectedCamera && (
-        <div className="mt-4 flex justify-center">
           <button
-            onClick={startScanner}
-            disabled={disabled}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-50 ${btnPrimary}`}
+            onClick={restartScanner}
+            className={`mt-2 text-sm underline ${isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}`}
           >
-            <CameraIcon className="w-5 h-5" />
-            Start Scanner
+            Try again
           </button>
         </div>
       )}
 
-      {/* Instructions */}
-      {isScanning && !isPaused && (
-        <div className={`mt-4 p-3 rounded-xl text-center ${isDarkMode ? 'bg-slate-800/50' : 'bg-slate-100'}`}>
-          <p className={`text-sm ${mutedClass}`}>
-            <span className="font-medium">Position the QR code</span> within the frame for automatic scanning
+      {/* Controls */}
+      {showControls && (
+        <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
+          {/* Start/Stop Button */}
+          <button
+            onClick={isScanning ? stopScanner : startScanner}
+            disabled={disabled || isInitializing}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all
+              ${isScanning
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
+          >
+            {isScanning ? (
+              <>
+                <CameraOff className="w-5 h-5" />
+                Stop
+              </>
+            ) : (
+              <>
+                <Camera className="w-5 h-5" />
+                Start
+              </>
+            )}
+          </button>
+
+          {/* Pause/Resume Button */}
+          {isScanning && (
+            <button
+              onClick={togglePause}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                isDarkMode 
+                  ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              <Zap className="w-5 h-5" />
+              {isPaused ? 'Resume' : 'Pause'}
+            </button>
+          )}
+
+          {/* Capture Button */}
+          {isScanning && !isPaused && (
+            <button
+              onClick={captureAndScan}
+              disabled={isCapturing || disabled}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-teal-600 hover:bg-teal-700 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCapturing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <Aperture className="w-5 h-5" />
+                  Capture
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Switch Camera Button */}
+          {cameras.length > 1 && (
+            <button
+              onClick={switchCamera}
+              disabled={isInitializing}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50 ${
+                isDarkMode 
+                  ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
+            >
+              <SwitchCamera className="w-5 h-5" />
+              Switch
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Tip */}
+      {isScanning && !lastScannedData && (
+        <div className={`mt-3 p-2 rounded-lg border ${isDarkMode ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+          <p className={`text-xs text-center ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+            💡 <strong>Tip:</strong> Position the QR code in the frame and press <strong>Capture</strong> to scan.
+            Auto-scan may not work on all devices.
           </p>
         </div>
       )}
 
-      {/* CSS Animation */}
+      {/* Last Scanned */}
+      {lastScannedData && (
+        <div className={`mt-4 p-3 rounded-lg border ${isDarkMode ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'}`}>
+          <p className={`text-xs mb-1 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>Last scanned:</p>
+          <p className={`text-sm font-mono break-all ${isDarkMode ? 'text-emerald-300' : 'text-emerald-800'}`}>{lastScannedData}</p>
+        </div>
+      )}
+
+      {/* Captured Image Preview */}
+      {capturedImage && (
+        <div className={`mt-4 p-3 rounded-lg border ${isDarkMode ? 'bg-teal-500/10 border-teal-500/30' : 'bg-teal-50 border-teal-200'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <p className={`text-xs ${isDarkMode ? 'text-teal-400' : 'text-teal-600'}`}>Captured frame:</p>
+            <button 
+              onClick={() => setCapturedImage(null)}
+              className={`text-xs underline ${isDarkMode ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-800'}`}
+            >
+              Clear
+            </button>
+          </div>
+          <img 
+            src={capturedImage} 
+            alt="Captured frame" 
+            className={`w-full max-w-xs mx-auto rounded border ${isDarkMode ? 'border-teal-500/30' : 'border-teal-300'}`}
+          />
+        </div>
+      )}
+
+      {/* Camera Selector */}
+      {cameras.length > 1 && (
+        <div className="mt-4">
+          <label className={`block text-sm font-medium mb-1 ${textPrimary}`}>
+            Camera
+          </label>
+          <select
+            value={selectedCamera?.id || ''}
+            onChange={(e) => {
+              const camera = cameras.find(c => c.id === e.target.value);
+              if (camera) {
+                stopScanner().then(() => setSelectedCamera(camera));
+              }
+            }}
+            className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${
+              isDarkMode 
+                ? 'bg-slate-800 border-slate-700 text-white' 
+                : 'bg-white border-gray-300 text-gray-900'
+            }`}
+          >
+            {cameras.map((camera) => (
+              <option key={camera.id} value={camera.id}>
+                {camera.label || `Camera ${camera.id}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Animation Style */}
       <style>{`
-        @keyframes scanner-line {
-          0%, 100% { top: 10%; opacity: 0.3; }
-          50% { top: 85%; opacity: 1; }
+        @keyframes scan-line {
+          0% { top: 5%; }
+          50% { top: 95%; }
+          100% { top: 5%; }
         }
-        .animate-scanner-line {
-          animation: scanner-line 2.5s ease-in-out infinite;
+        .animate-scan-line {
+          animation: scan-line 2s ease-in-out infinite;
         }
       `}</style>
     </div>
