@@ -1,30 +1,30 @@
 /**
  * Scan Routes
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  * QR CODE SCANNING API ENDPOINTS
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * These endpoints handle the QR scanning verification workflow:
- * 
+ *
  * POST   /api/scan              - Verify a scanned QR code
  * POST   /api/scan/confirm      - Confirm scan and update status
  * GET    /api/scan/history/:id  - Get scan history for a shipment
  * GET    /api/scan/validate/:qr - Quick QR format validation
- * 
+ *
  * SECURITY:
  * - All endpoints require JWT authentication
  * - Role-based access control for scan operations
  * - Complete audit trail of all scan attempts
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
-const roleMiddleware = require('../middleware/roleMiddleware');
-const scanController = require('../controllers/scanController');
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+const scanController = require("../controllers/scanController");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VALIDATION MIDDLEWARE
@@ -35,22 +35,22 @@ const scanController = require('../controllers/scanController');
  */
 const validateScanRequest = (req, res, next) => {
   const { qrData } = req.body;
-  
-  if (!qrData || typeof qrData !== 'string') {
+
+  if (!qrData || typeof qrData !== "string") {
     return res.status(400).json({
       success: false,
-      message: 'qrData is required and must be a string'
+      message: "qrData is required and must be a string",
     });
   }
-  
+
   // Limit QR data size to prevent abuse
   if (qrData.length > 2000) {
     return res.status(400).json({
       success: false,
-      message: 'QR data exceeds maximum allowed length'
+      message: "QR data exceeds maximum allowed length",
     });
   }
-  
+
   next();
 };
 
@@ -59,21 +59,21 @@ const validateScanRequest = (req, res, next) => {
  */
 const validateConfirmRequest = (req, res, next) => {
   const { scanId, confirmed } = req.body;
-  
-  if (!scanId || typeof scanId !== 'string') {
+
+  if (!scanId || typeof scanId !== "string") {
     return res.status(400).json({
       success: false,
-      message: 'scanId is required and must be a string'
+      message: "scanId is required and must be a string",
     });
   }
-  
-  if (typeof confirmed !== 'boolean') {
+
+  if (typeof confirmed !== "boolean") {
     return res.status(400).json({
       success: false,
-      message: 'confirmed is required and must be a boolean'
+      message: "confirmed is required and must be a boolean",
     });
   }
-  
+
   next();
 };
 
@@ -83,12 +83,12 @@ const validateConfirmRequest = (req, res, next) => {
 
 /**
  * POST /api/scan
- * 
+ *
  * Verify a scanned QR code
- * 
+ *
  * Requires: Authentication
  * Allowed Roles: supplier, transporter, warehouse, retailer
- * 
+ *
  * Body:
  * {
  *   qrData: string,           // Raw QR code content
@@ -98,7 +98,7 @@ const validateConfirmRequest = (req, res, next) => {
  *     accuracy?: number
  *   }
  * }
- * 
+ *
  * Response:
  * {
  *   status: "VERIFIED" | "REJECTED",
@@ -110,21 +110,21 @@ const validateConfirmRequest = (req, res, next) => {
  * }
  */
 router.post(
-  '/',
+  "/",
   authMiddleware,
-  roleMiddleware(['supplier', 'transporter', 'warehouse', 'retailer']),
+  roleMiddleware(["supplier", "transporter", "warehouse", "retailer"]),
   validateScanRequest,
-  scanController.verifyScan
+  scanController.verifyScan,
 );
 
 /**
  * POST /api/scan/confirm
- * 
+ *
  * Confirm a verified scan and update shipment status
- * 
+ *
  * Requires: Authentication
  * Allowed Roles: supplier, transporter, warehouse, retailer
- * 
+ *
  * Body:
  * {
  *   scanId: string,
@@ -133,38 +133,38 @@ router.post(
  * }
  */
 router.post(
-  '/confirm',
+  "/confirm",
   authMiddleware,
-  roleMiddleware(['supplier', 'transporter', 'warehouse', 'retailer']),
+  roleMiddleware(["supplier", "transporter", "warehouse", "retailer"]),
   validateConfirmRequest,
-  scanController.confirmScan
+  scanController.confirmScan,
 );
 
 /**
  * GET /api/scan/history/:shipmentHash
- * 
+ *
  * Get scan history for a specific shipment
- * 
+ *
  * Requires: Authentication
  * Allowed Roles: All authenticated users
- * 
+ *
  * Query Parameters:
  * - limit: number (default: 50, max: 100)
  */
 router.get(
-  '/history/:shipmentHash',
+  "/history/:shipmentHash",
   authMiddleware,
-  scanController.getScanHistory
+  scanController.getScanHistory,
 );
 
 /**
  * GET /api/scan/validate/:qrData
- * 
+ *
  * Quick validation of QR format without full verification
  * Used for preview before full scan
- * 
+ *
  * Requires: Authentication
- * 
+ *
  * Response:
  * {
  *   isValid: boolean,
@@ -175,9 +175,35 @@ router.get(
  * }
  */
 router.get(
-  '/validate/:qrData',
+  "/validate/:qrData",
   authMiddleware,
-  scanController.validateQRFormat
+  scanController.validateQRFormat,
+);
+
+/**
+ * POST /api/scan/warehouse/container
+ *
+ * Warehouse-specific container QR scanning endpoint
+ *
+ * Validates:
+ * - Container exists on blockchain (has txHash)
+ * - Container was scanned by transporter first
+ * - Container not already scanned by warehouse (prevents duplicates)
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse only
+ *
+ * Body:
+ * {
+ *   containerId: string,
+ *   location?: string
+ * }
+ */
+router.post(
+  "/warehouse/container",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  scanController.scanContainerForWarehouse,
 );
 
 // ═══════════════════════════════════════════════════════════════════════════

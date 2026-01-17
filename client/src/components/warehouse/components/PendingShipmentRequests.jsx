@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useWarehouseTheme } from "../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import { fetchWarehouseShipments } from "../../../services/shipmentApi";
+import { getShipmentContainers } from "../../../services/scanApi";
 import {
   BoxIcon,
   TruckIcon,
@@ -10,14 +12,69 @@ import {
   ClockIcon,
   UserIcon,
   RefreshIcon,
+  QRCodeIcon,
+  CogIcon,
+  AlertTriangleIcon,
 } from "../icons/Icons";
 
+// Manage Icon Component
+const ManageIcon = ({ className = "w-6 h-6" }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"
+    />
+  </svg>
+);
+
 const PendingShipmentRequests = () => {
+  const navigate = useNavigate();
   const { isDarkMode } = useWarehouseTheme();
   const { user } = useAuth();
   const [pendingShipments, setPendingShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [containerStats, setContainerStats] = useState({});
+  // Fetch container scan stats for all shipments
+  const fetchContainerStats = async (shipments) => {
+    const stats = {};
+    for (const shipment of shipments) {
+      try {
+        const result = await getShipmentContainers(shipment.shipmentHash);
+        if (result.success && result.containers) {
+          const scannedCount = result.containers.filter(
+            (c) => c.status === "AT_WAREHOUSE" || c.status === "IN_TRANSIT",
+          ).length;
+          const warehouseScannedCount = result.containers.filter(
+            (c) => c.status === "AT_WAREHOUSE",
+          ).length;
+          stats[shipment.shipmentHash] = {
+            total: result.containers.length,
+            scanned: warehouseScannedCount,
+            inTransit: scannedCount - warehouseScannedCount,
+          };
+        }
+      } catch (err) {
+        console.error(
+          `Error fetching containers for ${shipment.shipmentHash}:`,
+          err,
+        );
+        stats[shipment.shipmentHash] = {
+          total: shipment.numberOfContainers || 0,
+          scanned: 0,
+          inTransit: 0,
+        };
+      }
+    }
+    setContainerStats(stats);
+  };
 
   const fetchPendingRequests = async () => {
     if (!user?.walletAddress) return;
@@ -28,11 +85,16 @@ const PendingShipmentRequests = () => {
     try {
       // Fetch shipments assigned to this warehouse with CREATED or READY_FOR_DISPATCH status
       const { shipments } = await fetchWarehouseShipments(user.walletAddress);
-      // Filter for pending/incoming shipments (not yet at warehouse)
+      // Filter for pending/incoming shipments (in_transit or ready_for_dispatch)
       const pending = shipments.filter(
-        (s) => s.status === "created" || s.status === "ready_for_dispatch"
+        (s) =>
+          s.status === "in_transit" ||
+          s.status === "ready_for_dispatch" ||
+          s.status === "created",
       );
       setPendingShipments(pending);
+      // Fetch container stats for all pending shipments
+      await fetchContainerStats(pending);
     } catch (err) {
       console.error("Error fetching pending requests:", err);
       setError(err.message);
@@ -44,6 +106,11 @@ const PendingShipmentRequests = () => {
   useEffect(() => {
     fetchPendingRequests();
   }, [user?.walletAddress]);
+
+  // Navigate to manage shipment page
+  const handleManageShipment = (shipment) => {
+    navigate(`/warehouse/shipment/${shipment.shipmentHash}`);
+  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -70,6 +137,17 @@ const PendingShipmentRequests = () => {
         textLight: "text-blue-600",
         borderDark: "border-blue-500/30",
         borderLight: "border-blue-200",
+      };
+    }
+    if (status === "in_transit") {
+      return {
+        label: "In Transit",
+        bgDark: "bg-emerald-500/10",
+        bgLight: "bg-emerald-50",
+        textDark: "text-emerald-400",
+        textLight: "text-emerald-600",
+        borderDark: "border-emerald-500/30",
+        borderLight: "border-emerald-200",
       };
     }
     return {
@@ -421,6 +499,94 @@ const PendingShipmentRequests = () => {
                     </span>
                   </div>
                 )}
+
+                {/* Scan Progress & Button */}
+                <div
+                  className={`
+                  mt-4 pt-4 border-t flex items-center justify-between
+                  ${isDarkMode ? "border-slate-700" : "border-slate-200"}
+                `}
+                >
+                  {/* Scan Progress */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`
+                      flex items-center gap-2 px-3 py-1.5 rounded-lg
+                      ${isDarkMode ? "bg-slate-800" : "bg-slate-100"}
+                    `}
+                    >
+                      <BoxIcon
+                        className={`w-4 h-4 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
+                      />
+                      <span
+                        className={`text-sm font-medium ${isDarkMode ? "text-white" : "text-slate-900"}`}
+                      >
+                        {containerStats[shipment.shipmentHash]?.scanned || 0}
+                        <span
+                          className={
+                            isDarkMode ? "text-slate-500" : "text-slate-400"
+                          }
+                        >
+                          {" "}
+                          /{" "}
+                        </span>
+                        {containerStats[shipment.shipmentHash]?.total ||
+                          shipment.numberOfContainers ||
+                          0}
+                      </span>
+                      <span
+                        className={`text-xs ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+                      >
+                        scanned
+                      </span>
+                    </div>
+                    {/* Progress bar */}
+                    <div
+                      className={`w-24 h-2 rounded-full overflow-hidden ${isDarkMode ? "bg-slate-800" : "bg-slate-200"}`}
+                    >
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          (containerStats[shipment.shipmentHash]?.scanned ||
+                            0) ===
+                          (containerStats[shipment.shipmentHash]?.total ||
+                            shipment.numberOfContainers ||
+                            1)
+                            ? "bg-emerald-500"
+                            : "bg-blue-500"
+                        }`}
+                        style={{
+                          width: `${Math.round(
+                            ((containerStats[shipment.shipmentHash]?.scanned ||
+                              0) /
+                              (containerStats[shipment.shipmentHash]?.total ||
+                                shipment.numberOfContainers ||
+                                1)) *
+                              100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Manage Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleManageShipment(shipment);
+                    }}
+                    className={`
+                      flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all
+                      ${
+                        isDarkMode
+                          ? "bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"
+                          : "bg-purple-50 text-purple-600 hover:bg-purple-100"
+                      }
+                    `}
+                  >
+                    <ManageIcon className="w-4 h-4" />
+                    Manage
+                  </button>
+                </div>
               </div>
             );
           })}

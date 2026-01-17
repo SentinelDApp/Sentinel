@@ -1,24 +1,24 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from "react";
 
 // Theme Context
 const WarehouseThemeContext = createContext();
 
 export const WarehouseThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('warehouse-theme');
-      if (saved !== null) return saved === 'dark';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("warehouse-theme");
+      if (saved !== null) return saved === "dark";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
     }
     return false;
   });
 
   useEffect(() => {
-    localStorage.setItem('warehouse-theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem("warehouse-theme", isDarkMode ? "dark" : "light");
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
   }, [isDarkMode]);
 
@@ -34,10 +34,15 @@ export const WarehouseThemeProvider = ({ children }) => {
 export const useWarehouseTheme = () => {
   const context = useContext(WarehouseThemeContext);
   if (!context) {
-    throw new Error('useWarehouseTheme must be used within a WarehouseThemeProvider');
+    throw new Error(
+      "useWarehouseTheme must be used within a WarehouseThemeProvider",
+    );
   }
   return context;
 };
+
+// Alias for convenience
+export const useTheme = useWarehouseTheme;
 
 export { WarehouseThemeContext };
 export default WarehouseThemeContext;

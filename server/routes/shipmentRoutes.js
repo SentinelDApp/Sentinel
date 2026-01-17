@@ -422,7 +422,7 @@ router.get("/", async (req, res) => {
           "IN_TRANSIT",
           "AT_WAREHOUSE",
           "DELIVERED",
-        ]
+        ],
       );
 
       if (!validStatuses.includes(status.toUpperCase())) {
@@ -487,6 +487,107 @@ router.get("/", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch shipments",
+    });
+  }
+});
+
+/**
+ * GET /api/shipments/warehouse/committed
+ *
+ * Get all successfully committed shipments at warehouse
+ * These are shipments where all containers have been scanned and received
+ *
+ * Query Parameters:
+ * - warehouseWallet: Filter by warehouse wallet address (optional)
+ * - page: Page number for pagination (default: 1)
+ * - limit: Items per page (default: 20, max: 100)
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: [...committedShipments],
+ *   pagination: { page, limit, total, totalPages }
+ * }
+ */
+router.get("/warehouse/committed", async (req, res) => {
+  try {
+    const { warehouseWallet } = req.query;
+    const { page, limit } = parsePagination(req.query);
+
+    // Build query - shipments that are AT_WAREHOUSE with all containers received
+    const query = {
+      status: "AT_WAREHOUSE",
+      warehouseReceivedAt: { $exists: true, $ne: null },
+    };
+
+    // Filter by warehouse wallet if provided
+    if (warehouseWallet) {
+      if (!isValidAddress(warehouseWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid warehouse wallet address format",
+        });
+      }
+      query["assignedWarehouse.walletAddress"] = warehouseWallet.toLowerCase();
+    }
+
+    // Get total count for pagination
+    const total = await Shipment.countDocuments(query);
+
+    // Fetch committed shipments with their containers
+    const shipments = await Shipment.find(query)
+      .sort({ warehouseReceivedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // Get container counts for each shipment
+    const shipmentsWithCounts = await Promise.all(
+      shipments.map(async (shipment) => {
+        const containerCount = await Container.countDocuments({
+          shipmentHash: shipment.shipmentHash,
+          status: "AT_WAREHOUSE",
+        });
+
+        return {
+          shipmentHash: shipment.shipmentHash,
+          supplierWallet: shipment.supplierWallet,
+          batchId: shipment.batchId,
+          numberOfContainers: shipment.numberOfContainers,
+          quantityPerContainer: shipment.quantityPerContainer,
+          totalQuantity: shipment.totalQuantity,
+          txHash: shipment.txHash,
+          blockNumber: shipment.blockNumber,
+          status: shipment.status,
+          // Warehouse commitment details
+          warehouseReceivedAt: shipment.warehouseReceivedAt,
+          warehouseCommittedBy: shipment.warehouseCommittedBy,
+          containersReceived: containerCount,
+          // Assigned stakeholders
+          assignedTransporter: shipment.assignedTransporter || null,
+          assignedWarehouse: shipment.assignedWarehouse || null,
+          createdAt: shipment.createdAt,
+          updatedAt: shipment.updatedAt,
+          supportingDocuments: shipment.supportingDocuments || [],
+        };
+      }),
+    );
+
+    res.json({
+      success: true,
+      data: shipmentsWithCounts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching committed shipments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch committed shipments",
     });
   }
 });
@@ -928,10 +1029,10 @@ router.post(
             folder: "sentinel/shipment-documents",
             public_id: `${shipmentHash}_${Date.now()}_${file.originalname.replace(
               /\.[^/.]+$/,
-              ""
+              "",
             )}`,
           },
-          file.mimetype
+          file.mimetype,
         );
         return {
           url: result.secure_url,
@@ -967,7 +1068,7 @@ router.post(
         message: "Failed to upload documents",
       });
     }
-  }
+  },
 );
 
 /**
@@ -1101,7 +1202,7 @@ router.delete("/:shipmentHash/documents/:docIndex", async (req, res) => {
         try {
           await deleteFromCloudinary(
             publicIdInfo.publicId,
-            publicIdInfo.resourceType
+            publicIdInfo.resourceType,
           );
         } catch (cloudinaryError) {
           console.error("Failed to delete from Cloudinary:", cloudinaryError);
@@ -1130,6 +1231,165 @@ router.delete("/:shipmentHash/documents/:docIndex", async (req, res) => {
     });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATUS UPDATE ENDPOINT (for warehouse container scanning workflow)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const authMiddleware = require("../middleware/authMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
+
+/**
+ * PATCH /api/shipments/:shipmentHash/status
+ *
+ * Update shipment status
+ * Called when warehouse confirms all containers have been received
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Body:
+ * - status: New status (e.g., 'AT_WAREHOUSE')
+ * - notes: Optional notes about the status change
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/status",
+  authMiddleware,
+  roleMiddleware(["warehouse", "transporter", "retailer"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const { status, notes } = req.body;
+      const user = req.user;
+
+      if (!status) {
+        return res.status(400).json({
+          success: false,
+          message: "status is required",
+        });
+      }
+
+      // Validate status
+      const validStatuses = [
+        "CREATED",
+        "READY_FOR_DISPATCH",
+        "IN_TRANSIT",
+        "AT_WAREHOUSE",
+        "DELIVERED",
+      ];
+      if (!validStatuses.includes(status.toUpperCase())) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid status. Valid values: ${validStatuses.join(", ")}`,
+        });
+      }
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // Verify shipment is locked on blockchain
+      if (!shipment.txHash) {
+        return res.status(400).json({
+          success: false,
+          message: "Shipment is not locked on blockchain yet",
+        });
+      }
+
+      // Validate status transition based on role
+      const currentStatus = shipment.status;
+      const newStatus = status.toUpperCase();
+      const userRole = user.role.toLowerCase();
+
+      // Define valid transitions per role
+      const validTransitions = {
+        transporter: {
+          READY_FOR_DISPATCH: ["IN_TRANSIT"],
+        },
+        warehouse: {
+          IN_TRANSIT: ["AT_WAREHOUSE"],
+        },
+        retailer: {
+          AT_WAREHOUSE: ["DELIVERED"],
+        },
+      };
+
+      const roleTransitions = validTransitions[userRole] || {};
+      const allowedNextStatuses = roleTransitions[currentStatus] || [];
+
+      if (!allowedNextStatuses.includes(newStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid status transition. ${userRole} cannot change status from ${currentStatus} to ${newStatus}`,
+          currentStatus,
+          requestedStatus: newStatus,
+          allowedStatuses: allowedNextStatuses,
+        });
+      }
+
+      // Update status
+      const now = new Date();
+      shipment.status = newStatus;
+      shipment.updatedAt = now;
+
+      // Add to status history
+      if (!shipment.statusHistory) {
+        shipment.statusHistory = [];
+      }
+      shipment.statusHistory.push({
+        status: newStatus,
+        changedBy: user.walletAddress,
+        changedAt: now,
+        action: `STATUS_UPDATE_BY_${userRole.toUpperCase()}`,
+        notes: notes || null,
+      });
+
+      await shipment.save();
+
+      // Also update all containers status
+      await Container.updateMany(
+        { shipmentHash: shipment.shipmentHash },
+        {
+          $set: {
+            status: newStatus,
+            updatedAt: now,
+          },
+        },
+      );
+
+      res.json({
+        success: true,
+        message: `Shipment status updated to ${newStatus}`,
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          supplierWallet: shipment.supplierWallet,
+          batchId: shipment.batchId,
+          numberOfContainers: shipment.numberOfContainers,
+          previousStatus: currentStatus,
+          status: shipment.status,
+          txHash: shipment.txHash,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error updating shipment status:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update shipment status",
+      });
+    }
+  },
+);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPORT
