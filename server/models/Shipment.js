@@ -128,7 +128,11 @@ const shipmentSchema = new mongoose.Schema(
       default: SHIPMENT_STATUS.CREATED,
       index: true,
     },
-
+    // Last updated by (wallet or SYSTEM)
+    lastUpdatedBy: {
+      type: String,
+      default: "SYSTEM",
+    },
     // When this record was indexed into MongoDB
     createdAt: {
       type: Date,
@@ -204,35 +208,6 @@ const shipmentSchema = new mongoose.Schema(
         url: { type: String, required: true },
         uploadedBy: { type: String, required: true }, // wallet or 'SYSTEM'
         uploadedAt: { type: Date, default: Date.now },
-      },
-    ],
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // WAREHOUSE COMMITMENT FIELDS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // Timestamp when all containers were received at warehouse
-    warehouseReceivedAt: {
-      type: Date,
-      default: null,
-    },
-
-    // Wallet address of warehouse user who committed the shipment
-    warehouseCommittedBy: {
-      type: String,
-      lowercase: true,
-      trim: true,
-      default: null,
-    },
-
-    // Status history for tracking state transitions
-    statusHistory: [
-      {
-        status: { type: String, required: true },
-        changedBy: { type: String, required: true },
-        changedAt: { type: Date, default: Date.now },
-        action: { type: String },
-        notes: { type: String },
       },
     ],
   },

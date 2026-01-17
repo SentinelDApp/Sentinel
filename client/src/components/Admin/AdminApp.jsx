@@ -18,7 +18,7 @@ function AdminApp({ role = "admin" }) {
   // Derive current page from URL
   const getCurrentPage = () => {
     const path = location.pathname;
-    if (path.includes('/tracking') || path.includes('/shipments')) return 'tracking';
+    if (path.includes('/shipments')) return 'shipments';
     if (path.includes('/scan')) return 'scan';
     if (path.includes('/live')) return 'live';
     if (path.includes('/verification')) return 'verification';
@@ -35,9 +35,8 @@ function AdminApp({ role = "admin" }) {
       case 'dashboard':
         navigate('/admin/dashboard');
         break;
-      case 'tracking':
       case 'shipments':
-        navigate('/admin/tracking');
+        navigate('/admin/shipments');
         break;
       case 'scan':
         navigate('/admin/scan');
@@ -63,7 +62,6 @@ function AdminApp({ role = "admin" }) {
     switch (currentPage) {
       case "dashboard":
         return <SupplierDashboard />;
-      case "tracking":
       case "shipments":
         return <ShipmentTrackingPage />;
       case "scan":

@@ -370,8 +370,11 @@ export const getRejectionMessage = (code) => {
     CONTAINER_NOT_FOUND: "This container was not found in the system.",
     ALREADY_DELIVERED:
       "This shipment has already been delivered. No further actions allowed.",
+    ALREADY_SCANNED:
+      "This container has already been scanned. Duplicate scans are not allowed.",
     UNAUTHORIZED_ROLE:
       "You are not authorized to perform this action at the current shipment status.",
+    ROLE_NOT_ALLOWED: "Your role is not permitted to scan in this flow.",
     INVALID_STATUS_TRANSITION: "This status transition is not allowed.",
     BLOCKCHAIN_MISMATCH:
       "There is a mismatch between database and blockchain records.",
@@ -386,6 +389,72 @@ export const getRejectionMessage = (code) => {
   return messages[code] || "Verification failed. Please try again.";
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TRANSPORTER-SPECIFIC API FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Scan a container as a transporter
+ *
+ * This endpoint enforces strict domain rules:
+ * - Only transporters can use this endpoint
+ * - Container must belong to a blockchain-locked shipment
+ * - Container can only be scanned ONCE by transporter
+ * - Optional concern can be raised during scan
+ *
+ * @param {string} containerId - Container ID from QR code
+ * @param {Object} options - Optional parameters
+ * @param {string} options.concern - Optional concern text
+ * @param {string} options.location - Optional location string
+ * @returns {Promise<Object>} Scan result
+ */
+export const scanContainerAsTransporter = async (containerId, options = {}) => {
+  const { concern, location } = options;
+
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/containers/scan/transporter`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          containerId,
+          concern: concern || null,
+          location: location || null,
+        }),
+      },
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error("Transporter scan error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get containers assigned to the current transporter
+ * Returns containers that are ready to be scanned
+ *
+ * @returns {Promise<Object>} Assigned containers data
+ */
+export const getTransporterAssignedContainers = async () => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/containers/scan/transporter/assigned`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error("Get assigned containers error:", error);
+    throw error;
+  }
+};
+
 /**
  * Get status color for UI display
  *
@@ -395,6 +464,7 @@ export const getRejectionMessage = (code) => {
 export const getStatusColor = (status) => {
   const colors = {
     VERIFIED: "text-green-600",
+    ACCEPTED: "text-green-600",
     REJECTED: "text-red-600",
     ERROR: "text-yellow-600",
   };
@@ -410,6 +480,7 @@ export const getStatusColor = (status) => {
 export const getStatusBgColor = (status) => {
   const colors = {
     VERIFIED: "bg-green-100",
+    ACCEPTED: "bg-green-100",
     REJECTED: "bg-red-100",
     ERROR: "bg-yellow-100",
   };
@@ -581,6 +652,8 @@ export default {
   getRejectionMessage,
   getStatusColor,
   getStatusBgColor,
+  scanContainerAsTransporter,
+  getTransporterAssignedContainers,
   getShipmentContainers,
   scanContainerForWarehouse,
   updateShipmentStatus,

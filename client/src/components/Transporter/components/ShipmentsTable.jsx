@@ -2,8 +2,21 @@ import { useTransporterTheme } from "../context/ThemeContext";
 import { ArrowRightIcon, TruckIcon } from "../icons/Icons";
 import { STATUS_COLORS, STATUS_FILTERS } from "../constants/transporter.constants";
 
-const ShipmentsTable = ({ jobs, filteredJobs, statusFilter, setStatusFilter, onJobSelect }) => {
+const ShipmentsTable = ({ jobs, filteredJobs, statusFilter, setStatusFilter, onJobSelect, activeTab }) => {
   const { isDarkMode } = useTransporterTheme();
+
+  // Filter status buttons based on active tab
+  const getAvailableFilters = () => {
+    if (activeTab === 'active') {
+      return ['All', 'Pending', 'Ready', 'In Transit'];
+    } else if (activeTab === 'history') {
+      return ['All', 'At Warehouse', 'Delivered'];
+    }
+    // Default for dashboard tab - show all
+    return STATUS_FILTERS;
+  };
+
+  const availableFilters = getAvailableFilters();
 
   return (
     <div
@@ -29,7 +42,7 @@ const ShipmentsTable = ({ jobs, filteredJobs, statusFilter, setStatusFilter, onJ
 
           {/* Status Filters */}
           <div className="flex flex-wrap gap-2">
-            {STATUS_FILTERS.map((filter) => {
+            {availableFilters.map((filter) => {
               const count =
                 filter === "All"
                   ? jobs.length

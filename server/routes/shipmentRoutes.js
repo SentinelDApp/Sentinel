@@ -55,6 +55,59 @@ const parsePagination = (query) => {
   return { page, limit };
 };
 
+// Only allow IN_TRANSIT if all containers are scanned
+const canSetInTransit = async (shipmentId) => {
+  try {
+    // Find shipment by hash or _id (only use _id if it's a valid ObjectId format)
+    const mongoose = require('mongoose');
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
+    
+    const query = isValidObjectId 
+      ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
+      : { shipmentHash: shipmentId };
+    
+    const shipment = await Shipment.findOne(query);
+    
+    if (!shipment) {
+      console.log('canSetInTransit: Shipment not found for ID:', shipmentId);
+      return false;
+    }
+    
+    // Find all containers for this shipment
+    const containers = await Container.find({ shipmentHash: shipment.shipmentHash });
+    
+    console.log('canSetInTransit check:', {
+      shipmentHash: shipment.shipmentHash,
+      shipmentCurrentStatus: shipment.status,
+      totalContainers: containers.length,
+      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status })),
+      uniqueStatuses: [...new Set(containers.map(c => c.status))]
+    });
+    
+    if (containers.length === 0) {
+      console.log('canSetInTransit: No containers found for shipment');
+      return false;
+    }
+    
+    // Check each container status
+    const statusCheck = containers.map(c => {
+      const isValid = c.status === "IN_TRANSIT" || c.status === "DELIVERED";
+      return { id: c.containerId, status: c.status, isValid };
+    });
+    
+    console.log('Container status validation:', statusCheck);
+    
+    // All must be IN_TRANSIT or DELIVERED
+    const allScanned = containers.every((c) => c.status === "IN_TRANSIT" || c.status === "DELIVERED");
+    console.log('canSetInTransit result:', allScanned);
+    
+    return allScanned;
+  } catch (error) {
+    console.error('Error in canSetInTransit:', error);
+    return false;
+  }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1229,6 +1282,54 @@ router.delete("/:shipmentHash/documents/:docIndex", async (req, res) => {
       success: false,
       message: "Failed to delete document",
     });
+  }
+});
+
+/**
+ * Update shipment status
+ * PUT /api/shipments/:shipmentId/status
+ */
+router.put('/:shipmentId/status', async (req, res) => {
+  try {
+    const { shipmentId } = req.params;
+    const { status } = req.body;
+    
+    console.log('Update shipment status request:', { shipmentId, status });
+    
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required' });
+    }
+    
+    if (status === 'IN_TRANSIT') {
+      const allowed = await canSetInTransit(shipmentId);
+      if (!allowed) {
+        return res.status(400).json({ success: false, message: 'All containers must be scanned before setting shipment IN_TRANSIT' });
+      }
+    }
+    
+    // Only use _id if it's a valid ObjectId format
+    const mongoose = require('mongoose');
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
+    
+    const query = isValidObjectId 
+      ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
+      : { shipmentHash: shipmentId };
+    
+    const shipment = await Shipment.findOneAndUpdate(
+      query,
+      { $set: { status } },
+      { new: true }
+    );
+    
+    if (!shipment) {
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
+    
+    console.log('Shipment status updated:', { shipmentHash: shipment.shipmentHash, newStatus: status });
+    return res.json({ success: true, shipment });
+  } catch (err) {
+    console.error('Update shipment status error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
   }
 });
 

@@ -33,6 +33,7 @@ const Shipment = require("../models/Shipment");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const scanController = require("../controllers/scanController");
+const transporterScanController = require("../controllers/transporterScanController");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VALIDATION HELPERS
@@ -122,6 +123,45 @@ router.post(
   roleMiddleware(["transporter", "warehouse", "retailer"]),
   validateContainerScanRequest,
   scanController.scanContainer,
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TRANSPORTER-SPECIFIC SCAN ROUTES
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/containers/scan/transporter
+ *
+ * Transporter-specific container scanning endpoint with strict domain rules:
+ * - ONLY transporters can use this endpoint
+ * - Container must belong to a blockchain-locked shipment (txHash required)
+ * - Container can only be scanned ONCE by transporter
+ * - Optional concern can be raised during scan
+ *
+ * Request Body:
+ * {
+ *   containerId: string,    // From QR scan
+ *   concern: string         // Optional concern text
+ * }
+ */
+router.post(
+  "/scan/transporter",
+  authMiddleware,
+  roleMiddleware(["transporter"]),
+  validateContainerScanRequest,
+  transporterScanController.scanContainerAsTransporter,
+);
+
+/**
+ * GET /api/containers/scan/transporter/assigned
+ *
+ * Get containers assigned to the current transporter that are ready to scan
+ */
+router.get(
+  "/scan/transporter/assigned",
+  authMiddleware,
+  roleMiddleware(["transporter"]),
+  transporterScanController.getAssignedContainers,
 );
 
 // ═══════════════════════════════════════════════════════════════════════════

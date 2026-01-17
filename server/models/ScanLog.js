@@ -58,7 +58,9 @@ const REJECTION_REASONS = {
   SHIPMENT_NOT_FOUND: "SHIPMENT_NOT_FOUND",
   CONTAINER_NOT_FOUND: "CONTAINER_NOT_FOUND",
   ALREADY_DELIVERED: "ALREADY_DELIVERED",
+  ALREADY_SCANNED: "ALREADY_SCANNED",
   UNAUTHORIZED_ROLE: "UNAUTHORIZED_ROLE",
+  ROLE_NOT_ALLOWED: "ROLE_NOT_ALLOWED",
   INVALID_STATUS_TRANSITION: "INVALID_STATUS_TRANSITION",
   BLOCKCHAIN_MISMATCH: "BLOCKCHAIN_MISMATCH",
   TAMPERED_QR: "TAMPERED_QR",
@@ -151,6 +153,63 @@ const scanLogSchema = new mongoose.Schema(
     location: {
       type: String,
       default: null,
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SHIPMENT SNAPSHOT (Point-in-time state for audit)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    shipmentSnapshot: {
+      status: {
+        type: String,
+        default: null,
+      },
+      supplierWallet: {
+        type: String,
+        lowercase: true,
+        default: null,
+      },
+      batchId: {
+        type: String,
+        default: null,
+      },
+      numberOfContainers: {
+        type: Number,
+        default: null,
+      },
+      assignedTransporter: {
+        type: String,
+        lowercase: true,
+        default: null,
+      },
+      assignedWarehouse: {
+        type: String,
+        lowercase: true,
+        default: null,
+      },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BLOCKCHAIN VERIFICATION (State at time of scan)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    blockchainVerification: {
+      txHash: {
+        type: String,
+        default: null,
+      },
+      blockNumber: {
+        type: Number,
+        default: null,
+      },
+      isLocked: {
+        type: Boolean,
+        default: false,
+      },
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
     },
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -285,27 +344,46 @@ scanLogSchema.statics.logAccepted = async function (scanData) {
  * Only approved/accepted scans are persisted.
  */
 scanLogSchema.statics.logRejected = async function (scanData, reason) {
-  // Generate a scan ID for the response but don't persist to DB
-  const scanId = this.generateScanId();
+  if (!scanData?.actor?.walletAddress || !scanData?.actor?.role) {
+    console.warn("logRejected: Missing actor data, using defaults");
+  }
 
-  console.log(`Rejected scan (not persisted): ${scanId} - Reason: ${reason}`);
+  const containerId = scanData?.containerId || null;
+  const role = scanData?.actor?.role || "admin";
+  const action = SCAN_ACTION.SCAN_VERIFY;
 
-  // Return a mock scan object for API response consistency
-  return {
-    scanId,
-    containerId: scanData?.containerId || null,
+  // Check if already scanned - don't save duplicate
+  if (containerId) {
+    const existingScan = await this.findOne({
+      containerId,
+      action,
+      "actor.role": role,
+    }).lean();
+
+    if (existingScan) {
+      console.log(
+        `Container ${containerId} already has scan log for action ${action} by ${role}`,
+      );
+      existingScan.isDuplicate = true;
+      return existingScan;
+    }
+  }
+
+  // New scan - save to MongoDB
+  return this.create({
+    scanId: this.generateScanId(),
+    containerId,
     shipmentHash: scanData?.shipmentHash || null,
     actor: {
       walletAddress: scanData?.actor?.walletAddress || "unknown",
-      role: scanData?.actor?.role || "unknown",
+      role,
     },
-    action: SCAN_ACTION.SCAN_VERIFY,
+    action,
     result: SCAN_RESULT.REJECTED,
-    rejectionReason: reason || null,
+    ...(reason && { rejectionReason: reason }),
     location: scanData?.location || null,
     scannedAt: new Date(),
-    _notPersisted: true, // Flag to indicate this was not saved to DB
-  };
+  });
 };
 
 /**
@@ -313,6 +391,34 @@ scanLogSchema.statics.logRejected = async function (scanData, reason) {
  */
 scanLogSchema.statics.logVerified = async function (scanData) {
   return this.logAccepted(scanData);
+};
+
+/**
+ * Log an error during scan (system failure, not rejection)
+ */
+scanLogSchema.statics.logError = async function (
+  scanData,
+  errorMessage = "Unknown error",
+) {
+  const containerId = scanData?.containerId || null;
+
+  // Errors are always logged (no duplicate check for errors)
+  return this.create({
+    scanId: this.generateScanId(),
+    containerId,
+    shipmentHash: scanData?.shipmentHash || null,
+    actor: {
+      walletAddress: scanData?.actor?.walletAddress || "unknown",
+      role: scanData?.actor?.role || "unknown",
+    },
+    action: scanData?.action || SCAN_ACTION.SCAN_VERIFY,
+    result: SCAN_RESULT.REJECTED,
+    rejectionReason: "INTERNAL_ERROR",
+    location: scanData?.location || null,
+    shipmentSnapshot: scanData?.shipmentSnapshot || null,
+    blockchainVerification: scanData?.blockchainVerification || null,
+    scannedAt: new Date(),
+  });
 };
 
 /**

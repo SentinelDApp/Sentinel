@@ -23,50 +23,6 @@ const JobDetailView = ({ job, onBack }) => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Back Button & Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <button
-          onClick={onBack}
-          className={`
-            flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all
-            ${isDarkMode
-              ? "text-slate-400 hover:text-white hover:bg-slate-800"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            }
-          `}
-        >
-          <ChevronLeftIcon className="w-4 h-4" />
-          Back to Shipments
-        </button>
-        <div className="flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className={`text-2xl font-bold ${isDarkMode ? "text-white" : "text-slate-900"}`}>
-              {job.product || `Batch ${job.batchId}`}
-            </h1>
-            <span
-              className={`
-                inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
-                ${isDarkMode
-                  ? `${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`
-                  : `${statusStyle.lightBg} ${statusStyle.lightText} ${statusStyle.lightBorder}`
-                }
-              `}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
-              {job.status}
-            </span>
-            {job.isLocked && (
-              <span className="text-xs text-emerald-500 flex items-center gap-1">
-                🔗 Blockchain Verified
-              </span>
-            )}
-          </div>
-          <p className={`text-sm mt-1 font-mono ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
-            {job.batchId} • {job.id?.slice(0, 20)}...
-          </p>
-        </div>
-      </div>
-
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left Column - Details */}

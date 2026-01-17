@@ -30,12 +30,7 @@ const menuItems = [
     path: "/admin/shipments",
   },
   { id: "products", label: "Products", icon: BoxIcon, path: "/admin/products" },
-  {
-    id: "tracking",
-    label: "Tracking",
-    icon: ChartIcon,
-    path: "/admin/tracking",
-  },
+  
   {
     id: "verification",
     label: "Verification",
