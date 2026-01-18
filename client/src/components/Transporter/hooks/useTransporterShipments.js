@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { fetchShipments } from '../../../services/shipmentApi';
+import { fetchTransporterShipments } from '../../../services/shipmentApi';
 
 /**
  * Map backend status to transporter-friendly display status
@@ -28,6 +28,22 @@ const mapStatusToTransporter = (status) => {
  * Transform API shipment data to transporter job format
  */
 const transformShipmentToJob = (shipment) => {
+  // Determine destination based on whether transporter is assigned via nextTransporter
+  const isNextTransporter = shipment.isNextTransporter || false;
+  const destination = shipment.destination || (isNextTransporter ? 'RETAILER' : 'WAREHOUSE');
+  
+  // Get destination name for display
+  let destName = 'Destination';
+  if (destination === 'RETAILER') {
+    destName = shipment.assignedRetailer?.name || 
+               shipment.destinationDetails?.name || 
+               'Retailer';
+  } else {
+    destName = shipment.assignedWarehouse?.name || 
+               shipment.destinationDetails?.name || 
+               'Warehouse';
+  }
+  
   return {
     // Core identifiers
     id: shipment.shipmentHash || shipment.id,
@@ -37,9 +53,9 @@ const transformShipmentToJob = (shipment) => {
     // Product info - use batchId as product name since we don't have product details
     product: shipment.productName || `Batch ${shipment.batchId}`,
     
-    // Route info (these would come from extended shipment data)
+    // Route info
     origin: shipment.origin || 'Supplier Warehouse',
-    dest: shipment.destination || 'Destination',
+    dest: destName,
     
     // Quantities
     expectedQuantity: shipment.totalQuantity || shipment.quantity,
@@ -60,6 +76,15 @@ const transformShipmentToJob = (shipment) => {
     
     // Supplier info
     supplierWallet: shipment.supplierWallet,
+    
+    // Transporter assignment info
+    isNextTransporter, // true if assigned via nextTransporter field
+    destination, // "WAREHOUSE" or "RETAILER"
+    destinationDetails: shipment.destinationDetails || null,
+    assignedTransporter: shipment.assignedTransporter || null,
+    nextTransporter: shipment.nextTransporter || null,
+    assignedWarehouse: shipment.assignedWarehouse || null,
+    assignedRetailer: shipment.assignedRetailer || null,
     
     // Containers
     containers: shipment.containers || [],
@@ -121,10 +146,9 @@ export const useTransporterShipments = () => {
     setError(null);
 
     try {
-      // Fetch only shipments assigned to this transporter
-      const result = await fetchShipments(null, { 
-        limit: 100,
-        transporterWallet: walletAddress 
+      // Fetch shipments assigned to this transporter (from both assignedTransporter and nextTransporter)
+      const result = await fetchTransporterShipments(walletAddress, { 
+        limit: 100
       });
       
       // Transform shipments to job format

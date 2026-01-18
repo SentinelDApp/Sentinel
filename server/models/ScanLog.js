@@ -117,7 +117,9 @@ const scanLogSchema = new mongoose.Schema(
         type: String,
         required: [true, "Actor role is required"],
         lowercase: true,
-        enum: ["supplier", "transporter", "warehouse", "retailer", "admin"],
+        // assignedtransporter: transporter for supplier → warehouse leg
+        // nexttransporter: transporter for warehouse → retailer leg
+        enum: ["supplier", "transporter", "assignedtransporter", "nexttransporter", "warehouse", "retailer", "admin"],
       },
     },
 

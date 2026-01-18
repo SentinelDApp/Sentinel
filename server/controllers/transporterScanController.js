@@ -49,10 +49,32 @@ const createShipmentSnapshot = (shipment) => {
     batchId: shipment.batchId,
     numberOfContainers: shipment.numberOfContainers,
     assignedTransporter: shipment.assignedTransporter?.walletAddress || null,
-    assignedWarehouse: shipment.assignedWarehouse?.walletAddress || null
+    assignedWarehouse: shipment.assignedWarehouse?.walletAddress || null,
+    nextTransporter: shipment.nextTransporter?.walletAddress || null,
+    assignedRetailer: shipment.assignedRetailer?.walletAddress || null
   };
 };
 
+/**
+ * Check if transporter is authorized to scan this shipment
+ * Transporter can be assigned via either assignedTransporter OR nextTransporter
+ */
+const isTransporterAuthorized = (shipment, transporterWallet) => {
+  const normalizedWallet = transporterWallet.toLowerCase();
+  
+  const isAssignedTransporter = 
+    shipment.assignedTransporter?.walletAddress === normalizedWallet;
+  const isNextTransporter = 
+    shipment.nextTransporter?.walletAddress === normalizedWallet;
+  
+  return {
+    isAuthorized: isAssignedTransporter || isNextTransporter,
+    isAssignedTransporter,
+    isNextTransporter,
+    // Destination based on which field the transporter is assigned through
+    destination: isNextTransporter ? 'RETAILER' : 'WAREHOUSE'
+  };
+};
 /**
  * Create blockchain verification snapshot
  */
@@ -253,23 +275,77 @@ const scanContainerAsTransporter = async (req, res) => {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // STEP 5: Prevent duplicate scan
-    // Container can only be scanned ONCE by transporter (if already IN_TRANSIT or beyond)
+    // STEP 4b: Verify transporter is authorized to scan this shipment
+    // Transporter must be assigned via assignedTransporter OR nextTransporter
     // ═════════════════════════════════════════════════════════════════════
     
-    if (container.status !== 'CREATED' && container.status !== 'SCANNED') {
-      return res.status(400).json({
+    const transporterAuth = isTransporterAuthorized(shipment, actorWallet);
+    
+    if (!transporterAuth.isAuthorized) {
+      return res.status(403).json({
         success: false,
         status: 'REJECTED',
-        reason: 'Container already scanned',
-        code: REJECTION_REASONS.ALREADY_SCANNED,
-        message: `This container has already been scanned and is currently in status: ${container.status}`,
-        container: {
-          containerId: container.containerId,
-          status: container.status,
-          lastScannedBy: container.lastScannedBy
+        reason: 'Transporter not authorized for this shipment',
+        code: REJECTION_REASONS.ROLE_NOT_ALLOWED,
+        message: 'You are not assigned to transport this shipment. Only the assigned transporter can scan containers.',
+        shipment: {
+          shipmentHash: shipment.shipmentHash,
+          assignedTransporter: shipment.assignedTransporter?.walletAddress || null,
+          nextTransporter: shipment.nextTransporter?.walletAddress || null
         }
       });
+    }
+
+    // Store destination info for response
+    const transporterDestination = transporterAuth.destination;
+    const isNextTransporter = transporterAuth.isNextTransporter;
+    
+    // Determine the specific transporter role for scan logs
+    // assignedtransporter: handles supplier → warehouse leg
+    // nexttransporter: handles warehouse → retailer leg
+    const transporterRole = isNextTransporter ? 'nexttransporter' : 'assignedtransporter';
+    
+    // Update baseScanData with the specific transporter role
+    baseScanData.actor.role = transporterRole;
+
+    // ═════════════════════════════════════════════════════════════════════
+    // STEP 5: Prevent duplicate scan based on transporter type
+    // - assignedTransporter can scan when container is CREATED or SCANNED
+    // - nextTransporter can scan when container is AT_WAREHOUSE
+    // ═════════════════════════════════════════════════════════════════════
+    
+    if (isNextTransporter) {
+      // nextTransporter scans containers that are AT_WAREHOUSE (ready for warehouse → retailer leg)
+      if (container.status !== 'AT_WAREHOUSE') {
+        return res.status(400).json({
+          success: false,
+          status: 'REJECTED',
+          reason: 'Container not ready for next transport leg',
+          code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
+          message: `As the next transporter, you can only scan containers that are AT_WAREHOUSE. Current status: ${container.status}`,
+          container: {
+            containerId: container.containerId,
+            status: container.status,
+            lastScannedBy: container.lastScannedBy
+          }
+        });
+      }
+    } else {
+      // assignedTransporter scans containers that are CREATED or SCANNED (supplier → warehouse leg)
+      if (container.status !== 'CREATED' && container.status !== 'SCANNED') {
+        return res.status(400).json({
+          success: false,
+          status: 'REJECTED',
+          reason: 'Container already scanned',
+          code: REJECTION_REASONS.ALREADY_SCANNED,
+          message: `This container has already been scanned and is currently in status: ${container.status}`,
+          container: {
+            containerId: container.containerId,
+            status: container.status,
+            lastScannedBy: container.lastScannedBy
+          }
+        });
+      }
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -300,7 +376,7 @@ const scanContainerAsTransporter = async (req, res) => {
           lastScanAt: now,
           lastScannedBy: {
             wallet: actorWallet,
-            role: role,
+            role: transporterRole, // Use specific role (assignedtransporter or nexttransporter)
             timestamp: now
           },
           updatedAt: now
@@ -371,7 +447,7 @@ const scanContainerAsTransporter = async (req, res) => {
         quantity: container.quantity,
         lastScannedBy: {
           wallet: actorWallet,
-          role: role,
+          role: transporterRole, // Use specific role (assignedtransporter or nexttransporter)
           timestamp: now
         }
       },
@@ -385,6 +461,15 @@ const scanContainerAsTransporter = async (req, res) => {
         isLockedOnBlockchain: true,
         txHash: shipment.txHash,
         blockNumber: shipment.blockNumber
+      },
+      // Transporter-specific info
+      transporter: {
+        role: transporterRole, // 'assignedtransporter' or 'nexttransporter'
+        isNextTransporter, // true if assigned via nextTransporter field
+        destination: transporterDestination, // "WAREHOUSE" or "RETAILER"
+        destinationDetails: isNextTransporter 
+          ? shipment.assignedRetailer || null 
+          : shipment.assignedWarehouse || null
       },
       concern: concernResult,
       processingTimeMs: Date.now() - startTime
@@ -406,15 +491,21 @@ const scanContainerAsTransporter = async (req, res) => {
  * GET /api/containers/scan/transporter/assigned
  * 
  * Get containers assigned to the current transporter that are ready to scan
+ * Includes shipments from both assignedTransporter and nextTransporter fields
  */
 const getAssignedContainers = async (req, res) => {
   const transporterWallet = req.user.walletAddress;
+  const normalizedWallet = transporterWallet.toLowerCase();
   
   try {
-    // Find shipments assigned to this transporter
-    // Include all statuses that might have containers to track
+    // Find shipments assigned to this transporter via either field
+    // assignedTransporter: destination is warehouse
+    // nextTransporter: destination is retailer
     const shipments = await Shipment.find({
-      'assignedTransporter.walletAddress': transporterWallet.toLowerCase()
+      $or: [
+        { 'assignedTransporter.walletAddress': normalizedWallet },
+        { 'nextTransporter.walletAddress': normalizedWallet }
+      ]
     }).lean();
     
     if (shipments.length === 0) {
@@ -434,10 +525,15 @@ const getAssignedContainers = async (req, res) => {
       shipmentHash: { $in: shipmentHashes }
     }).lean();
     
-    // Group containers by shipment
+    // Group containers by shipment with destination info
     const shipmentData = shipments.map(shipment => {
       const shipmentContainers = containers.filter(c => c.shipmentHash === shipment.shipmentHash);
       const pendingContainers = shipmentContainers.filter(c => c.status === 'CREATED' || c.status === 'SCANNED');
+      
+      // Determine if this transporter is assigned via nextTransporter
+      const isNextTransporter = 
+        shipment.nextTransporter?.walletAddress === normalizedWallet;
+      const destination = isNextTransporter ? 'RETAILER' : 'WAREHOUSE';
       
       return {
         shipmentId: shipment._id.toString(),
@@ -447,6 +543,12 @@ const getAssignedContainers = async (req, res) => {
         totalContainers: shipmentContainers.length,
         pendingScans: pendingContainers.length,
         scannedCount: shipmentContainers.length - pendingContainers.length,
+        // Transporter-specific info
+        isNextTransporter,
+        destination,
+        destinationDetails: isNextTransporter 
+          ? shipment.assignedRetailer || null 
+          : shipment.assignedWarehouse || null,
         containers: shipmentContainers.map(c => ({
           containerId: c.containerId,
           containerNumber: c.containerNumber,

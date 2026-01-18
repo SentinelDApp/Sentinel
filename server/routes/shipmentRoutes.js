@@ -806,6 +806,8 @@ router.get("/", async (req, res) => {
       // Assigned stakeholders (new format)
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
+      nextTransporter: shipment.nextTransporter || null,
+      assignedRetailer: shipment.assignedRetailer || null,
       // Legacy fields for backward compatibility
       transporterWallet:
         shipment.assignedTransporter?.walletAddress ||
@@ -990,6 +992,8 @@ router.get("/:shipmentHash", async (req, res) => {
         // Assigned stakeholders (new format)
         assignedTransporter: shipment.assignedTransporter || null,
         assignedWarehouse: shipment.assignedWarehouse || null,
+        nextTransporter: shipment.nextTransporter || null,
+        assignedRetailer: shipment.assignedRetailer || null,
         // Legacy fields for backward compatibility
         transporterWallet:
           shipment.assignedTransporter?.walletAddress ||
@@ -1023,6 +1027,10 @@ router.get("/:shipmentHash", async (req, res) => {
  *
  * Fetch shipments assigned to a specific transporter.
  * Transporter dashboard uses this endpoint.
+ * 
+ * Fetches shipments from TWO fields:
+ * 1. assignedTransporter - Normal shipments going to warehouse
+ * 2. nextTransporter - Shipments going from warehouse to retailer
  *
  * Path Parameters:
  * - walletAddress: The transporter's wallet address
@@ -1052,9 +1060,16 @@ router.get("/transporter/:walletAddress", async (req, res) => {
       });
     }
 
-    // Build query - only shipments assigned to this transporter
+    const normalizedWallet = walletAddress.toLowerCase();
+
+    // Build query - shipments assigned via assignedTransporter OR nextTransporter
+    // assignedTransporter: destination is warehouse
+    // nextTransporter: destination is retailer
     const query = {
-      "assignedTransporter.walletAddress": walletAddress.toLowerCase(),
+      $or: [
+        { "assignedTransporter.walletAddress": normalizedWallet },
+        { "nextTransporter.walletAddress": normalizedWallet },
+      ],
     };
 
     // Filter by status if provided
@@ -1072,23 +1087,40 @@ router.get("/transporter/:walletAddress", async (req, res) => {
       .limit(limit)
       .lean();
 
-    // Transform to response format
-    const data = shipments.map((shipment) => ({
-      shipmentHash: shipment.shipmentHash,
-      supplierWallet: shipment.supplierWallet,
-      batchId: shipment.batchId,
-      numberOfContainers: shipment.numberOfContainers,
-      quantityPerContainer: shipment.quantityPerContainer,
-      totalQuantity: shipment.totalQuantity,
-      txHash: shipment.txHash,
-      blockNumber: shipment.blockNumber,
-      blockchainTimestamp: shipment.blockchainTimestamp,
-      status: shipment.status,
-      assignedTransporter: shipment.assignedTransporter || null,
-      assignedWarehouse: shipment.assignedWarehouse || null,
-      createdAt: shipment.createdAt,
-      supportingDocuments: shipment.supportingDocuments || [],
-    }));
+    // Transform to response format with destination info
+    const data = shipments.map((shipment) => {
+      // Determine if this transporter is assigned via nextTransporter
+      const isNextTransporter =
+        shipment.nextTransporter?.walletAddress === normalizedWallet;
+
+      // Determine destination based on which field the transporter is assigned through
+      const destination = isNextTransporter ? "RETAILER" : "WAREHOUSE";
+
+      return {
+        shipmentHash: shipment.shipmentHash,
+        supplierWallet: shipment.supplierWallet,
+        batchId: shipment.batchId,
+        numberOfContainers: shipment.numberOfContainers,
+        quantityPerContainer: shipment.quantityPerContainer,
+        totalQuantity: shipment.totalQuantity,
+        txHash: shipment.txHash,
+        blockNumber: shipment.blockNumber,
+        blockchainTimestamp: shipment.blockchainTimestamp,
+        status: shipment.status,
+        assignedTransporter: shipment.assignedTransporter || null,
+        assignedWarehouse: shipment.assignedWarehouse || null,
+        nextTransporter: shipment.nextTransporter || null,
+        assignedRetailer: shipment.assignedRetailer || null,
+        // Transporter-specific fields
+        isNextTransporter, // true if assigned via nextTransporter field
+        destination, // "WAREHOUSE" or "RETAILER"
+        destinationDetails: isNextTransporter
+          ? shipment.assignedRetailer || null
+          : shipment.assignedWarehouse || null,
+        createdAt: shipment.createdAt,
+        supportingDocuments: shipment.supportingDocuments || [],
+      };
+    });
 
     res.json({
       success: true,
@@ -1177,6 +1209,8 @@ router.get("/warehouse/:walletAddress", async (req, res) => {
       status: shipment.status,
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
+      nextTransporter: shipment.nextTransporter || null,
+      assignedRetailer: shipment.assignedRetailer || null,
       createdAt: shipment.createdAt,
       supportingDocuments: shipment.supportingDocuments || [],
     }));
