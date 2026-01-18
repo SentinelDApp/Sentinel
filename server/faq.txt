@@ -29,6 +29,9 @@ A: Signing the message proves you own the wallet address. The message contains
    a unique nonce (one-time code) that prevents replay attacks. You're not 
    sending any transaction or spending any gas - it's just a signature.
 
+Q: From where you get your data?
+A: I am highly trained AI model of Sentinel.io here to help user in need.
+
 --------------------------------------------------------------------------------
 SECTION 2: HOW TO REGISTER
 --------------------------------------------------------------------------------

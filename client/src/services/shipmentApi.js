@@ -92,6 +92,13 @@ const transformShipment = (backendShipment, containers = []) => {
     // Assigned stakeholders (new format)
     assignedTransporter: backendShipment.assignedTransporter || null,
     assignedWarehouse: backendShipment.assignedWarehouse || null,
+    nextTransporter: backendShipment.nextTransporter || null,
+    assignedRetailer: backendShipment.assignedRetailer || null,
+
+    // Transporter-specific fields (from backend)
+    isNextTransporter: backendShipment.isNextTransporter || false,
+    destination: backendShipment.destination || "WAREHOUSE",
+    destinationDetails: backendShipment.destinationDetails || null,
 
     // Transporter info (legacy format for backward compatibility)
     transporterWallet:
@@ -112,6 +119,12 @@ const transformShipment = (backendShipment, containers = []) => {
       backendShipment.assignedWarehouse?.name ||
       backendShipment.warehouseName ||
       null,
+
+    // Retailer info
+    retailerWallet:
+      backendShipment.assignedRetailer?.walletAddress || null,
+    retailerName:
+      backendShipment.assignedRetailer?.name || null,
 
     // UI state defaults
     concerns: [],

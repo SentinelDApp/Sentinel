@@ -209,6 +209,65 @@ const shipmentSchema = new mongoose.Schema(
       },
     },
 
+    // Next Transporter - for shipments going from warehouse to retailer
+    // When this field is set, the destination is retailer (not warehouse)
+    nextTransporter: {
+      walletAddress: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
+      },
+      name: {
+        type: String,
+        trim: true,
+      },
+      organizationName: {
+        type: String,
+        trim: true,
+      },
+      assignedAt: {
+        type: Date,
+      },
+      // Destination type when this transporter handles the shipment
+      destinationType: {
+        type: String,
+        enum: ["RETAILER", "WAREHOUSE"],
+        default: "RETAILER",
+      },
+    },
+
+    // Assigned Retailer - final destination for delivery
+    assignedRetailer: {
+      walletAddress: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
+      },
+      name: {
+        type: String,
+        trim: true,
+      },
+      organizationName: {
+        type: String,
+        trim: true,
+      },
+      assignedAt: {
+        type: Date,
+      },
+    },
+
     // Supporting documents uploaded for this shipment
     supportingDocuments: [
       {
@@ -256,6 +315,12 @@ shipmentSchema.index({ "assignedTransporter.walletAddress": 1, createdAt: -1 });
 
 // Index for querying shipments by assigned warehouse
 shipmentSchema.index({ "assignedWarehouse.walletAddress": 1, createdAt: -1 });
+
+// Index for querying shipments by next transporter (warehouse to retailer)
+shipmentSchema.index({ "nextTransporter.walletAddress": 1, createdAt: -1 });
+
+// Index for querying shipments by assigned retailer
+shipmentSchema.index({ "assignedRetailer.walletAddress": 1, createdAt: -1 });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PRE-SAVE MIDDLEWARE
@@ -333,6 +398,8 @@ shipmentSchema.methods.toResponse = function () {
     // Assigned stakeholders
     assignedTransporter: this.assignedTransporter || null,
     assignedWarehouse: this.assignedWarehouse || null,
+    nextTransporter: this.nextTransporter || null,
+    assignedRetailer: this.assignedRetailer || null,
     // Legacy fields (kept for backward compatibility)
     transporterWallet:
       this.assignedTransporter?.walletAddress || this.transporterWallet || null,
