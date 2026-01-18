@@ -455,6 +455,73 @@ export const getTransporterAssignedContainers = async () => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// RETAILER-SPECIFIC API FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Scan a container as a retailer
+ *
+ * This endpoint enforces strict domain rules:
+ * - Only retailers can use this endpoint
+ * - Container must be AT_WAREHOUSE status
+ * - Shipment must be assigned to this retailer
+ * - Container can only be scanned ONCE by retailer
+ * - When all containers scanned, shipment status → DELIVERED
+ *
+ * @param {string} containerId - Container ID from QR code
+ * @param {Object} options - Optional parameters
+ * @param {string} options.concern - Optional concern text
+ * @param {string} options.location - Optional location string
+ * @returns {Promise<Object>} Scan result
+ */
+export const scanContainerAsRetailer = async (containerId, options = {}) => {
+  const { concern, location } = options;
+
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/containers/scan/retailer`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          containerId,
+          concern: concern || null,
+          location: location || null,
+        }),
+      },
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error("Retailer scan error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get containers assigned to the current retailer
+ * Returns containers that are ready to be scanned (AT_WAREHOUSE status)
+ *
+ * @returns {Promise<Object>} Assigned containers data
+ */
+export const getRetailerAssignedContainers = async () => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/containers/scan/retailer/assigned`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error("Get retailer assigned containers error:", error);
+    throw error;
+  }
+};
+
 /**
  * Get status color for UI display
  *
@@ -606,6 +673,81 @@ export const updateShipmentStatus = async (
 };
 
 /**
+ * Assign a retailer to a shipment
+ * Called by warehouse when shipment is ready for delivery
+ *
+ * @param {string} shipmentHash - Shipment identifier
+ * @param {string} retailerWallet - Retailer's wallet address
+ * @param {Object} options - Optional parameters
+ * @param {string} options.retailerName - Optional retailer name
+ * @param {string} options.retailerOrganization - Optional organization name
+ * @returns {Promise<Object>} Assignment result
+ */
+export const assignRetailerToShipment = async (
+  shipmentHash,
+  retailerWallet,
+  options = {},
+) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/shipments/${encodeURIComponent(shipmentHash)}/assign-retailer`,
+      {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          retailerWallet,
+          retailerName: options.retailerName || null,
+          retailerOrganization: options.retailerOrganization || null,
+        }),
+      },
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error("Assign retailer error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get shipments assigned to a retailer
+ * Used by retailer dashboard to show incoming shipments
+ *
+ * @param {string} walletAddress - Retailer's wallet address
+ * @param {Object} options - Query options
+ * @param {string} options.status - Filter by shipment status (optional)
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.limit - Items per page (default: 20)
+ * @returns {Promise<Object>} Assigned shipments list
+ */
+export const getRetailerShipments = async (walletAddress, options = {}) => {
+  try {
+    const { status, page = 1, limit = 20 } = options;
+    
+    // Ensure wallet address is lowercase for consistent matching
+    const normalizedWallet = walletAddress?.toLowerCase();
+
+    const params = new URLSearchParams();
+    if (status) params.append("status", status);
+    params.append("page", page.toString());
+    params.append("limit", limit.toString());
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/shipments/retailer/${normalizedWallet}?${params.toString()}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error("Get retailer shipments error:", error);
+    throw error;
+  }
+};
+
+/**
  * Get all committed shipments at warehouse
  * Shipments where all containers have been scanned and received
  *
@@ -654,9 +796,13 @@ export default {
   getStatusBgColor,
   scanContainerAsTransporter,
   getTransporterAssignedContainers,
+  scanContainerAsRetailer,
+  getRetailerAssignedContainers,
+  getRetailerShipments,
   getShipmentContainers,
   scanContainerForWarehouse,
   updateShipmentStatus,
+  assignRetailerToShipment,
   getCommittedShipments,
   SCAN_STATUS,
   REJECTION_CODES,

@@ -76,6 +76,14 @@ const shipmentSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Product name for this shipment
+    productName: {
+      type: String,
+      required: [true, "Product name is required"],
+      trim: true,
+      index: true,
+    },
+
     // Number of containers in the shipment
     numberOfContainers: {
       type: Number,
@@ -202,6 +210,43 @@ const shipmentSchema = new mongoose.Schema(
       },
     },
 
+    // Assigned Retailer - set by warehouse when forwarding shipment
+    assignedRetailer: {
+      walletAddress: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
+      },
+      name: {
+        type: String,
+        trim: true,
+      },
+      organizationName: {
+        type: String,
+        trim: true,
+      },
+      assignedAt: {
+        type: Date,
+      },
+      assignedBy: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
+      },
+    },
+
     // Supporting documents uploaded for this shipment
     supportingDocuments: [
       {
@@ -235,6 +280,9 @@ shipmentSchema.index({ "assignedTransporter.walletAddress": 1, createdAt: -1 });
 
 // Index for querying shipments by assigned warehouse
 shipmentSchema.index({ "assignedWarehouse.walletAddress": 1, createdAt: -1 });
+
+// Index for querying shipments by assigned retailer
+shipmentSchema.index({ "assignedRetailer.walletAddress": 1, createdAt: -1 });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PRE-SAVE MIDDLEWARE
@@ -302,6 +350,7 @@ shipmentSchema.methods.toResponse = function () {
     shipmentHash: this.shipmentHash,
     supplierWallet: this.supplierWallet,
     batchId: this.batchId,
+    productName: this.productName,
     numberOfContainers: this.numberOfContainers,
     quantityPerContainer: this.quantityPerContainer,
     totalQuantity: this.totalQuantity,
@@ -312,6 +361,7 @@ shipmentSchema.methods.toResponse = function () {
     // Assigned stakeholders
     assignedTransporter: this.assignedTransporter || null,
     assignedWarehouse: this.assignedWarehouse || null,
+    assignedRetailer: this.assignedRetailer || null,
     // Legacy fields (kept for backward compatibility)
     transporterWallet:
       this.assignedTransporter?.walletAddress || this.transporterWallet || null,

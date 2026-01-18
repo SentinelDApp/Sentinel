@@ -479,7 +479,7 @@ router.patch("/:shipmentHash/lock", async (req, res) => {
  */
 router.get("/", async (req, res) => {
   try {
-    const { supplierWallet, transporterWallet, warehouseWallet, status } =
+    const { supplierWallet, transporterWallet, warehouseWallet, retailerWallet, status } =
       req.query;
     const { page, limit } = parsePagination(req.query);
 
@@ -520,6 +520,17 @@ router.get("/", async (req, res) => {
       query["assignedWarehouse.walletAddress"] = warehouseWallet.toLowerCase();
     }
 
+    // Filter by retailer wallet if provided
+    if (retailerWallet) {
+      if (!isValidAddress(retailerWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid retailer wallet address format",
+        });
+      }
+      query["assignedRetailer.walletAddress"] = retailerWallet.toLowerCase();
+    }
+
     // Filter by status if provided
     if (status) {
       const validStatuses = Object.values(
@@ -555,6 +566,7 @@ router.get("/", async (req, res) => {
       shipmentHash: shipment.shipmentHash,
       supplierWallet: shipment.supplierWallet,
       batchId: shipment.batchId,
+      productName: shipment.productName || null,
       numberOfContainers: shipment.numberOfContainers,
       quantityPerContainer: shipment.quantityPerContainer,
       totalQuantity: shipment.totalQuantity,
@@ -565,6 +577,7 @@ router.get("/", async (req, res) => {
       // Assigned stakeholders (new format)
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
+      assignedRetailer: shipment.assignedRetailer || null,
       // Legacy fields for backward compatibility
       transporterWallet:
         shipment.assignedTransporter?.walletAddress ||
@@ -836,6 +849,7 @@ router.get("/transporter/:walletAddress", async (req, res) => {
       shipmentHash: shipment.shipmentHash,
       supplierWallet: shipment.supplierWallet,
       batchId: shipment.batchId,
+      productName: shipment.productName || null,
       numberOfContainers: shipment.numberOfContainers,
       quantityPerContainer: shipment.quantityPerContainer,
       totalQuantity: shipment.totalQuantity,
@@ -927,6 +941,7 @@ router.get("/warehouse/:walletAddress", async (req, res) => {
       shipmentHash: shipment.shipmentHash,
       supplierWallet: shipment.supplierWallet,
       batchId: shipment.batchId,
+      productName: shipment.productName || null,
       numberOfContainers: shipment.numberOfContainers,
       quantityPerContainer: shipment.quantityPerContainer,
       totalQuantity: shipment.totalQuantity,
@@ -952,6 +967,99 @@ router.get("/warehouse/:walletAddress", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching warehouse shipments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch shipments",
+    });
+  }
+});
+
+/**
+ * GET /api/shipments/retailer/:walletAddress
+ *
+ * Fetch shipments assigned to a specific retailer.
+ * Retailer dashboard uses this endpoint.
+ *
+ * Path Parameters:
+ * - walletAddress: The retailer's wallet address
+ *
+ * Query Parameters:
+ * - status: Filter by shipment status (optional)
+ * - page: Page number for pagination (default: 1)
+ * - limit: Items per page (default: 20, max: 100)
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: [...shipments],
+ *   pagination: { page, limit, total, totalPages }
+ * }
+ */
+router.get("/retailer/:walletAddress", async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    const { status } = req.query;
+    const { page, limit } = parsePagination(req.query);
+
+    if (!walletAddress || !isValidAddress(walletAddress)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid retailer wallet address is required",
+      });
+    }
+
+    // Build query - only shipments assigned to this retailer
+    const query = {
+      "assignedRetailer.walletAddress": walletAddress.toLowerCase(),
+    };
+
+    // Filter by status if provided
+    if (status) {
+      query.status = status.toUpperCase();
+    }
+
+    // Get total count for pagination
+    const total = await Shipment.countDocuments(query);
+
+    // Fetch shipments
+    const shipments = await Shipment.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    // Transform to response format
+    const data = shipments.map((shipment) => ({
+      shipmentHash: shipment.shipmentHash,
+      supplierWallet: shipment.supplierWallet,
+      batchId: shipment.batchId,
+      productName: shipment.productName || null,
+      numberOfContainers: shipment.numberOfContainers,
+      quantityPerContainer: shipment.quantityPerContainer,
+      totalQuantity: shipment.totalQuantity,
+      txHash: shipment.txHash,
+      blockNumber: shipment.blockNumber,
+      blockchainTimestamp: shipment.blockchainTimestamp,
+      status: shipment.status,
+      assignedTransporter: shipment.assignedTransporter || null,
+      assignedWarehouse: shipment.assignedWarehouse || null,
+      assignedRetailer: shipment.assignedRetailer || null,
+      createdAt: shipment.createdAt,
+      supportingDocuments: shipment.supportingDocuments || [],
+    }));
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching retailer shipments:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch shipments",
@@ -1408,6 +1516,102 @@ router.put('/:shipmentId/status', async (req, res) => {
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+
+/**
+ * PATCH /api/shipments/:shipmentHash/assign-retailer
+ *
+ * Assign a retailer to a shipment (for delivery)
+ * Called by warehouse when shipment is ready for delivery
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Body:
+ * - retailerWallet: Retailer's wallet address
+ * - retailerName: Optional retailer name
+ * - retailerOrganization: Optional retailer organization name
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/assign-retailer",
+  authMiddleware,
+  roleMiddleware(["warehouse", "admin"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const { retailerWallet, retailerName, retailerOrganization } = req.body;
+      const user = req.user;
+
+      if (!retailerWallet) {
+        return res.status(400).json({
+          success: false,
+          message: "retailerWallet is required",
+        });
+      }
+
+      // Validate wallet format
+      if (!/^0x[a-fA-F0-9]{40}$/.test(retailerWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid retailer wallet address format",
+        });
+      }
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // Verify shipment status allows assignment (should be AT_WAREHOUSE or IN_TRANSIT)
+      if (!['AT_WAREHOUSE', 'IN_TRANSIT', 'READY_FOR_DISPATCH'].includes(shipment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot assign retailer when shipment status is ${shipment.status}`,
+        });
+      }
+
+      // Update assigned retailer
+      const now = new Date();
+      shipment.assignedRetailer = {
+        walletAddress: retailerWallet.toLowerCase(),
+        name: retailerName || null,
+        organizationName: retailerOrganization || null,
+        assignedAt: now,
+        assignedBy: user.walletAddress.toLowerCase(),
+      };
+      shipment.updatedAt = now;
+      shipment.lastUpdatedBy = user.walletAddress;
+
+      await shipment.save();
+
+      res.json({
+        success: true,
+        message: "Retailer assigned successfully",
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          batchId: shipment.batchId,
+          status: shipment.status,
+          assignedRetailer: shipment.assignedRetailer,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error assigning retailer:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to assign retailer",
+      });
+    }
+  },
+);
 
 /**
  * PATCH /api/shipments/:shipmentHash/status
