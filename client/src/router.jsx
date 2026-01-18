@@ -5,6 +5,9 @@
 
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
+// Landing Page (Public)
+import LandingPage from "./components/landing/LandingPage";
+
 // Auth Pages
 import { Signup } from "./components/signup";
 import LoginPage from "./components/Admin/pages/LoginPage";
@@ -50,7 +53,7 @@ export const router = createBrowserRouter([
       // ============================================
       {
         path: "/",
-        element: <Navigate to="/login" replace />,
+        element: <LandingPage />,
       },
       {
         path: "/login",
