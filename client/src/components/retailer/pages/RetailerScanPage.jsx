@@ -99,7 +99,7 @@ const SCAN_STATES = {
   CONCERN_INPUT: 'CONCERN_INPUT'
 };
 
-const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null }) => {
+const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null, onUpdateStatus = null, onAllScansComplete = null }) => {
   const { isDarkMode } = useRetailerTheme();
   const { user, walletAddress } = useAuth();
   
@@ -112,6 +112,8 @@ const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null }) => {
   const [pendingContainerId, setPendingContainerId] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [scanMode, setScanMode] = useState(SCAN_MODES.CAMERA);
+  const [allScansComplete, setAllScansComplete] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
   // Container count state
   const [containerStats, setContainerStats] = useState({
@@ -279,11 +281,21 @@ const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null }) => {
       setPendingContainerId(null);
       
       // Update container counts after successful scan
+      const newPending = Math.max(0, containerStats.pending - 1);
       setContainerStats(prev => ({
         ...prev,
-        pending: Math.max(0, prev.pending - 1),
+        pending: newPending,
         scanned: prev.scanned + 1
       }));
+      
+      // Check if all containers are now scanned (don't auto-update, just track state)
+      if (result.shipment.allDelivered || newPending === 0) {
+        setAllScansComplete(true);
+        // Notify parent that all scans are complete
+        if (onAllScansComplete) {
+          onAllScansComplete(result.shipment);
+        }
+      }
       
       addToHistory({
         containerId: result.container.containerId,
@@ -340,6 +352,23 @@ const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null }) => {
     setPendingContainerId(null);
   };
 
+  // Handle Update Status button click
+  const handleUpdateStatus = async () => {
+    if (!onUpdateStatus) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      const shipmentHash = scanResult?.shipment?.shipmentHash || shipmentData?.shipmentHash || shipmentFilter;
+      if (shipmentHash) {
+        await onUpdateStatus(shipmentHash);
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   // Theme classes
   const cardClass = isDarkMode
     ? 'bg-slate-900/50 border-slate-800'
@@ -367,33 +396,67 @@ const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null }) => {
               <div>
                 <p className={`text-sm font-medium ${textClass}`}>Containers Received</p>
                 <p className={`text-xs ${mutedTextClass}`}>
-                  {containerStats.pending > 0 
-                    ? `${containerStats.pending} remaining to receive`
+                  {containerStats.scanned < containerStats.total 
+                    ? `${containerStats.total - containerStats.scanned} remaining to receive`
                     : 'All containers received! ✓'
                   }
                 </p>
               </div>
             </div>
-            {/* Progress bar */}
-            <div className="hidden sm:block w-32">
-              <div className={`h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                <div 
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
-                  style={{ width: `${containerStats.total > 0 ? (containerStats.scanned / containerStats.total) * 100 : 0}%` }}
-                />
+            
+            <div className="flex items-center gap-2">
+              {/* Update Status button - ONLY when ALL containers are scanned */}
+              {containerStats.scanned > 0 && containerStats.scanned >= containerStats.total && onUpdateStatus && (
+                <button
+                  onClick={handleUpdateStatus}
+                  disabled={isUpdatingStatus}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    isUpdatingStatus
+                      ? 'bg-slate-500 cursor-not-allowed text-white'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                  }`}
+                >
+                  {isUpdatingStatus ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="hidden sm:inline">Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="hidden sm:inline">Update Status</span>
+                    </>
+                  )}
+                </button>
+              )}
+              
+              {/* Progress bar */}
+              <div className="hidden sm:block w-32">
+                <div className={`h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                  <div 
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
+                    style={{ width: `${containerStats.total > 0 ? (containerStats.scanned / containerStats.total) * 100 : 0}%` }}
+                  />
+                </div>
+                <p className={`text-xs mt-1 text-center ${mutedTextClass}`}>
+                  {containerStats.total > 0 ? Math.round((containerStats.scanned / containerStats.total) * 100) : 0}% delivered
+                </p>
               </div>
-              <p className={`text-xs mt-1 text-center ${mutedTextClass}`}>
-                {containerStats.total > 0 ? Math.round((containerStats.scanned / containerStats.total) * 100) : 0}% delivered
-              </p>
+              
+              {/* Refresh button */}
+              <button
+                onClick={fetchContainerCounts}
+                className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
+                title="Refresh counts"
+              >
+                <RefreshIcon className="w-4 h-4" />
+              </button>
             </div>
-            {/* Refresh button */}
-            <button
-              onClick={fetchContainerCounts}
-              className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
-              title="Refresh counts"
-            >
-              <RefreshIcon className="w-4 h-4" />
-            </button>
           </div>
         </div>
       )}
@@ -625,30 +688,43 @@ const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null }) => {
               )}
             </div>
             
-            {!scanResult.shipment.allDelivered && (
-              <button
-                onClick={handleNewScan}
-                className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
-              >
-                <RefreshIcon />
-                Scan Another Container
-              </button>
-            )}
+            {/* Always show Scan Another Container button after successful scan */}
+            <button
+              onClick={handleNewScan}
+              className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            >
+              <RefreshIcon />
+              Scan Another Container
+            </button>
             
-            {scanResult.shipment.allDelivered && (
-              <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-emerald-500/20 border border-emerald-500/30' : 'bg-emerald-50 border border-emerald-200'}`}>
-                <div className="flex items-center gap-3">
-                  <TruckIcon className={isDarkMode ? 'text-emerald-400' : 'text-emerald-600'} />
-                  <div>
-                    <p className={`font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
-                      Shipment Complete!
-                    </p>
-                    <p className={`text-sm ${isDarkMode ? 'text-emerald-400/70' : 'text-emerald-600'}`}>
-                      All containers have been successfully delivered and verified.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {/* Show Update Status button when all containers are scanned */}
+            {(allScansComplete || scanResult.shipment.allDelivered || containerStats.pending === 0) && onUpdateStatus && (
+              <button
+                onClick={handleUpdateStatus}
+                disabled={isUpdatingStatus}
+                className={`w-full px-4 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+                  isUpdatingStatus
+                    ? 'bg-slate-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 hover:shadow-lg shadow-blue-500/25'
+                } text-white`}
+              >
+                {isUpdatingStatus ? (
+                  <>
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating Status...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Update Status to Delivered
+                  </>
+                )}
+              </button>
             )}
           </div>
         )}

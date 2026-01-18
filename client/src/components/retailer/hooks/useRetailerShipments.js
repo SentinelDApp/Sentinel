@@ -12,11 +12,12 @@ import { getRetailerShipments } from '../../../services/scanApi';
 
 /**
  * Map backend status to retailer-friendly display status
+ * These statuses match the filter buttons in RetailerShipmentsTable
  */
 const mapStatusToRetailer = (status) => {
   const statusMap = {
     'CREATED': 'Pending',
-    'READY_FOR_DISPATCH': 'Ready for Pickup',
+    'READY_FOR_DISPATCH': 'Ready',
     'IN_TRANSIT': 'In Transit',
     'AT_WAREHOUSE': 'At Warehouse',
     'DELIVERED': 'Delivered',

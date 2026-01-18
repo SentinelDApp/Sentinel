@@ -224,6 +224,7 @@ const scanContainerAsRetailer = async (req, res) => {
     // ═════════════════════════════════════════════════════════════════════
     // STEP 6: Check container status - must be AT_WAREHOUSE
     // Container can only be scanned by retailer if warehouse has received it
+    // Flow: CREATED → IN_TRANSIT (transporter) → AT_WAREHOUSE (warehouse) → DELIVERED (retailer)
     // ═════════════════════════════════════════════════════════════════════
     
     if (container.status !== 'AT_WAREHOUSE') {
@@ -243,7 +244,39 @@ const scanContainerAsRetailer = async (req, res) => {
         });
       }
       
-      // Container not ready (still in transit or not scanned by warehouse)
+      // Check if transporter hasn't scanned yet
+      if (container.status === 'CREATED' || container.status === 'READY_FOR_DISPATCH' || container.status === 'LOCKED') {
+        return res.status(400).json({
+          success: false,
+          status: 'REJECTED',
+          reason: 'Transporter has not scanned this container yet',
+          code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
+          message: 'The transporter must scan this container first before you can mark it as delivered. Current status: ' + container.status,
+          container: {
+            containerId: container.containerId,
+            status: container.status,
+            lastScannedBy: container.lastScannedBy
+          }
+        });
+      }
+      
+      // Check if transporter has scanned but warehouse hasn't
+      if (container.status === 'IN_TRANSIT') {
+        return res.status(400).json({
+          success: false,
+          status: 'REJECTED',
+          reason: 'Warehouse has not received this container yet',
+          code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
+          message: 'The warehouse must scan this container first to confirm receipt before you can mark it as delivered. Current status: IN_TRANSIT',
+          container: {
+            containerId: container.containerId,
+            status: container.status,
+            lastScannedBy: container.lastScannedBy
+          }
+        });
+      }
+      
+      // Generic fallback for any other status
       return res.status(400).json({
         success: false,
         status: 'REJECTED',

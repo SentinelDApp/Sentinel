@@ -15,12 +15,13 @@ import NavigationTabs from "./components/NavigationTabs";
 import SalesOverview from "./components/SalesOverview";
 import OrdersTable from "./components/OrdersTable";
 import ReceivedShipments from "./components/ReceivedShipments";
+import RetailerShipmentsTable from "./components/RetailerShipmentsTable";
 import ShipmentsModal from "./components/ShipmentsModal";
 import StatsCards from "./components/StatsCards";
 import RetailerScanPage from "./pages/RetailerScanPage";
 import { DEMO_ORDERS } from "./constants";
 import { useRetailerShipments } from "./hooks/useRetailerShipments";
-import { getRetailerAssignedContainers } from "../../services/scanApi";
+import { getRetailerAssignedContainers, updateShipmentStatus } from "../../services/scanApi";
 
 // Helper function to get greeting based on time
 const getGreeting = () => {
@@ -168,6 +169,39 @@ function RetailerDashboardContent() {
     setShowScanMode(false);
   };
 
+  // Handle Update Status - called when all containers are scanned and user clicks Update Status
+  const handleUpdateShipmentStatus = async (shipmentHash) => {
+    try {
+      const result = await updateShipmentStatus(shipmentHash, 'DELIVERED', 'All containers delivered by retailer');
+      console.log('Status updated:', result);
+      
+      // Refresh shipments after status update
+      fetchAssignedShipments();
+      
+      // Clear selection and go back to manage tab
+      handleClearSelection();
+      
+      // Show success notification if available
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('retailer-notification', {
+          detail: { 
+            title: 'Shipment Delivered!', 
+            message: 'Shipment has been marked as delivered successfully.',
+            type: 'success'
+          }
+        }));
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to update shipment status:', error);
+      throw error;
+    }
+  };
+
+  // Status filter for manage tab
+  const [manageStatusFilter, setManageStatusFilter] = useState('All');
+
   // Handle when retailer confirms receipt of shipment
   const handleShipmentReceived = (shipment, txResult) => {
     const newShipment = {
@@ -193,111 +227,79 @@ function RetailerDashboardContent() {
     setShowAcceptShipment(false);
   };
 
+  // Calculate stats from shipments (matching actual DB statuses)
+  const stats = {
+    total: assignedShipments.length,
+    pending: assignedShipments.filter(s => s.status === 'Pending' || s.status === 'Ready').length,
+    inTransit: assignedShipments.filter(s => s.status === 'In Transit').length,
+    delivered: assignedShipments.filter(s => s.status === 'Delivered').length,
+  };
+
+  // Status filter for dashboard
+  const [dashboardStatusFilter, setDashboardStatusFilter] = useState('All');
+
+  // Filter shipments based on status filter
+  const filteredDashboardShipments = dashboardStatusFilter === 'All'
+    ? assignedShipments
+    : assignedShipments.filter(s => s.status === dashboardStatusFilter);
+
   // Render content based on active tab
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
         return (
           <>
-            {/* Welcome Section */}
-            <div className="mb-2">
-              <h1
-                className={`text-2xl font-bold ${
-                  isDarkMode ? "text-white" : "text-slate-900"
-                }`}
-              >
-                Welcome, {profileName} 👋
-              </h1>
-              <p
-                className={`mt-1 text-sm ${
-                  isDarkMode ? "text-slate-400" : "text-slate-600"
-                }`}
-              >
-                Here's what's happening with your store today
-              </p>
-            </div>
-
-            {/* Stats Cards */}
-            <StatsCards />
-
-            {/* Incoming Shipments Section */}
-            <div className="flex items-center gap-4 pt-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                    isDarkMode
-                      ? "bg-amber-500/10 border border-amber-500/20"
-                      : "bg-amber-50 border border-amber-200"
+            {/* Header with title and refresh */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1
+                  className={`text-2xl font-bold ${
+                    isDarkMode ? "text-white" : "text-slate-900"
                   }`}
                 >
-                  <svg
-                    className={`h-4 w-4 ${
-                      isDarkMode ? "text-amber-400" : "text-amber-600"
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h2
-                    className={`text-lg font-semibold ${
-                      isDarkMode ? "text-white" : "text-slate-900"
-                    }`}
-                  >
-                    Incoming Shipments
-                  </h2>
-                  <p
-                    className={`text-xs ${
-                      isDarkMode ? "text-slate-500" : "text-slate-400"
-                    }`}
-                  >
-                    {isLoadingShipments ? "Loading..." : `${assignedShipments.length} shipment${assignedShipments.length !== 1 ? 's' : ''} assigned to you`}
-                  </p>
-                </div>
+                  Dashboard
+                </h1>
+                <p
+                  className={`mt-1 text-sm ${
+                    isDarkMode ? "text-slate-400" : "text-slate-600"
+                  }`}
+                >
+                  Monitor and manage {assignedShipments.length} assigned shipment{assignedShipments.length !== 1 ? 's' : ''}
+                </p>
               </div>
-              <div
-                className={`flex-1 h-px ${
-                  isDarkMode
-                    ? "bg-gradient-to-r from-slate-700/50 to-transparent"
-                    : "bg-gradient-to-r from-slate-200 to-transparent"
-                }`}
-              ></div>
               <button
                 onClick={fetchAssignedShipments}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   isDarkMode
-                    ? "hover:bg-slate-800 text-slate-400 hover:text-white"
-                    : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                    ? "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                    : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
                 }`}
-                title="Refresh shipments"
               >
-                <svg className={`h-5 w-5 ${isLoadingShipments ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`h-4 w-4 ${isLoadingShipments ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
+                Refresh
               </button>
             </div>
 
+            {/* Stats Cards */}
+            <StatsCards stats={stats} />
+
             {/* Show error if any */}
             {shipmentsError && (
-              <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-red-50 border-red-200 text-red-600'}`}>
+              <div className={`p-4 rounded-xl border mb-6 ${isDarkMode ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-red-50 border-red-200 text-red-600'}`}>
                 <p className="text-sm">{shipmentsError}</p>
               </div>
             )}
 
-            {/* Assigned Shipments List (from database) */}
-            <ReceivedShipments
+            {/* Shipments Table */}
+            <RetailerShipmentsTable
               shipments={assignedShipments}
-              onViewAll={() => setShowAllShipments(true)}
+              filteredShipments={filteredDashboardShipments}
+              statusFilter={dashboardStatusFilter}
+              setStatusFilter={setDashboardStatusFilter}
+              onShipmentSelect={handleSelectShipment}
               isLoading={isLoadingShipments}
-              onManageShipment={handleSelectShipment}
             />
           </>
         );
@@ -305,30 +307,46 @@ function RetailerDashboardContent() {
       case "incoming":
         return (
           <div className="space-y-6">
-            {/* Welcome */}
-            <div className="mb-2">
-              <h1
-                className={`text-2xl font-bold ${
-                  isDarkMode ? "text-white" : "text-slate-900"
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1
+                  className={`text-2xl font-bold ${
+                    isDarkMode ? "text-white" : "text-slate-900"
+                  }`}
+                >
+                  Incoming Shipments
+                </h1>
+                <p
+                  className={`mt-1 text-sm ${
+                    isDarkMode ? "text-slate-400" : "text-slate-600"
+                  }`}
+                >
+                  View and manage shipments arriving at your store
+                </p>
+              </div>
+              <button
+                onClick={fetchAssignedShipments}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  isDarkMode
+                    ? "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                    : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
                 }`}
               >
-                Incoming Shipments
-              </h1>
-              <p
-                className={`mt-1 text-sm ${
-                  isDarkMode ? "text-slate-400" : "text-slate-600"
-                }`}
-              >
-                View and manage shipments arriving at your store
-              </p>
+                <svg className={`h-4 w-4 ${isLoadingShipments ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
             </div>
 
-            {/* Assigned Shipments from Database */}
-            <ReceivedShipments
+            {/* Shipments Table */}
+            <RetailerShipmentsTable
               shipments={assignedShipments}
-              onViewAll={() => setShowAllShipments(true)}
+              statusFilter={manageStatusFilter}
+              setStatusFilter={setManageStatusFilter}
+              onShipmentSelect={handleSelectShipment}
               isLoading={isLoadingShipments}
-              onManageShipment={handleSelectShipment}
             />
           </div>
         );
@@ -355,12 +373,12 @@ function RetailerDashboardContent() {
             </div>
 
             {/* Retailer Scan Page - Container Scanner */}
-            <RetailerScanPage />
+            <RetailerScanPage onUpdateStatus={handleUpdateShipmentStatus} />
           </div>
         );
 
       case "manage":
-        // No shipment selected - show empty state
+        // No shipment selected - show table of all shipments
         if (!selectedShipment) {
           return (
             <div className="space-y-6">
@@ -369,29 +387,18 @@ function RetailerDashboardContent() {
                   Manage Shipments
                 </h1>
                 <p className={`mt-1 text-sm ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
-                  Select a shipment from Dashboard or Incoming to manage
+                  Select a shipment to scan containers and confirm delivery
                 </p>
               </div>
 
-              <div className={`border rounded-2xl p-12 text-center ${isDarkMode ? "bg-slate-900/50 border-slate-800" : "bg-white border-slate-200 shadow-sm"}`}>
-                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 ${isDarkMode ? "bg-gradient-to-br from-slate-800 to-slate-700" : "bg-gradient-to-br from-slate-100 to-slate-200"}`}>
-                  <svg className={`w-10 h-10 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? "text-slate-50" : "text-slate-900"}`}>
-                  No Shipment Selected
-                </h3>
-                <p className={`mb-6 max-w-sm mx-auto ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Select a shipment from the Dashboard or Incoming tab to view details and scan containers for delivery
-                </p>
-                <button
-                  onClick={() => setActiveTab("dashboard")}
-                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/25"
-                >
-                  Go to Dashboard
-                </button>
-              </div>
+              {/* Shipments Table */}
+              <RetailerShipmentsTable 
+                shipments={assignedShipments}
+                statusFilter={manageStatusFilter}
+                setStatusFilter={setManageStatusFilter}
+                onShipmentSelect={handleSelectShipment}
+                isLoading={isLoadingShipments}
+              />
             </div>
           );
         }
@@ -525,6 +532,7 @@ function RetailerDashboardContent() {
                 key={selectedShipment.shipmentHash || selectedShipment.id} 
                 shipmentFilter={selectedShipment.shipmentHash} 
                 shipmentData={selectedShipment}
+                onUpdateStatus={handleUpdateShipmentStatus}
               />
             ) : (
               <div className="grid lg:grid-cols-2 gap-6">
