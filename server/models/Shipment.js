@@ -209,8 +209,8 @@ const shipmentSchema = new mongoose.Schema(
       },
     },
 
-    // Next Transporter - for shipments going from warehouse to retailer
-    // When this field is set, the destination is retailer (not warehouse)
+    // Next Transporter - assigned by warehouse for next leg
+    // Becomes assignedTransporter when warehouse marks ready for dispatch
     nextTransporter: {
       walletAddress: {
         type: String,
@@ -234,15 +234,13 @@ const shipmentSchema = new mongoose.Schema(
       assignedAt: {
         type: Date,
       },
-      // Destination type when this transporter handles the shipment
-      destinationType: {
+      assignedBy: {
         type: String,
-        enum: ["RETAILER", "WAREHOUSE"],
-        default: "RETAILER",
+        trim: true,
       },
     },
 
-    // Assigned Retailer - final destination for delivery
+    // Assigned Retailer - set by warehouse for final delivery
     assignedRetailer: {
       walletAddress: {
         type: String,
@@ -266,7 +264,34 @@ const shipmentSchema = new mongoose.Schema(
       assignedAt: {
         type: Date,
       },
+      assignedBy: {
+        type: String,
+        trim: true,
+      },
     },
+
+    // Warehouse received timestamp - set when all containers are scanned
+    warehouseReceivedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Who committed the shipment at warehouse
+    warehouseCommittedBy: {
+      type: String,
+      default: null,
+    },
+
+    // Status history for audit trail
+    statusHistory: [
+      {
+        status: { type: String },
+        changedBy: { type: String },
+        changedAt: { type: Date },
+        action: { type: String },
+        notes: { type: String },
+      },
+    ],
 
     // Supporting documents uploaded for this shipment
     supportingDocuments: [

@@ -456,6 +456,29 @@ export const getTransporterAssignedContainers = async () => {
 };
 
 /**
+ * Get containers assigned to the current warehouse
+ * Returns shipments with container scan stats for warehouse scanning
+ *
+ * @returns {Promise<Object>} Assigned containers data with scan stats
+ */
+export const getWarehouseAssignedContainers = async () => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/containers/scan/warehouse/assigned`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      },
+    );
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error("Get warehouse assigned containers error:", error);
+    throw error;
+  }
+};
+
+/**
  * Get status color for UI display
  *
  * @param {string} status - Scan status (VERIFIED, REJECTED, ERROR)
@@ -654,6 +677,7 @@ export default {
   getStatusBgColor,
   scanContainerAsTransporter,
   getTransporterAssignedContainers,
+  getWarehouseAssignedContainers,
   getShipmentContainers,
   scanContainerForWarehouse,
   updateShipmentStatus,
