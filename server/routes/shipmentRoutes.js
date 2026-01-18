@@ -25,6 +25,7 @@ const router = express.Router();
 const Shipment = require("../models/Shipment");
 const Container = require("../models/Container");
 const User = require("../models/User");
+const ScanLog = require("../models/ScanLog");
 const {
   uploadSupportingDocuments,
   handleUploadErrors,
@@ -59,51 +60,60 @@ const parsePagination = (query) => {
 const canSetInTransit = async (shipmentId) => {
   try {
     // Find shipment by hash or _id (only use _id if it's a valid ObjectId format)
-    const mongoose = require('mongoose');
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
-    
-    const query = isValidObjectId 
+    const mongoose = require("mongoose");
+    const isValidObjectId =
+      mongoose.Types.ObjectId.isValid(shipmentId) &&
+      /^[0-9a-fA-F]{24}$/.test(shipmentId);
+
+    const query = isValidObjectId
       ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
       : { shipmentHash: shipmentId };
-    
+
     const shipment = await Shipment.findOne(query);
-    
+
     if (!shipment) {
-      console.log('canSetInTransit: Shipment not found for ID:', shipmentId);
+      console.log("canSetInTransit: Shipment not found for ID:", shipmentId);
       return false;
     }
-    
+
     // Find all containers for this shipment
-    const containers = await Container.find({ shipmentHash: shipment.shipmentHash });
-    
-    console.log('canSetInTransit check:', {
+    const containers = await Container.find({
+      shipmentHash: shipment.shipmentHash,
+    });
+
+    console.log("canSetInTransit check:", {
       shipmentHash: shipment.shipmentHash,
       shipmentCurrentStatus: shipment.status,
       totalContainers: containers.length,
-      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status })),
-      uniqueStatuses: [...new Set(containers.map(c => c.status))]
+      containerStatuses: containers.map((c) => ({
+        id: c.containerId,
+        status: c.status,
+      })),
+      uniqueStatuses: [...new Set(containers.map((c) => c.status))],
     });
-    
+
     if (containers.length === 0) {
-      console.log('canSetInTransit: No containers found for shipment');
+      console.log("canSetInTransit: No containers found for shipment");
       return false;
     }
-    
+
     // Check each container status
-    const statusCheck = containers.map(c => {
+    const statusCheck = containers.map((c) => {
       const isValid = c.status === "IN_TRANSIT" || c.status === "DELIVERED";
       return { id: c.containerId, status: c.status, isValid };
     });
-    
-    console.log('Container status validation:', statusCheck);
-    
+
+    console.log("Container status validation:", statusCheck);
+
     // All must be IN_TRANSIT or DELIVERED
-    const allScanned = containers.every((c) => c.status === "IN_TRANSIT" || c.status === "DELIVERED");
-    console.log('canSetInTransit result:', allScanned);
-    
+    const allScanned = containers.every(
+      (c) => c.status === "IN_TRANSIT" || c.status === "DELIVERED",
+    );
+    console.log("canSetInTransit result:", allScanned);
+
     return allScanned;
   } catch (error) {
-    console.error('Error in canSetInTransit:', error);
+    console.error("Error in canSetInTransit:", error);
     return false;
   }
 };
@@ -112,51 +122,60 @@ const canSetInTransit = async (shipmentId) => {
 const canSetAtWarehouse = async (shipmentId) => {
   try {
     // Find shipment by hash or _id (only use _id if it's a valid ObjectId format)
-    const mongoose = require('mongoose');
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
-    
-    const query = isValidObjectId 
+    const mongoose = require("mongoose");
+    const isValidObjectId =
+      mongoose.Types.ObjectId.isValid(shipmentId) &&
+      /^[0-9a-fA-F]{24}$/.test(shipmentId);
+
+    const query = isValidObjectId
       ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
       : { shipmentHash: shipmentId };
-    
+
     const shipment = await Shipment.findOne(query);
-    
+
     if (!shipment) {
-      console.log('canSetAtWarehouse: Shipment not found for ID:', shipmentId);
+      console.log("canSetAtWarehouse: Shipment not found for ID:", shipmentId);
       return false;
     }
-    
+
     // Find all containers for this shipment
-    const containers = await Container.find({ shipmentHash: shipment.shipmentHash });
-    
-    console.log('canSetAtWarehouse check:', {
+    const containers = await Container.find({
+      shipmentHash: shipment.shipmentHash,
+    });
+
+    console.log("canSetAtWarehouse check:", {
       shipmentHash: shipment.shipmentHash,
       shipmentCurrentStatus: shipment.status,
       totalContainers: containers.length,
-      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status })),
-      uniqueStatuses: [...new Set(containers.map(c => c.status))]
+      containerStatuses: containers.map((c) => ({
+        id: c.containerId,
+        status: c.status,
+      })),
+      uniqueStatuses: [...new Set(containers.map((c) => c.status))],
     });
-    
+
     if (containers.length === 0) {
-      console.log('canSetAtWarehouse: No containers found for shipment');
+      console.log("canSetAtWarehouse: No containers found for shipment");
       return false;
     }
-    
+
     // Check each container status
-    const statusCheck = containers.map(c => {
+    const statusCheck = containers.map((c) => {
       const isValid = c.status === "AT_WAREHOUSE" || c.status === "DELIVERED";
       return { id: c.containerId, status: c.status, isValid };
     });
-    
-    console.log('Container status validation for AT_WAREHOUSE:', statusCheck);
-    
+
+    console.log("Container status validation for AT_WAREHOUSE:", statusCheck);
+
     // All must be AT_WAREHOUSE or DELIVERED
-    const allAtWarehouse = containers.every((c) => c.status === "AT_WAREHOUSE" || c.status === "DELIVERED");
-    console.log('canSetAtWarehouse result:', allAtWarehouse);
-    
+    const allAtWarehouse = containers.every(
+      (c) => c.status === "AT_WAREHOUSE" || c.status === "DELIVERED",
+    );
+    console.log("canSetAtWarehouse result:", allAtWarehouse);
+
     return allAtWarehouse;
   } catch (error) {
-    console.error('Error in canSetAtWarehouse:', error);
+    console.error("Error in canSetAtWarehouse:", error);
     return false;
   }
 };
@@ -164,6 +183,225 @@ const canSetAtWarehouse = async (shipmentId) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/shipments/track/:batchId
+ *
+ * PUBLIC ENDPOINT - No authentication required
+ * Get full tracking history for a shipment by batch ID
+ * Used by public tracking page (QR code scans)
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     shipment: { ... },
+ *     trackingHistory: [ ... ],
+ *     certificates: [ ... ]
+ *   }
+ * }
+ */
+router.get("/track/:batchId", async (req, res) => {
+  try {
+    const { batchId } = req.params;
+
+    if (!batchId) {
+      return res.status(400).json({
+        success: false,
+        message: "Batch ID is required",
+      });
+    }
+
+    // Find shipment by batch ID
+    const shipment = await Shipment.findOne({ batchId });
+
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: "Shipment not found for this batch ID",
+      });
+    }
+
+    // Get containers for this shipment
+    const containers = await Container.find({
+      shipmentHash: shipment.shipmentHash,
+    });
+
+    // Get scan logs for tracking history
+    const scanLogs = await ScanLog.find({
+      shipmentHash: shipment.shipmentHash,
+      result: "ACCEPTED",
+    }).sort({ scannedAt: 1 });
+
+    // Build tracking history from statusHistory and scan logs
+    const trackingHistory = [];
+
+    // Add creation event
+    trackingHistory.push({
+      event: "CREATED",
+      title: "Shipment Created",
+      description: `Batch ${shipment.batchId} was created by supplier`,
+      timestamp: shipment.createdAt,
+      actor: shipment.supplierWallet,
+      txHash: null,
+    });
+
+    // Add locked on blockchain event
+    if (shipment.txHash) {
+      trackingHistory.push({
+        event: "LOCKED",
+        title: "Locked on Blockchain",
+        description: "Shipment identity recorded immutably on-chain",
+        timestamp: shipment.blockchainTimestamp
+          ? new Date(shipment.blockchainTimestamp * 1000)
+          : shipment.updatedAt,
+        actor: shipment.supplierWallet,
+        txHash: shipment.txHash,
+      });
+    }
+
+    // Add events from scan logs
+    scanLogs.forEach((scan) => {
+      let title = "";
+      let description = "";
+
+      switch (scan.action) {
+        case "CUSTODY_PICKUP":
+          title = "Picked Up by Transporter";
+          description = `Container ${scan.containerId || "shipment"} picked up for delivery`;
+          break;
+        case "CUSTODY_RECEIVE":
+          title = "Received at Warehouse";
+          description = `Container ${scan.containerId || "shipment"} received at warehouse`;
+          break;
+        case "CUSTODY_HANDOVER":
+          title = "Custody Handover";
+          description = `Container ${scan.containerId || "shipment"} handed over`;
+          break;
+        case "FINAL_DELIVERY":
+          title = "Delivered";
+          description = `Container ${scan.containerId || "shipment"} delivered to destination`;
+          break;
+        case "SCAN_VERIFY":
+          title = "Verification Scan";
+          description = `Container ${scan.containerId || "shipment"} verified`;
+          break;
+        default:
+          title = scan.action?.replace(/_/g, " ") || "Scan Event";
+          description = `Scan event for ${scan.containerId || "shipment"}`;
+      }
+
+      trackingHistory.push({
+        event: scan.action,
+        title,
+        description,
+        timestamp: scan.scannedAt,
+        actor: scan.scannedBy?.walletAddress || scan.scannedBy,
+        actorRole: scan.scannedBy?.role,
+        location: scan.location,
+        txHash: scan.txHash || null,
+        containerId: scan.containerId,
+      });
+    });
+
+    // Add events from status history
+    if (shipment.statusHistory && shipment.statusHistory.length > 0) {
+      shipment.statusHistory.forEach((history) => {
+        // Avoid duplicates - check if we already have this event
+        const isDuplicate = trackingHistory.some(
+          (t) =>
+            t.event === history.status &&
+            Math.abs(new Date(t.timestamp) - new Date(history.changedAt)) <
+              60000, // within 1 minute
+        );
+
+        if (!isDuplicate) {
+          let title = "";
+          let description = "";
+
+          switch (history.status) {
+            case "IN_TRANSIT":
+              title = "In Transit";
+              description = "Shipment is in transit";
+              break;
+            case "AT_WAREHOUSE":
+              title = "At Warehouse";
+              description = "Shipment arrived at warehouse";
+              break;
+            case "READY_FOR_DISPATCH":
+              title = "Ready for Dispatch";
+              description = "Shipment is ready for dispatch";
+              break;
+            case "DELIVERED":
+              title = "Delivered";
+              description = "Shipment has been delivered";
+              break;
+            default:
+              title = history.status?.replace(/_/g, " ") || "Status Update";
+              description =
+                history.notes || `Status changed to ${history.status}`;
+          }
+
+          trackingHistory.push({
+            event: history.status,
+            title,
+            description: history.notes || description,
+            timestamp: history.changedAt,
+            actor: history.changedBy,
+            txHash: history.txHash || null,
+          });
+        }
+      });
+    }
+
+    // Sort tracking history by timestamp
+    trackingHistory.sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
+    );
+
+    // Get certificates (supporting documents)
+    const certificates = (shipment.supportingDocuments || []).map((doc) => ({
+      url: doc.url,
+      fileName: doc.fileName || "Certificate",
+      fileType: doc.fileType || "image",
+      uploadedBy: doc.uploadedBy,
+      uploadedAt: doc.uploadedAt,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        shipment: {
+          shipmentHash: shipment.shipmentHash,
+          batchId: shipment.batchId,
+          productName: shipment.productName,
+          supplierWallet: shipment.supplierWallet,
+          numberOfContainers: shipment.numberOfContainers,
+          quantityPerContainer: shipment.quantityPerContainer,
+          totalQuantity: shipment.totalQuantity,
+          status: shipment.status,
+          isLocked: !!shipment.txHash,
+          txHash: shipment.txHash,
+          createdAt: shipment.createdAt,
+          updatedAt: shipment.updatedAt,
+        },
+        containers: containers.map((c) => ({
+          containerId: c.containerId,
+          status: c.status,
+          quantity: c.quantity,
+        })),
+        trackingHistory,
+        certificates,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching tracking data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch tracking data",
+    });
+  }
+});
 
 /**
  * POST /api/shipments
@@ -192,6 +430,7 @@ router.post("/", async (req, res) => {
       shipmentHash,
       supplierWallet,
       batchId,
+      productName,
       numberOfContainers,
       quantityPerContainer,
       assignedTransporterWallet,
@@ -305,6 +544,7 @@ router.post("/", async (req, res) => {
       shipmentHash,
       supplierWallet: supplierWallet.toLowerCase(),
       batchId,
+      productName: productName || null,
       numberOfContainers: parseInt(numberOfContainers),
       quantityPerContainer: parseInt(quantityPerContainer),
       totalQuantity:
@@ -360,6 +600,7 @@ router.post("/", async (req, res) => {
         shipmentHash: shipment.shipmentHash,
         supplierWallet: shipment.supplierWallet,
         batchId: shipment.batchId,
+        productName: shipment.productName,
         numberOfContainers: shipment.numberOfContainers,
         quantityPerContainer: shipment.quantityPerContainer,
         totalQuantity: shipment.totalQuantity,
@@ -1342,63 +1583,90 @@ router.delete("/:shipmentHash/documents/:docIndex", async (req, res) => {
  * Update shipment status
  * PUT /api/shipments/:shipmentId/status
  */
-router.put('/:shipmentId/status', async (req, res) => {
+router.put("/:shipmentId/status", async (req, res) => {
   try {
     const { shipmentId } = req.params;
     const { status } = req.body;
-    
-    console.log('Update shipment status request:', { shipmentId, status });
-    
+
+    console.log("Update shipment status request:", { shipmentId, status });
+
     if (!status) {
-      return res.status(400).json({ success: false, message: 'Status is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Status is required" });
     }
-    
+
     // Validate status-specific requirements
-    if (status === 'IN_TRANSIT') {
+    if (status === "IN_TRANSIT") {
       const allowed = await canSetInTransit(shipmentId);
       if (!allowed) {
-        return res.status(400).json({ success: false, message: 'All containers must be scanned before setting shipment IN_TRANSIT' });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "All containers must be scanned before setting shipment IN_TRANSIT",
+          });
       }
-    } else if (status === 'AT_WAREHOUSE') {
+    } else if (status === "AT_WAREHOUSE") {
       const allowed = await canSetAtWarehouse(shipmentId);
       if (!allowed) {
-        return res.status(400).json({ success: false, message: 'All containers must be received at warehouse before updating status' });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "All containers must be received at warehouse before updating status",
+          });
       }
     }
-    
+
     // Only use _id if it's a valid ObjectId format
-    const mongoose = require('mongoose');
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
-    
-    const query = isValidObjectId 
+    const mongoose = require("mongoose");
+    const isValidObjectId =
+      mongoose.Types.ObjectId.isValid(shipmentId) &&
+      /^[0-9a-fA-F]{24}$/.test(shipmentId);
+
+    const query = isValidObjectId
       ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
       : { shipmentHash: shipmentId };
-    
+
     // Prepare update data
     const updateData = { status };
-    
+
     // Set warehouse received timestamp for AT_WAREHOUSE status
-    if (status === 'AT_WAREHOUSE') {
+    if (status === "AT_WAREHOUSE") {
       updateData.warehouseReceivedAt = new Date();
       // Note: warehouseCommittedBy should be set from authenticated user if available
       // For now, we'll let it be set by the scan controller or keep existing value
     }
-    
+
     const shipment = await Shipment.findOneAndUpdate(
       query,
       { $set: updateData },
-      { new: true }
+      { new: true },
     );
-    
+
     if (!shipment) {
-      return res.status(404).json({ success: false, message: 'Shipment not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Shipment not found" });
     }
-    
-    console.log('Shipment status updated:', { shipmentHash: shipment.shipmentHash, newStatus: status });
+
+    console.log("Shipment status updated:", {
+      shipmentHash: shipment.shipmentHash,
+      newStatus: status,
+    });
     return res.json({ success: true, shipment });
   } catch (err) {
-    console.error('Update shipment status error:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
+    console.error("Update shipment status error:", err);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: "Internal server error",
+        error: err.message,
+      });
   }
 });
 
