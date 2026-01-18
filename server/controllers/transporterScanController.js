@@ -299,25 +299,53 @@ const scanContainerAsTransporter = async (req, res) => {
     // Store destination info for response
     const transporterDestination = transporterAuth.destination;
     const isNextTransporter = transporterAuth.isNextTransporter;
+    
+    // Determine the specific transporter role for scan logs
+    // assignedtransporter: handles supplier → warehouse leg
+    // nexttransporter: handles warehouse → retailer leg
+    const transporterRole = isNextTransporter ? 'nexttransporter' : 'assignedtransporter';
+    
+    // Update baseScanData with the specific transporter role
+    baseScanData.actor.role = transporterRole;
 
     // ═════════════════════════════════════════════════════════════════════
-    // STEP 5: Prevent duplicate scan
-    // Container can only be scanned ONCE by transporter (if already IN_TRANSIT or beyond)
+    // STEP 5: Prevent duplicate scan based on transporter type
+    // - assignedTransporter can scan when container is CREATED or SCANNED
+    // - nextTransporter can scan when container is AT_WAREHOUSE
     // ═════════════════════════════════════════════════════════════════════
     
-    if (container.status !== 'CREATED' && container.status !== 'SCANNED') {
-      return res.status(400).json({
-        success: false,
-        status: 'REJECTED',
-        reason: 'Container already scanned',
-        code: REJECTION_REASONS.ALREADY_SCANNED,
-        message: `This container has already been scanned and is currently in status: ${container.status}`,
-        container: {
-          containerId: container.containerId,
-          status: container.status,
-          lastScannedBy: container.lastScannedBy
-        }
-      });
+    if (isNextTransporter) {
+      // nextTransporter scans containers that are AT_WAREHOUSE (ready for warehouse → retailer leg)
+      if (container.status !== 'AT_WAREHOUSE') {
+        return res.status(400).json({
+          success: false,
+          status: 'REJECTED',
+          reason: 'Container not ready for next transport leg',
+          code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
+          message: `As the next transporter, you can only scan containers that are AT_WAREHOUSE. Current status: ${container.status}`,
+          container: {
+            containerId: container.containerId,
+            status: container.status,
+            lastScannedBy: container.lastScannedBy
+          }
+        });
+      }
+    } else {
+      // assignedTransporter scans containers that are CREATED or SCANNED (supplier → warehouse leg)
+      if (container.status !== 'CREATED' && container.status !== 'SCANNED') {
+        return res.status(400).json({
+          success: false,
+          status: 'REJECTED',
+          reason: 'Container already scanned',
+          code: REJECTION_REASONS.ALREADY_SCANNED,
+          message: `This container has already been scanned and is currently in status: ${container.status}`,
+          container: {
+            containerId: container.containerId,
+            status: container.status,
+            lastScannedBy: container.lastScannedBy
+          }
+        });
+      }
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -348,7 +376,7 @@ const scanContainerAsTransporter = async (req, res) => {
           lastScanAt: now,
           lastScannedBy: {
             wallet: actorWallet,
-            role: role,
+            role: transporterRole, // Use specific role (assignedtransporter or nexttransporter)
             timestamp: now
           },
           updatedAt: now
@@ -419,7 +447,7 @@ const scanContainerAsTransporter = async (req, res) => {
         quantity: container.quantity,
         lastScannedBy: {
           wallet: actorWallet,
-          role: role,
+          role: transporterRole, // Use specific role (assignedtransporter or nexttransporter)
           timestamp: now
         }
       },
@@ -436,6 +464,7 @@ const scanContainerAsTransporter = async (req, res) => {
       },
       // Transporter-specific info
       transporter: {
+        role: transporterRole, // 'assignedtransporter' or 'nexttransporter'
         isNextTransporter, // true if assigned via nextTransporter field
         destination: transporterDestination, // "WAREHOUSE" or "RETAILER"
         destinationDetails: isNextTransporter 
