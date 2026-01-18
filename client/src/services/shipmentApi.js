@@ -631,6 +631,197 @@ export const updateShipmentStatus = async (
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// WAREHOUSE-SPECIFIC API FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Assign next transporter for the next leg of shipment
+ * Can only be called when shipment.status === AT_WAREHOUSE
+ * @param {string} shipmentHash - The shipment identifier
+ * @param {string} transporterWallet - The next transporter's wallet address
+ * @returns {Promise<Object>} - Assignment result
+ */
+export const assignNextTransporter = async (shipmentHash, transporterWallet) => {
+  const authToken = localStorage.getItem("sentinel_token");
+
+  if (!authToken) {
+    throw new Error("Authentication required");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/shipments/${shipmentHash}/assign-transporter`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        transporterWallet,
+      }),
+    },
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    return {
+      success: false,
+      message: result.message || "Failed to assign transporter",
+    };
+  }
+
+  return {
+    success: true,
+    data: result.data,
+    message: result.message || "Transporter assigned successfully",
+  };
+};
+
+/**
+ * Assign retailer for the final delivery
+ * Can only be called when shipment.status === AT_WAREHOUSE
+ * @param {string} shipmentHash - The shipment identifier
+ * @param {string} retailerWallet - The retailer's wallet address
+ * @returns {Promise<Object>} - Assignment result
+ */
+export const assignRetailer = async (shipmentHash, retailerWallet) => {
+  const authToken = localStorage.getItem("sentinel_token");
+
+  if (!authToken) {
+    throw new Error("Authentication required");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/shipments/${shipmentHash}/assign-retailer`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        retailerWallet,
+      }),
+    },
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    return {
+      success: false,
+      message: result.message || "Failed to assign retailer",
+    };
+  }
+
+  return {
+    success: true,
+    data: result.data,
+    message: result.message || "Retailer assigned successfully",
+  };
+};
+
+/**
+ * Mark shipment ready for dispatch (next leg)
+ * Can only be called when shipment.status === AT_WAREHOUSE 
+ * AND next transporter is assigned
+ * This is OFF-CHAIN only - does NOT write to blockchain
+ * @param {string} shipmentHash - The shipment identifier
+ * @returns {Promise<Object>} - Dispatch readiness result
+ */
+export const markReadyForDispatchNextLeg = async (shipmentHash) => {
+  const authToken = localStorage.getItem("sentinel_token");
+
+  if (!authToken) {
+    throw new Error("Authentication required");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/shipments/${shipmentHash}/ready-for-dispatch`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({}),
+    },
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    return {
+      success: false,
+      message: result.message || "Failed to mark ready for dispatch",
+    };
+  }
+
+  return {
+    success: true,
+    data: result.data,
+    message: result.message || "Shipment marked ready for dispatch",
+  };
+};
+
+/**
+ * Fetch all retailers for assignment dropdown
+ * @returns {Promise<Array>} - Array of retailer users
+ */
+export const fetchRetailers = async (authToken) => {
+  const token = authToken || localStorage.getItem("sentinel_token");
+  
+  const response = await fetch(`${API_BASE_URL}/api/users/retailers`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch retailers: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.message || "Failed to fetch retailers");
+  }
+
+  return result.data;
+};
+
+/**
+ * Get warehouse container scan stats for a shipment
+ * @param {string} shipmentHash - The shipment identifier
+ * @returns {Promise<Object>} - Container stats
+ */
+export const getWarehouseContainerStats = async (shipmentHash) => {
+  const authToken = localStorage.getItem("sentinel_token");
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/containers/${shipmentHash}/warehouse-stats`,
+    {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch container stats: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.message || "Failed to fetch container stats");
+  }
+
+  return result.data;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -647,9 +838,15 @@ export default {
   fetchUsersByRole,
   fetchTransporters,
   fetchWarehouses,
+  fetchRetailers,
   // Role-based shipment fetching
   fetchTransporterShipments,
   fetchWarehouseShipments,
   // Status management
   updateShipmentStatus,
+  // Warehouse-specific
+  assignNextTransporter,
+  assignRetailer,
+  markReadyForDispatchNextLeg,
+  getWarehouseContainerStats,
 };

@@ -1864,6 +1864,378 @@ router.patch(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
+// WAREHOUSE ASSIGNMENT ENDPOINTS (for next leg)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * PATCH /api/shipments/:shipmentHash/assign-transporter
+ *
+ * Assign next transporter for the next leg of shipment
+ * Can ONLY be called when shipment.status === AT_WAREHOUSE
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Body:
+ * - transporterWallet: Wallet address of the next transporter
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/assign-transporter",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const { transporterWallet } = req.body;
+      const user = req.user;
+
+      if (!transporterWallet) {
+        return res.status(400).json({
+          success: false,
+          message: "transporterWallet is required",
+        });
+      }
+
+      if (!isValidAddress(transporterWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid transporter wallet address format",
+        });
+      }
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // CRITICAL: Can only assign when status is AT_WAREHOUSE
+      if (shipment.status !== "AT_WAREHOUSE") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot assign transporter. Shipment must be AT_WAREHOUSE status. Current status: ${shipment.status}`,
+        });
+      }
+
+      // Verify the assigned warehouse is the one making the request
+      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the assigned warehouse can assign the next transporter",
+        });
+      }
+
+      // Verify the transporter exists and has correct role
+      const transporterUser = await User.findOne({
+        walletAddress: transporterWallet.toLowerCase(),
+        status: "ACTIVE",
+      });
+
+      if (!transporterUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Transporter wallet not found or inactive",
+        });
+      }
+
+      if (transporterUser.role !== "transporter") {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid assignment: wallet is not a transporter (role: ${transporterUser.role})`,
+        });
+      }
+
+      // Update shipment with next transporter
+      const now = new Date();
+      shipment.nextTransporter = {
+        walletAddress: transporterUser.walletAddress,
+        name: transporterUser.fullName || "",
+        organizationName: transporterUser.organizationName || "",
+        assignedAt: now,
+        assignedBy: user.walletAddress,
+      };
+      shipment.updatedAt = now;
+      shipment.lastUpdatedBy = user.walletAddress;
+
+      await shipment.save();
+
+      res.json({
+        success: true,
+        message: "Next transporter assigned successfully",
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          status: shipment.status,
+          nextTransporter: shipment.nextTransporter,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error assigning next transporter:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to assign transporter",
+      });
+    }
+  },
+);
+
+/**
+ * PATCH /api/shipments/:shipmentHash/assign-retailer
+ *
+ * Assign retailer for final delivery
+ * Can ONLY be called when shipment.status === AT_WAREHOUSE
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Body:
+ * - retailerWallet: Wallet address of the retailer
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/assign-retailer",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const { retailerWallet } = req.body;
+      const user = req.user;
+
+      if (!retailerWallet) {
+        return res.status(400).json({
+          success: false,
+          message: "retailerWallet is required",
+        });
+      }
+
+      if (!isValidAddress(retailerWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid retailer wallet address format",
+        });
+      }
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // CRITICAL: Can only assign when status is AT_WAREHOUSE
+      if (shipment.status !== "AT_WAREHOUSE") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot assign retailer. Shipment must be AT_WAREHOUSE status. Current status: ${shipment.status}`,
+        });
+      }
+
+      // Verify the assigned warehouse is the one making the request
+      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the assigned warehouse can assign the retailer",
+        });
+      }
+
+      // Verify the retailer exists and has correct role
+      const retailerUser = await User.findOne({
+        walletAddress: retailerWallet.toLowerCase(),
+        status: "ACTIVE",
+      });
+
+      if (!retailerUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Retailer wallet not found or inactive",
+        });
+      }
+
+      if (retailerUser.role !== "retailer") {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid assignment: wallet is not a retailer (role: ${retailerUser.role})`,
+        });
+      }
+
+      // Update shipment with retailer
+      const now = new Date();
+      shipment.assignedRetailer = {
+        walletAddress: retailerUser.walletAddress,
+        name: retailerUser.fullName || "",
+        organizationName: retailerUser.organizationName || "",
+        assignedAt: now,
+        assignedBy: user.walletAddress,
+      };
+      shipment.updatedAt = now;
+      shipment.lastUpdatedBy = user.walletAddress;
+
+      await shipment.save();
+
+      res.json({
+        success: true,
+        message: "Retailer assigned successfully",
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          status: shipment.status,
+          assignedRetailer: shipment.assignedRetailer,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error assigning retailer:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to assign retailer",
+      });
+    }
+  },
+);
+
+/**
+ * PATCH /api/shipments/:shipmentHash/ready-for-dispatch
+ *
+ * Mark shipment ready for dispatch (next leg)
+ * Can ONLY be called when:
+ * - shipment.status === AT_WAREHOUSE
+ * - nextTransporter is assigned
+ * - assignedRetailer is assigned
+ *
+ * This is OFF-CHAIN only - does NOT write to blockchain
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/ready-for-dispatch",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const user = req.user;
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // CRITICAL: Can only mark ready when status is AT_WAREHOUSE
+      if (shipment.status !== "AT_WAREHOUSE") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot mark ready for dispatch. Shipment must be AT_WAREHOUSE status. Current status: ${shipment.status}`,
+        });
+      }
+
+      // Verify the assigned warehouse is the one making the request
+      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the assigned warehouse can mark ready for dispatch",
+        });
+      }
+
+      // CRITICAL: Next transporter must be assigned
+      if (!shipment.nextTransporter?.walletAddress) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot mark ready for dispatch. Next transporter must be assigned first.",
+        });
+      }
+
+      // CRITICAL: Retailer must be assigned
+      if (!shipment.assignedRetailer?.walletAddress) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot mark ready for dispatch. Retailer must be assigned first.",
+        });
+      }
+
+      // Update shipment status to READY_FOR_DISPATCH
+      const now = new Date();
+      const previousStatus = shipment.status;
+      
+      // Move next transporter to assigned transporter for the next leg
+      shipment.assignedTransporter = shipment.nextTransporter;
+      shipment.nextTransporter = null;
+      
+      shipment.status = "READY_FOR_DISPATCH";
+      shipment.updatedAt = now;
+      shipment.lastUpdatedBy = user.walletAddress;
+
+      // Add to status history
+      if (!shipment.statusHistory) {
+        shipment.statusHistory = [];
+      }
+      shipment.statusHistory.push({
+        status: "READY_FOR_DISPATCH",
+        changedBy: user.walletAddress,
+        changedAt: now,
+        action: "WAREHOUSE_DISPATCH_READY",
+        notes: `Marked ready for dispatch by warehouse. Next transporter: ${shipment.assignedTransporter.walletAddress}`,
+      });
+
+      await shipment.save();
+
+      // Reset container statuses to READY_FOR_DISPATCH for the next leg
+      await Container.updateMany(
+        { shipmentHash: shipment.shipmentHash },
+        {
+          $set: {
+            status: "READY_FOR_DISPATCH",
+            updatedAt: now,
+          },
+        },
+      );
+
+      res.json({
+        success: true,
+        message: "Shipment marked ready for dispatch",
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          previousStatus,
+          status: shipment.status,
+          assignedTransporter: shipment.assignedTransporter,
+          assignedRetailer: shipment.assignedRetailer,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error marking ready for dispatch:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to mark ready for dispatch",
+      });
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════════════════════════════════════
 

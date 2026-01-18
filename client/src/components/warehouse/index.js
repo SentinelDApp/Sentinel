@@ -1,5 +1,5 @@
 // Warehouse Dashboard Components
-export { default as WarehouseApp } from "./WarehouseApp";
+export { default as WarehouseApp } from "./WarehouseAppNew";
 export { WarehouseThemeProvider, useWarehouseTheme } from "./context/ThemeContext";
 
 // Layout Components
