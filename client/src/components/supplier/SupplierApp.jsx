@@ -28,7 +28,13 @@ import ShipmentDetails from "./components/ShipmentDetails";
 import QRCodesView from "./components/QRCodesView";
 import ConcernsView from "./components/ConcernsView";
 import UploadMetadata from "./components/UploadMetadata";
-import { fetchShipments, fetchContainers, fetchShipmentByHash, createShipment as createShipmentApi, lockShipment } from "../../services/shipmentApi";
+import {
+  fetchShipments,
+  fetchContainers,
+  fetchShipmentByHash,
+  createShipment as createShipmentApi,
+  lockShipment,
+} from "../../services/shipmentApi";
 import { useAuth } from "../../context/AuthContext";
 import {
   SHIPMENT_STATUSES,
@@ -182,8 +188,8 @@ const LeftSidebar = ({
                 activeTab === tab.id
                   ? getActiveStyles()
                   : isDarkMode
-                  ? "text-slate-400 hover:text-white hover:bg-slate-800/50"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    ? "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
               {tab.icon}
@@ -260,8 +266,8 @@ const LeftSidebar = ({
                     ? "text-blue-400"
                     : "text-blue-600"
                   : isDarkMode
-                  ? "text-slate-500"
-                  : "text-slate-400"
+                    ? "text-slate-500"
+                    : "text-slate-400"
               }`}
             >
               {tab.icon}
@@ -318,9 +324,8 @@ const SupplierDashboardContent = () => {
 
     try {
       // Fetch shipments for this supplier's wallet
-      const { shipments: fetchedShipments } = await fetchShipments(
-        walletAddress
-      );
+      const { shipments: fetchedShipments } =
+        await fetchShipments(walletAddress);
 
       // For each shipment, fetch its containers
       const shipmentsWithContainers = await Promise.all(
@@ -332,7 +337,7 @@ const SupplierDashboardContent = () => {
             // If container fetch fails, return shipment without containers
             return { ...shipment, containers: [] };
           }
-        })
+        }),
       );
 
       setShipments(shipmentsWithContainers);
@@ -368,12 +373,12 @@ const SupplierDashboardContent = () => {
         assignedTransporterWallet: newShipment.assignedTransporterWallet,
         assignedWarehouseWallet: newShipment.assignedWarehouseWallet,
       });
-      
+
       // Refresh shipments list to include the new shipment
       await loadShipments();
       // Stay on create tab - don't navigate away
     } catch (err) {
-      console.error('Failed to create shipment:', err);
+      console.error("Failed to create shipment:", err);
       // Still add to local state even if API fails (for demo purposes)
       setShipments((prev) => [newShipment, ...prev]);
       throw err; // Re-throw so CreateShipment knows it failed
@@ -386,7 +391,7 @@ const SupplierDashboardContent = () => {
       const refreshedShipment = await fetchShipmentByHash(shipmentHash);
       return refreshedShipment;
     } catch (err) {
-      console.error('Failed to refresh shipment:', err);
+      console.error("Failed to refresh shipment:", err);
       return null;
     }
   };
@@ -394,7 +399,7 @@ const SupplierDashboardContent = () => {
   // Mark shipment ready for dispatch (locks to blockchain)
   const handleMarkReady = async (shipmentId) => {
     const blockchainTxHash = `0x${Array.from({ length: 64 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
+      Math.floor(Math.random() * 16).toString(16),
     ).join("")}`;
 
     setShipments((prev) =>
@@ -414,7 +419,7 @@ const SupplierDashboardContent = () => {
           blockchainTxHash,
           containers: lockedContainers,
         };
-      })
+      }),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -429,7 +434,7 @@ const SupplierDashboardContent = () => {
         })),
       }));
     }
-    
+
     // Refresh shipments to get updated documents from server
     await loadShipments();
   };
@@ -446,7 +451,7 @@ const SupplierDashboardContent = () => {
           transporterId: transporterInfo.transporterId,
           transporterName: transporterInfo.transporterName,
         };
-      })
+      }),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -474,7 +479,7 @@ const SupplierDashboardContent = () => {
     };
 
     setShipments((prev) =>
-      prev.map((s) => (s.id === shipmentId ? { ...s, metadata } : s))
+      prev.map((s) => (s.id === shipmentId ? { ...s, metadata } : s)),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -490,9 +495,9 @@ const SupplierDashboardContent = () => {
       const shipmentHash = selectedShipment.shipmentHash || selectedShipment.id;
       const refreshed = await fetchShipmentByHash(shipmentHash);
       if (refreshed) {
-        setSelectedShipment(prev => ({
+        setSelectedShipment((prev) => ({
           ...prev,
-          supportingDocuments: refreshed.supportingDocuments || []
+          supportingDocuments: refreshed.supportingDocuments || [],
         }));
       }
     }
@@ -502,30 +507,30 @@ const SupplierDashboardContent = () => {
   const handleDeleteDocument = async (shipmentHash, docIndex) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/shipments/${shipmentHash}/documents/${docIndex}`,
-        { method: 'DELETE' }
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/shipments/${shipmentHash}/documents/${docIndex}`,
+        { method: "DELETE" },
       );
-      
+
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to delete document');
+        throw new Error(error.message || "Failed to delete document");
       }
-      
+
       // Refresh shipments to get updated document list
       await loadShipments();
-      
+
       // Also update selectedShipment
       if (selectedShipment) {
         const refreshed = await fetchShipmentByHash(shipmentHash);
         if (refreshed) {
-          setSelectedShipment(prev => ({
+          setSelectedShipment((prev) => ({
             ...prev,
-            supportingDocuments: refreshed.supportingDocuments || []
+            supportingDocuments: refreshed.supportingDocuments || [],
           }));
         }
       }
     } catch (err) {
-      console.error('Failed to delete document:', err);
+      console.error("Failed to delete document:", err);
       throw err;
     }
   };
@@ -543,11 +548,11 @@ const SupplierDashboardContent = () => {
                 status: CONCERN_STATUS.ACKNOWLEDGED,
                 acknowledgedAt: Date.now(),
               }
-            : c
+            : c,
         );
 
         return { ...s, concerns: updatedConcerns };
-      })
+      }),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -560,7 +565,7 @@ const SupplierDashboardContent = () => {
                 status: CONCERN_STATUS.ACKNOWLEDGED,
                 acknowledgedAt: Date.now(),
               }
-            : c
+            : c,
         ),
       }));
     }
@@ -580,11 +585,11 @@ const SupplierDashboardContent = () => {
                 resolvedAt: Date.now(),
                 resolution,
               }
-            : c
+            : c,
         );
 
         return { ...s, concerns: updatedConcerns };
-      })
+      }),
     );
 
     if (selectedShipment?.id === shipmentId) {
@@ -598,7 +603,7 @@ const SupplierDashboardContent = () => {
                 resolvedAt: Date.now(),
                 resolution,
               }
-            : c
+            : c,
         ),
       }));
     }
@@ -624,7 +629,7 @@ const SupplierDashboardContent = () => {
 
   // Count shipments with open concerns for badge
   const shipmentsWithConcerns = shipments.filter((s) =>
-    s.concerns?.some((c) => c.status === CONCERN_STATUS.OPEN)
+    s.concerns?.some((c) => c.status === CONCERN_STATUS.OPEN),
   ).length;
 
   return (
@@ -776,7 +781,7 @@ const SupplierDashboardContent = () => {
                         (acc, s) =>
                           acc +
                           (s.numberOfContainers || s.containers?.length || 0),
-                        0
+                        0,
                       )}
                     </p>
                     <p
@@ -800,7 +805,7 @@ const SupplierDashboardContent = () => {
                     <p className="text-3xl font-bold text-green-500">
                       {
                         shipments.filter(
-                          (s) => s.isLocked || s.blockchainTxHash
+                          (s) => s.isLocked || s.blockchainTxHash,
                         ).length
                       }
                     </p>
@@ -1145,8 +1150,8 @@ const SupplierDashboardContent = () => {
                               viewingShipmentDetails?.showTab === "details"
                                 ? "bg-blue-500 text-white shadow-lg shadow-blue-500/25"
                                 : isDarkMode
-                                ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
-                                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
+                                  ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                                  : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
                             }`}
                           >
                             <svg
@@ -1181,8 +1186,8 @@ const SupplierDashboardContent = () => {
                               viewingShipmentDetails?.showTab === "containers"
                                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
                                 : isDarkMode
-                                ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
-                                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
+                                  ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                                  : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
                             }`}
                           >
                             <svg
@@ -1211,8 +1216,8 @@ const SupplierDashboardContent = () => {
                               viewingShipmentDetails?.showTab === "concerns"
                                 ? "bg-amber-500 text-white shadow-lg shadow-amber-500/25"
                                 : isDarkMode
-                                ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
-                                : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
+                                  ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                                  : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200"
                             }`}
                           >
                             <svg
@@ -1230,12 +1235,12 @@ const SupplierDashboardContent = () => {
                             </svg>
                             Concerns
                             {selectedShipment.concerns?.filter(
-                              (c) => c.status !== CONCERN_STATUS.RESOLVED
+                              (c) => c.status !== CONCERN_STATUS.RESOLVED,
                             ).length > 0 && (
                               <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                                 {
                                   selectedShipment.concerns.filter(
-                                    (c) => c.status !== CONCERN_STATUS.RESOLVED
+                                    (c) => c.status !== CONCERN_STATUS.RESOLVED,
                                   ).length
                                 }
                               </span>

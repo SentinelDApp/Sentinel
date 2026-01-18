@@ -103,7 +103,7 @@ const LandingPage = () => {
     try {
       const html5QrCode = new Html5Qrcode("qr-reader-hidden");
       const result = await html5QrCode.scanFile(file, true);
-      
+
       // Check if the scanned result is a tracking URL
       // Expected format: http(s)://domain/:batchId/shipment-history
       const urlMatch = result.match(/\/([^/]+)\/shipment-history$/);
@@ -113,7 +113,7 @@ const LandingPage = () => {
         window.location.href = `/${batchId}/shipment-history`;
         return;
       }
-      
+
       // If it's not a URL, treat it as a batch ID
       setProductId(result);
       setVerificationMethod("input");
