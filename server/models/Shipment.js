@@ -76,6 +76,13 @@ const shipmentSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Product name (human-readable identifier)
+    productName: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
     // Number of containers in the shipment
     numberOfContainers: {
       type: Number,
@@ -206,8 +213,22 @@ const shipmentSchema = new mongoose.Schema(
     supportingDocuments: [
       {
         url: { type: String, required: true },
+        fileName: { type: String },
+        fileType: { type: String },
         uploadedBy: { type: String, required: true }, // wallet or 'SYSTEM'
         uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // Status change history for tracking
+    statusHistory: [
+      {
+        status: { type: String, required: true },
+        changedBy: { type: String },
+        changedAt: { type: Date, default: Date.now },
+        action: { type: String },
+        notes: { type: String },
+        txHash: { type: String },
       },
     ],
   },

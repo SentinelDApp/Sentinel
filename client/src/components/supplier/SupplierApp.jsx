@@ -361,6 +361,7 @@ const SupplierDashboardContent = () => {
         shipmentHash: newShipment.shipmentHash,
         supplierWallet: newShipment.supplierWallet || walletAddress,
         batchId: newShipment.batchId,
+        productName: newShipment.productName,
         numberOfContainers: newShipment.numberOfContainers,
         quantityPerContainer: newShipment.quantityPerContainer,
         // New: Include assigned transporter and warehouse wallet addresses

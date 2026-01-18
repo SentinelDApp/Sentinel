@@ -25,6 +25,7 @@ const router = express.Router();
 const Shipment = require("../models/Shipment");
 const Container = require("../models/Container");
 const User = require("../models/User");
+const ScanLog = require("../models/ScanLog");
 const {
   uploadSupportingDocuments,
   handleUploadErrors,
@@ -166,6 +167,216 @@ const canSetAtWarehouse = async (shipmentId) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
+ * GET /api/shipments/track/:batchId
+ *
+ * PUBLIC ENDPOINT - No authentication required
+ * Get full tracking history for a shipment by batch ID
+ * Used by public tracking page (QR code scans)
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     shipment: { ... },
+ *     trackingHistory: [ ... ],
+ *     certificates: [ ... ]
+ *   }
+ * }
+ */
+router.get("/track/:batchId", async (req, res) => {
+  try {
+    const { batchId } = req.params;
+
+    if (!batchId) {
+      return res.status(400).json({
+        success: false,
+        message: "Batch ID is required",
+      });
+    }
+
+    // Find shipment by batch ID
+    const shipment = await Shipment.findOne({ batchId });
+
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: "Shipment not found for this batch ID",
+      });
+    }
+
+    // Get containers for this shipment
+    const containers = await Container.find({ shipmentHash: shipment.shipmentHash });
+
+    // Get scan logs for tracking history
+    const scanLogs = await ScanLog.find({ 
+      shipmentHash: shipment.shipmentHash,
+      result: "ACCEPTED"
+    }).sort({ scannedAt: 1 });
+
+    // Build tracking history from statusHistory and scan logs
+    const trackingHistory = [];
+
+    // Add creation event
+    trackingHistory.push({
+      event: "CREATED",
+      title: "Shipment Created",
+      description: `Batch ${shipment.batchId} was created by supplier`,
+      timestamp: shipment.createdAt,
+      actor: shipment.supplierWallet,
+      txHash: null,
+    });
+
+    // Add locked on blockchain event
+    if (shipment.txHash) {
+      trackingHistory.push({
+        event: "LOCKED",
+        title: "Locked on Blockchain",
+        description: "Shipment identity recorded immutably on-chain",
+        timestamp: shipment.blockchainTimestamp ? new Date(shipment.blockchainTimestamp * 1000) : shipment.updatedAt,
+        actor: shipment.supplierWallet,
+        txHash: shipment.txHash,
+      });
+    }
+
+    // Add events from scan logs
+    scanLogs.forEach((scan) => {
+      let title = "";
+      let description = "";
+      
+      switch (scan.action) {
+        case "CUSTODY_PICKUP":
+          title = "Picked Up by Transporter";
+          description = `Container ${scan.containerId || "shipment"} picked up for delivery`;
+          break;
+        case "CUSTODY_RECEIVE":
+          title = "Received at Warehouse";
+          description = `Container ${scan.containerId || "shipment"} received at warehouse`;
+          break;
+        case "CUSTODY_HANDOVER":
+          title = "Custody Handover";
+          description = `Container ${scan.containerId || "shipment"} handed over`;
+          break;
+        case "FINAL_DELIVERY":
+          title = "Delivered";
+          description = `Container ${scan.containerId || "shipment"} delivered to destination`;
+          break;
+        case "SCAN_VERIFY":
+          title = "Verification Scan";
+          description = `Container ${scan.containerId || "shipment"} verified`;
+          break;
+        default:
+          title = scan.action?.replace(/_/g, " ") || "Scan Event";
+          description = `Scan event for ${scan.containerId || "shipment"}`;
+      }
+
+      trackingHistory.push({
+        event: scan.action,
+        title,
+        description,
+        timestamp: scan.scannedAt,
+        actor: scan.scannedBy?.walletAddress || scan.scannedBy,
+        actorRole: scan.scannedBy?.role,
+        location: scan.location,
+        txHash: scan.txHash || null,
+        containerId: scan.containerId,
+      });
+    });
+
+    // Add events from status history
+    if (shipment.statusHistory && shipment.statusHistory.length > 0) {
+      shipment.statusHistory.forEach((history) => {
+        // Avoid duplicates - check if we already have this event
+        const isDuplicate = trackingHistory.some(
+          (t) => t.event === history.status && 
+                 Math.abs(new Date(t.timestamp) - new Date(history.changedAt)) < 60000 // within 1 minute
+        );
+
+        if (!isDuplicate) {
+          let title = "";
+          let description = "";
+
+          switch (history.status) {
+            case "IN_TRANSIT":
+              title = "In Transit";
+              description = "Shipment is in transit";
+              break;
+            case "AT_WAREHOUSE":
+              title = "At Warehouse";
+              description = "Shipment arrived at warehouse";
+              break;
+            case "READY_FOR_DISPATCH":
+              title = "Ready for Dispatch";
+              description = "Shipment is ready for dispatch";
+              break;
+            case "DELIVERED":
+              title = "Delivered";
+              description = "Shipment has been delivered";
+              break;
+            default:
+              title = history.status?.replace(/_/g, " ") || "Status Update";
+              description = history.notes || `Status changed to ${history.status}`;
+          }
+
+          trackingHistory.push({
+            event: history.status,
+            title,
+            description: history.notes || description,
+            timestamp: history.changedAt,
+            actor: history.changedBy,
+            txHash: history.txHash || null,
+          });
+        }
+      });
+    }
+
+    // Sort tracking history by timestamp
+    trackingHistory.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // Get certificates (supporting documents)
+    const certificates = (shipment.supportingDocuments || []).map((doc) => ({
+      url: doc.url,
+      fileName: doc.fileName || "Certificate",
+      fileType: doc.fileType || "image",
+      uploadedBy: doc.uploadedBy,
+      uploadedAt: doc.uploadedAt,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        shipment: {
+          shipmentHash: shipment.shipmentHash,
+          batchId: shipment.batchId,
+          productName: shipment.productName,
+          supplierWallet: shipment.supplierWallet,
+          numberOfContainers: shipment.numberOfContainers,
+          quantityPerContainer: shipment.quantityPerContainer,
+          totalQuantity: shipment.totalQuantity,
+          status: shipment.status,
+          isLocked: !!shipment.txHash,
+          txHash: shipment.txHash,
+          createdAt: shipment.createdAt,
+          updatedAt: shipment.updatedAt,
+        },
+        containers: containers.map((c) => ({
+          containerId: c.containerId,
+          status: c.status,
+          quantity: c.quantity,
+        })),
+        trackingHistory,
+        certificates,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching tracking data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch tracking data",
+    });
+  }
+});
+
+/**
  * POST /api/shipments
  *
  * Create a new shipment off-chain (before blockchain confirmation)
@@ -192,6 +403,7 @@ router.post("/", async (req, res) => {
       shipmentHash,
       supplierWallet,
       batchId,
+      productName,
       numberOfContainers,
       quantityPerContainer,
       assignedTransporterWallet,
@@ -305,6 +517,7 @@ router.post("/", async (req, res) => {
       shipmentHash,
       supplierWallet: supplierWallet.toLowerCase(),
       batchId,
+      productName: productName || null,
       numberOfContainers: parseInt(numberOfContainers),
       quantityPerContainer: parseInt(quantityPerContainer),
       totalQuantity:
@@ -360,6 +573,7 @@ router.post("/", async (req, res) => {
         shipmentHash: shipment.shipmentHash,
         supplierWallet: shipment.supplierWallet,
         batchId: shipment.batchId,
+        productName: shipment.productName,
         numberOfContainers: shipment.numberOfContainers,
         quantityPerContainer: shipment.quantityPerContainer,
         totalQuantity: shipment.totalQuantity,
