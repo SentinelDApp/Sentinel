@@ -13,9 +13,9 @@ const QRCodesView = ({ shipment, onClose, isDarkMode = true }) => {
   if (!shipment) return null;
 
   const containers = shipment.containers || [];
-  // Generate tracking URL for QR code - points to public shipment history page
+  // Generate tracking URL for QR code - points to public product history page
   const baseUrl = window.location.origin;
-  const trackingUrl = `${baseUrl}/${encodeURIComponent(shipment.batchId)}/shipment-history`;
+  const trackingUrl = `${baseUrl}/${encodeURIComponent(shipment.batchId)}/product-history`;
   const productQrData = trackingUrl;
   const [activeTab, setActiveTab] = useState("product"); // 'product' or 'containers'
 

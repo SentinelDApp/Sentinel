@@ -171,10 +171,18 @@ const ShipmentHistoryPage = () => {
       >
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => window.history.back()}
+                className={`p-2 rounded-lg transition-colors ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700"
+                    : "bg-slate-200 hover:bg-slate-300"
+                }`}
+                title="Go back"
+              >
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="w-5 h-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -183,15 +191,34 @@ const ShipmentHistoryPage = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
                   />
                 </svg>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-blue-500">Sentinel</h1>
-                <p className={`text-xs ${mutedTextClass}`}>Product Tracking</p>
-              </div>
-            </Link>
+              </button>
+              <Link to="/" className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-blue-500">Sentinel</h1>
+                  <p className={`text-xs ${mutedTextClass}`}>
+                    Product Tracking
+                  </p>
+                </div>
+              </Link>
+            </div>
 
             <button
               onClick={() => setDarkMode(!darkMode)}
@@ -374,10 +401,26 @@ const ShipmentHistoryPage = () => {
                         >
                           Supplier
                         </p>
-                        <p className="font-mono text-sm">
-                          {truncateAddress(shipment.supplierWallet)}
+                        <p className="font-semibold">
+                          {shipment.supplierOrganization ||
+                            shipment.supplierName ||
+                            truncateAddress(shipment.supplierWallet)}
                         </p>
                       </div>
+                      {shipment.transporterOrganization && (
+                        <div>
+                          <p
+                            className={`text-xs uppercase tracking-wider ${mutedTextClass} mb-1`}
+                          >
+                            Transporter
+                          </p>
+                          <p className="font-semibold">
+                            {shipment.transporterOrganization ||
+                              shipment.transporterName ||
+                              "N/A"}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Right Column */}
@@ -461,49 +504,6 @@ const ShipmentHistoryPage = () => {
                     </div>
                   )}
                 </div>
-
-                {/* Container List (Collapsible) */}
-                {containers.length > 0 && (
-                  <div className={`px-6 pb-6`}>
-                    <div
-                      className={`p-4 rounded-xl ${darkMode ? "bg-slate-800/50" : "bg-slate-50"}`}
-                    >
-                      <p
-                        className={`text-xs uppercase tracking-wider ${mutedTextClass} mb-3`}
-                      >
-                        Container Status ({containers.length})
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {containers.slice(0, 6).map((container, index) => (
-                          <div
-                            key={container.containerId || index}
-                            className={`flex items-center justify-between p-2 rounded-lg ${
-                              darkMode
-                                ? "bg-slate-700/50"
-                                : "bg-white border border-slate-200"
-                            }`}
-                          >
-                            <span className="font-mono text-xs">
-                              {container.containerId}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded text-xs ${getStatusStyle(container.status).bg} ${getStatusStyle(container.status).text}`}
-                            >
-                              {container.status || "Created"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      {containers.length > 6 && (
-                        <p
-                          className={`text-xs ${mutedTextClass} mt-2 text-center`}
-                        >
-                          +{containers.length - 6} more containers
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </section>
 
@@ -627,10 +627,27 @@ const ShipmentHistoryPage = () => {
                                         className={`text-xs mt-2 ${mutedTextClass}`}
                                       >
                                         👤{" "}
-                                        {event.actorRole
-                                          ? `${event.actorRole}: `
-                                          : ""}
-                                        {truncateAddress(event.actor)}
+                                        {event.actorName ? (
+                                          <>
+                                            <span className="font-semibold">
+                                              {event.actorName}
+                                            </span>
+                                            {event.actorRole && (
+                                              <span className="text-xs">
+                                                {" "}
+                                                ({event.actorRole})
+                                              </span>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <>
+                                            {event.actorRole &&
+                                              `${event.actorRole}: `}
+                                            <span className="font-mono">
+                                              {truncateAddress(event.actor)}
+                                            </span>
+                                          </>
+                                        )}
                                       </p>
                                     )}
 
