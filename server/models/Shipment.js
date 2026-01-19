@@ -210,6 +210,43 @@ const shipmentSchema = new mongoose.Schema(
       },
     },
 
+    // Next Transporter - set by warehouse for the next leg of shipment
+    nextTransporter: {
+      walletAddress: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
+      },
+      name: {
+        type: String,
+        trim: true,
+      },
+      organizationName: {
+        type: String,
+        trim: true,
+      },
+      assignedAt: {
+        type: Date,
+      },
+      assignedBy: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
+      },
+    },
+
     // Assigned Retailer - set by warehouse when forwarding shipment
     assignedRetailer: {
       walletAddress: {

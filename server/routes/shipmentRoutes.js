@@ -2448,9 +2448,10 @@ router.patch(
       const now = new Date();
       const previousStatus = shipment.status;
       
-      // Move next transporter to assigned transporter for the next leg
-      shipment.assignedTransporter = shipment.nextTransporter;
-      shipment.nextTransporter = null;
+      // IMPORTANT: Keep both assignedTransporter and nextTransporter separate
+      // assignedTransporter = first leg transporter (Supplier → Warehouse) - historical record
+      // nextTransporter = second leg transporter (Warehouse → Retailer) - active for next scan
+      // DO NOT overwrite assignedTransporter with nextTransporter
       
       shipment.status = "READY_FOR_DISPATCH";
       shipment.updatedAt = now;
@@ -2465,21 +2466,14 @@ router.patch(
         changedBy: user.walletAddress,
         changedAt: now,
         action: "WAREHOUSE_DISPATCH_READY",
-        notes: `Marked ready for dispatch by warehouse. Next transporter: ${shipment.assignedTransporter.walletAddress}`,
+        notes: `Marked ready for dispatch by warehouse. Next transporter: ${shipment.nextTransporter.walletAddress}`,
       });
 
       await shipment.save();
 
-      // Reset container statuses to READY_FOR_DISPATCH for the next leg
-      await Container.updateMany(
-        { shipmentHash: shipment.shipmentHash },
-        {
-          $set: {
-            status: "READY_FOR_DISPATCH",
-            updatedAt: now,
-          },
-        },
-      );
+      // IMPORTANT: Keep container status as AT_WAREHOUSE so nextTransporter can scan them
+      // The transporter scan controller checks for AT_WAREHOUSE status for nextTransporter scans
+      // Container status will change to IN_TRANSIT when nextTransporter scans
 
       res.json({
         success: true,
@@ -2489,6 +2483,7 @@ router.patch(
           previousStatus,
           status: shipment.status,
           assignedTransporter: shipment.assignedTransporter,
+          nextTransporter: shipment.nextTransporter,
           assignedRetailer: shipment.assignedRetailer,
           updatedAt: shipment.updatedAt,
         },

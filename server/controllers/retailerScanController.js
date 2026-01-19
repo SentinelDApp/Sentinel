@@ -47,6 +47,7 @@ const createShipmentSnapshot = (shipment) => {
     numberOfContainers: shipment.numberOfContainers,
     assignedTransporter: shipment.assignedTransporter?.walletAddress || null,
     assignedWarehouse: shipment.assignedWarehouse?.walletAddress || null,
+    nextTransporter: shipment.nextTransporter?.walletAddress || null,
     assignedRetailer: shipment.assignedRetailer?.walletAddress || null
   };
 };
@@ -222,12 +223,12 @@ const scanContainerAsRetailer = async (req, res) => {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // STEP 6: Check container status - must be AT_WAREHOUSE
-    // Container can only be scanned by retailer if warehouse has received it
-    // Flow: CREATED → IN_TRANSIT (transporter) → AT_WAREHOUSE (warehouse) → DELIVERED (retailer)
+    // STEP 6: Check container status - must be IN_TRANSIT (coming from nextTransporter)
+    // Container can only be scanned by retailer after nextTransporter has picked it up
+    // Flow: AT_WAREHOUSE → IN_TRANSIT (nextTransporter) → DELIVERED (retailer)
     // ═════════════════════════════════════════════════════════════════════
     
-    if (container.status !== 'AT_WAREHOUSE') {
+    if (container.status !== 'IN_TRANSIT') {
       // Check if already delivered
       if (container.status === 'DELIVERED') {
         return res.status(400).json({
@@ -244,14 +245,14 @@ const scanContainerAsRetailer = async (req, res) => {
         });
       }
       
-      // Check if transporter hasn't scanned yet
-      if (container.status === 'CREATED' || container.status === 'READY_FOR_DISPATCH' || container.status === 'LOCKED') {
+      // Check if at warehouse (nextTransporter hasn't scanned yet)
+      if (container.status === 'AT_WAREHOUSE') {
         return res.status(400).json({
           success: false,
           status: 'REJECTED',
-          reason: 'Transporter has not scanned this container yet',
+          reason: 'Transporter has not picked up this container yet',
           code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
-          message: 'The transporter must scan this container first before you can mark it as delivered. Current status: ' + container.status,
+          message: 'The transporter must pick up this container from the warehouse first before you can mark it as delivered. Current status: AT_WAREHOUSE',
           container: {
             containerId: container.containerId,
             status: container.status,
@@ -260,14 +261,14 @@ const scanContainerAsRetailer = async (req, res) => {
         });
       }
       
-      // Check if transporter has scanned but warehouse hasn't
-      if (container.status === 'IN_TRANSIT') {
+      // Check if still at first leg
+      if (container.status === 'CREATED' || container.status === 'READY_FOR_DISPATCH' || container.status === 'LOCKED') {
         return res.status(400).json({
           success: false,
           status: 'REJECTED',
-          reason: 'Warehouse has not received this container yet',
+          reason: 'Container has not reached warehouse yet',
           code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
-          message: 'The warehouse must scan this container first to confirm receipt before you can mark it as delivered. Current status: IN_TRANSIT',
+          message: 'This container must be processed through the warehouse first. Current status: ' + container.status,
           container: {
             containerId: container.containerId,
             status: container.status,
