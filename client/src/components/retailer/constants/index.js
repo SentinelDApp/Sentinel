@@ -4,7 +4,7 @@
 export const NAVIGATION_TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
   { id: 'incoming', label: 'Incoming', icon: '📦' },
-  { id: 'qr-scan', label: 'QR Scan', icon: '📷' },
+  { id: 'qr-scan', label: 'Delivery Scan', icon: '📷' },
   { id: 'manage', label: 'Manage', icon: '⚙️' },
 ];
 

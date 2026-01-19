@@ -34,6 +34,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const scanController = require("../controllers/scanController");
 const transporterScanController = require("../controllers/transporterScanController");
+const retailerScanController = require("../controllers/retailerScanController");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VALIDATION HELPERS
@@ -165,6 +166,46 @@ router.get(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
+<<<<<<< HEAD
+// RETAILER-SPECIFIC SCAN ROUTES
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/containers/scan/retailer
+ *
+ * Retailer-specific container scanning endpoint with strict domain rules:
+ * - ONLY retailers can use this endpoint
+ * - Container must be AT_WAREHOUSE status (received by warehouse)
+ * - Shipment must be assigned to this retailer
+ * - Container can only be scanned ONCE by retailer
+ * - Optional concern can be raised during scan
+ *
+ * Request Body:
+ * {
+ *   containerId: string,    // From QR scan
+ *   concern: string         // Optional concern text
+ * }
+ */
+router.post(
+  "/scan/retailer",
+  authMiddleware,
+  roleMiddleware(["retailer"]),
+  validateContainerScanRequest,
+  retailerScanController.scanContainerAsRetailer,
+);
+
+/**
+ * GET /api/containers/scan/retailer/assigned
+ *
+ * Get containers assigned to the current retailer that are ready to scan
+ * Returns shipments where retailer is assigned and containers at AT_WAREHOUSE status
+ */
+router.get(
+  "/scan/retailer/assigned",
+  authMiddleware,
+  roleMiddleware(["retailer"]),
+  retailerScanController.getAssignedContainers,
+=======
 // WAREHOUSE-SPECIFIC SCAN ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -230,6 +271,7 @@ router.get(
       });
     }
   }
+>>>>>>> 233dd2fd9db09ae8c312015c57f70ba007e3932e
 );
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -1,11 +1,11 @@
 /**
  * ReceivedShipments Component
- * Displays shipments that have been scanned and confirmed by the retailer
+ * Displays shipments that are assigned to the retailer from database
  */
 
 import { useRetailerTheme } from '../context/ThemeContext';
 
-function ReceivedShipments({ shipments = [], onViewAll }) {
+function ReceivedShipments({ shipments = [], onViewAll, isLoading = false, onManageShipment }) {
   const { isDarkMode } = useRetailerTheme();
 
   return (
@@ -16,7 +16,23 @@ function ReceivedShipments({ shipments = [], onViewAll }) {
         : 'bg-white border-slate-200 shadow-sm'
       }
     `}>
-      {shipments.length === 0 ? (
+      {isLoading ? (
+        /* Loading State */
+        <div className="text-center py-8">
+          <div className={`
+            flex h-14 w-14 mx-auto items-center justify-center rounded-2xl mb-4 border
+            ${isDarkMode 
+              ? 'bg-slate-800/60 border-slate-700/50' 
+              : 'bg-slate-50 border-slate-200'
+            }
+          `}>
+            <svg className={`h-7 w-7 animate-spin ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Loading shipments...</p>
+        </div>
+      ) : shipments.length === 0 ? (
         /* Empty State */
         <div className="text-center py-8">
           <div className={`
@@ -30,8 +46,8 @@ function ReceivedShipments({ shipments = [], onViewAll }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
             </svg>
           </div>
-          <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>No shipments received yet</p>
-          <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Scan a QR code to receive shipments</p>
+          <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>No shipments assigned yet</p>
+          <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Shipments assigned to you will appear here</p>
         </div>
       ) : (
         /* Shipments Grid */
@@ -104,6 +120,28 @@ function ReceivedShipments({ shipments = [], onViewAll }) {
                     <div className={`mt-2 px-2 py-1 rounded-md border ${isDarkMode ? 'bg-red-500/10 border-red-500/20' : 'bg-red-50 border-red-200'}`}>
                       <p className={`text-xs truncate ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>{shipment.exceptionNote}</p>
                     </div>
+                  )}
+                  {/* Manage Button */}
+                  {onManageShipment && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onManageShipment(shipment);
+                      }}
+                      className={`
+                        mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg transition-all
+                        ${isDarkMode 
+                          ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200'
+                        }
+                      `}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Manage
+                    </button>
                   )}
                 </div>
               </div>
