@@ -36,7 +36,7 @@ import {
   assignRetailer,
   markReadyForDispatchNextLeg
 } from "../../services/shipmentApi";
-import { getWarehouseAssignedContainers } from "../../services/scanApi";
+
 import {
   SHIPMENT_STATUSES,
   canWarehouseScan,
