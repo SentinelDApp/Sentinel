@@ -43,6 +43,7 @@ const indexerRoutes = require('./routes/indexerRoutes');
 const userRoutes = require('./routes/userRoutes');
 const scanRoutes = require('./routes/scanRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 // Services
 const blockchainIndexer = require('./services/blockchainIndexer');
@@ -132,6 +133,16 @@ app.use('/api/scan', scanRoutes);
  * indexed shipment data (and related on-chain information) via /api/chat.
  */
 app.use('/api/chat', chatRoutes);
+
+// ================= AI ANALYTICS ROUTES ================= //
+/**
+ * ANALYTICS APIs
+ * 
+ * AI-powered decision support system for supply chain optimization.
+ * Provides demand forecasting, inventory analysis, performance metrics,
+ * anomaly detection, and actionable insights for all stakeholders.
+ */
+app.use('/api/analytics', analyticsRoutes);
 
 // ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**
