@@ -25,6 +25,7 @@ const router = express.Router();
 const Shipment = require("../models/Shipment");
 const Container = require("../models/Container");
 const User = require("../models/User");
+const ScanLog = require("../models/ScanLog");
 const {
   uploadSupportingDocuments,
   handleUploadErrors,
@@ -59,51 +60,60 @@ const parsePagination = (query) => {
 const canSetInTransit = async (shipmentId) => {
   try {
     // Find shipment by hash or _id (only use _id if it's a valid ObjectId format)
-    const mongoose = require('mongoose');
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
-    
-    const query = isValidObjectId 
+    const mongoose = require("mongoose");
+    const isValidObjectId =
+      mongoose.Types.ObjectId.isValid(shipmentId) &&
+      /^[0-9a-fA-F]{24}$/.test(shipmentId);
+
+    const query = isValidObjectId
       ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
       : { shipmentHash: shipmentId };
-    
+
     const shipment = await Shipment.findOne(query);
-    
+
     if (!shipment) {
-      console.log('canSetInTransit: Shipment not found for ID:', shipmentId);
+      console.log("canSetInTransit: Shipment not found for ID:", shipmentId);
       return false;
     }
-    
+
     // Find all containers for this shipment
-    const containers = await Container.find({ shipmentHash: shipment.shipmentHash });
-    
-    console.log('canSetInTransit check:', {
+    const containers = await Container.find({
+      shipmentHash: shipment.shipmentHash,
+    });
+
+    console.log("canSetInTransit check:", {
       shipmentHash: shipment.shipmentHash,
       shipmentCurrentStatus: shipment.status,
       totalContainers: containers.length,
-      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status })),
-      uniqueStatuses: [...new Set(containers.map(c => c.status))]
+      containerStatuses: containers.map((c) => ({
+        id: c.containerId,
+        status: c.status,
+      })),
+      uniqueStatuses: [...new Set(containers.map((c) => c.status))],
     });
-    
+
     if (containers.length === 0) {
-      console.log('canSetInTransit: No containers found for shipment');
+      console.log("canSetInTransit: No containers found for shipment");
       return false;
     }
-    
+
     // Check each container status
-    const statusCheck = containers.map(c => {
+    const statusCheck = containers.map((c) => {
       const isValid = c.status === "IN_TRANSIT" || c.status === "DELIVERED";
       return { id: c.containerId, status: c.status, isValid };
     });
-    
-    console.log('Container status validation:', statusCheck);
-    
+
+    console.log("Container status validation:", statusCheck);
+
     // All must be IN_TRANSIT or DELIVERED
-    const allScanned = containers.every((c) => c.status === "IN_TRANSIT" || c.status === "DELIVERED");
-    console.log('canSetInTransit result:', allScanned);
-    
+    const allScanned = containers.every(
+      (c) => c.status === "IN_TRANSIT" || c.status === "DELIVERED",
+    );
+    console.log("canSetInTransit result:", allScanned);
+
     return allScanned;
   } catch (error) {
-    console.error('Error in canSetInTransit:', error);
+    console.error("Error in canSetInTransit:", error);
     return false;
   }
 };
@@ -112,51 +122,60 @@ const canSetInTransit = async (shipmentId) => {
 const canSetAtWarehouse = async (shipmentId) => {
   try {
     // Find shipment by hash or _id (only use _id if it's a valid ObjectId format)
-    const mongoose = require('mongoose');
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
-    
-    const query = isValidObjectId 
+    const mongoose = require("mongoose");
+    const isValidObjectId =
+      mongoose.Types.ObjectId.isValid(shipmentId) &&
+      /^[0-9a-fA-F]{24}$/.test(shipmentId);
+
+    const query = isValidObjectId
       ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
       : { shipmentHash: shipmentId };
-    
+
     const shipment = await Shipment.findOne(query);
-    
+
     if (!shipment) {
-      console.log('canSetAtWarehouse: Shipment not found for ID:', shipmentId);
+      console.log("canSetAtWarehouse: Shipment not found for ID:", shipmentId);
       return false;
     }
-    
+
     // Find all containers for this shipment
-    const containers = await Container.find({ shipmentHash: shipment.shipmentHash });
-    
-    console.log('canSetAtWarehouse check:', {
+    const containers = await Container.find({
+      shipmentHash: shipment.shipmentHash,
+    });
+
+    console.log("canSetAtWarehouse check:", {
       shipmentHash: shipment.shipmentHash,
       shipmentCurrentStatus: shipment.status,
       totalContainers: containers.length,
-      containerStatuses: containers.map(c => ({ id: c.containerId, status: c.status })),
-      uniqueStatuses: [...new Set(containers.map(c => c.status))]
+      containerStatuses: containers.map((c) => ({
+        id: c.containerId,
+        status: c.status,
+      })),
+      uniqueStatuses: [...new Set(containers.map((c) => c.status))],
     });
-    
+
     if (containers.length === 0) {
-      console.log('canSetAtWarehouse: No containers found for shipment');
+      console.log("canSetAtWarehouse: No containers found for shipment");
       return false;
     }
-    
+
     // Check each container status
-    const statusCheck = containers.map(c => {
+    const statusCheck = containers.map((c) => {
       const isValid = c.status === "AT_WAREHOUSE" || c.status === "DELIVERED";
       return { id: c.containerId, status: c.status, isValid };
     });
-    
-    console.log('Container status validation for AT_WAREHOUSE:', statusCheck);
-    
+
+    console.log("Container status validation for AT_WAREHOUSE:", statusCheck);
+
     // All must be AT_WAREHOUSE or DELIVERED
-    const allAtWarehouse = containers.every((c) => c.status === "AT_WAREHOUSE" || c.status === "DELIVERED");
-    console.log('canSetAtWarehouse result:', allAtWarehouse);
-    
+    const allAtWarehouse = containers.every(
+      (c) => c.status === "AT_WAREHOUSE" || c.status === "DELIVERED",
+    );
+    console.log("canSetAtWarehouse result:", allAtWarehouse);
+
     return allAtWarehouse;
   } catch (error) {
-    console.error('Error in canSetAtWarehouse:', error);
+    console.error("Error in canSetAtWarehouse:", error);
     return false;
   }
 };
@@ -164,6 +183,297 @@ const canSetAtWarehouse = async (shipmentId) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/shipments/track/:batchId
+ *
+ * PUBLIC ENDPOINT - No authentication required
+ * Get full tracking history for a shipment by batch ID
+ * Used by public tracking page (QR code scans)
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     shipment: { ... },
+ *     trackingHistory: [ ... ],  // Only major checkpoints
+ *     certificates: [ ... ]
+ *   }
+ * }
+ */
+router.get("/track/:batchId", async (req, res) => {
+  try {
+    const { batchId } = req.params;
+
+    if (!batchId) {
+      return res.status(400).json({
+        success: false,
+        message: "Batch ID is required",
+      });
+    }
+
+    // Find shipment by batch ID
+    const shipment = await Shipment.findOne({ batchId });
+
+    if (!shipment) {
+      return res.status(404).json({
+        success: false,
+        message: "Shipment not found for this batch ID",
+      });
+    }
+
+    // Get containers for this shipment
+    const containers = await Container.find({
+      shipmentHash: shipment.shipmentHash,
+    });
+
+    // Get scan logs for major tracking events (exclude individual container scans)
+    const scanLogs = await ScanLog.find({
+      shipmentHash: shipment.shipmentHash,
+      result: "ACCEPTED",
+    }).sort({ scannedAt: 1 });
+
+    // Build tracking history with only MAJOR checkpoints (no per-container events)
+    const trackingHistory = [];
+    const processedEvents = new Set(); // Track unique events to avoid duplicates
+
+    // Add creation event
+    trackingHistory.push({
+      event: "CREATED",
+      title: "Shipment Created",
+      description: `Batch ${shipment.batchId} was created by supplier`,
+      timestamp: shipment.createdAt,
+      actor: shipment.supplierWallet,
+      actorName: null, // Will be populated later
+      txHash: null,
+    });
+    processedEvents.add("CREATED");
+
+    // Add locked on blockchain event
+    if (shipment.txHash) {
+      trackingHistory.push({
+        event: "LOCKED",
+        title: "Locked on Blockchain",
+        description: "Shipment identity recorded immutably on-chain",
+        timestamp: shipment.blockchainTimestamp
+          ? new Date(shipment.blockchainTimestamp * 1000)
+          : shipment.updatedAt,
+        actor: shipment.supplierWallet,
+        actorName: null,
+        txHash: shipment.txHash,
+      });
+      processedEvents.add("LOCKED");
+    }
+
+    // Group scan logs by event type to show only FIRST occurrence (major checkpoint)
+    const majorEvents = {};
+    scanLogs.forEach((scan) => {
+      const eventKey = scan.action;
+      // Only keep the first occurrence of each event type
+      if (!majorEvents[eventKey]) {
+        majorEvents[eventKey] = scan;
+      }
+    });
+
+    // Add major scan events (one per event type)
+    Object.values(majorEvents).forEach((scan) => {
+      let title = "";
+      let description = "";
+      let shouldInclude = true;
+
+      switch (scan.action) {
+        case "CUSTODY_PICKUP":
+          title = "Picked Up by Transporter";
+          description = "Shipment picked up for delivery";
+          break;
+        case "CUSTODY_RECEIVE":
+          title = "Received at Warehouse";
+          description = "Shipment received at warehouse facility";
+          break;
+        case "CUSTODY_HANDOVER":
+          title = "Custody Handover";
+          description = "Shipment custody transferred";
+          break;
+        case "FINAL_DELIVERY":
+          title = "Delivered";
+          description = "Shipment delivered to final destination";
+          break;
+        case "SCAN_VERIFY":
+          // Skip individual verification scans - not a major checkpoint
+          shouldInclude = false;
+          break;
+        default:
+          title = scan.action?.replace(/_/g, " ") || "Scan Event";
+          description = "Major checkpoint reached";
+      }
+
+      if (shouldInclude && !processedEvents.has(scan.action)) {
+        trackingHistory.push({
+          event: scan.action,
+          title,
+          description,
+          timestamp: scan.scannedAt,
+          actor: scan.scannedBy?.walletAddress || scan.scannedBy,
+          actorName: null, // Will be populated
+          actorRole: scan.scannedBy?.role,
+          location: scan.location,
+          txHash: scan.txHash || null,
+        });
+        processedEvents.add(scan.action);
+      }
+    });
+
+    // Add major status changes from statusHistory
+    if (shipment.statusHistory && shipment.statusHistory.length > 0) {
+      // Only include major status changes
+      const majorStatusChanges = [
+        "IN_TRANSIT",
+        "AT_WAREHOUSE",
+        "READY_FOR_DISPATCH",
+        "DELIVERED",
+      ];
+
+      shipment.statusHistory.forEach((history) => {
+        // Only include major status changes that haven't been added yet
+        if (
+          majorStatusChanges.includes(history.status) &&
+          !processedEvents.has(history.status)
+        ) {
+          let title = "";
+          let description = "";
+
+          switch (history.status) {
+            case "IN_TRANSIT":
+              title = "In Transit";
+              description = "Shipment is in transit to destination";
+              break;
+            case "AT_WAREHOUSE":
+              title = "At Warehouse";
+              description = "Shipment arrived at warehouse";
+              break;
+            case "READY_FOR_DISPATCH":
+              title = "Ready for Dispatch";
+              description = "Shipment processed and ready for dispatch";
+              break;
+            case "DELIVERED":
+              title = "Delivered";
+              description = "Shipment has been delivered successfully";
+              break;
+          }
+
+          trackingHistory.push({
+            event: history.status,
+            title,
+            description: history.notes || description,
+            timestamp: history.changedAt,
+            actor: history.changedBy,
+            actorName: null,
+            txHash: history.txHash || null,
+          });
+          processedEvents.add(history.status);
+        }
+      });
+    }
+
+    // Sort tracking history by timestamp
+    trackingHistory.sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
+    );
+
+    // Fetch user names for all actors, supplier, and transporter
+    const actorAddresses = [
+      ...new Set(trackingHistory.map((t) => t.actor).filter(Boolean)),
+    ];
+    const stakeholderAddresses = [
+      shipment.supplierWallet,
+      shipment.assignedTransporterWallet,
+      shipment.assignedWarehouseWallet,
+      ...actorAddresses,
+    ].filter(Boolean);
+
+    const users = await User.find({
+      walletAddress: { $in: stakeholderAddresses },
+    }).select("walletAddress fullName role organizationName");
+
+    // Create a map of wallet address to user info
+    const userMap = {};
+    users.forEach((user) => {
+      userMap[user.walletAddress.toLowerCase()] = {
+        name: user.fullName,
+        role: user.role,
+        organization: user.organizationName,
+      };
+    });
+
+    // Populate actor names in tracking history
+    trackingHistory.forEach((event) => {
+      if (event.actor) {
+        const userInfo = userMap[event.actor.toLowerCase()];
+        if (userInfo) {
+          event.actorName = userInfo.name;
+          if (!event.actorRole) {
+            event.actorRole = userInfo.role;
+          }
+        }
+      }
+    });
+
+    // Get certificates (supporting documents)
+    const certificates = (shipment.supportingDocuments || []).map((doc) => ({
+      url: doc.url,
+      fileName: doc.fileName || "Certificate",
+      fileType: doc.fileType || "image",
+      uploadedBy: doc.uploadedBy,
+      uploadedAt: doc.uploadedAt,
+    }));
+
+    // Get supplier and transporter info
+    const supplierInfo = userMap[shipment.supplierWallet?.toLowerCase()] || {};
+    const transporterInfo =
+      userMap[shipment.assignedTransporterWallet?.toLowerCase()] || {};
+    const warehouseInfo =
+      userMap[shipment.assignedWarehouseWallet?.toLowerCase()] || {};
+
+    res.json({
+      success: true,
+      data: {
+        shipment: {
+          shipmentHash: shipment.shipmentHash,
+          batchId: shipment.batchId,
+          productName: shipment.productName,
+          supplierWallet: shipment.supplierWallet,
+          supplierName: supplierInfo.name,
+          supplierOrganization: supplierInfo.organization,
+          transporterName: transporterInfo.name,
+          transporterOrganization: transporterInfo.organization,
+          warehouseName: warehouseInfo.name,
+          warehouseOrganization: warehouseInfo.organization,
+          numberOfContainers: shipment.numberOfContainers,
+          quantityPerContainer: shipment.quantityPerContainer,
+          totalQuantity: shipment.totalQuantity,
+          status: shipment.status,
+          isLocked: !!shipment.txHash,
+          txHash: shipment.txHash,
+          createdAt: shipment.createdAt,
+          updatedAt: shipment.updatedAt,
+        },
+        containers: containers.map((c) => ({
+          containerId: c.containerId,
+          status: c.status,
+          quantity: c.quantity,
+        })),
+        trackingHistory,
+        certificates,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching tracking data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch tracking data",
+    });
+  }
+});
 
 /**
  * POST /api/shipments
@@ -192,6 +502,7 @@ router.post("/", async (req, res) => {
       shipmentHash,
       supplierWallet,
       batchId,
+      productName,
       numberOfContainers,
       quantityPerContainer,
       assignedTransporterWallet,
@@ -305,6 +616,7 @@ router.post("/", async (req, res) => {
       shipmentHash,
       supplierWallet: supplierWallet.toLowerCase(),
       batchId,
+      productName: productName || null,
       numberOfContainers: parseInt(numberOfContainers),
       quantityPerContainer: parseInt(quantityPerContainer),
       totalQuantity:
@@ -360,6 +672,7 @@ router.post("/", async (req, res) => {
         shipmentHash: shipment.shipmentHash,
         supplierWallet: shipment.supplierWallet,
         batchId: shipment.batchId,
+        productName: shipment.productName,
         numberOfContainers: shipment.numberOfContainers,
         quantityPerContainer: shipment.quantityPerContainer,
         totalQuantity: shipment.totalQuantity,
@@ -577,6 +890,7 @@ router.get("/", async (req, res) => {
       // Assigned stakeholders (new format)
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
+      nextTransporter: shipment.nextTransporter || null,
       assignedRetailer: shipment.assignedRetailer || null,
       // Legacy fields for backward compatibility
       transporterWallet:
@@ -762,6 +1076,8 @@ router.get("/:shipmentHash", async (req, res) => {
         // Assigned stakeholders (new format)
         assignedTransporter: shipment.assignedTransporter || null,
         assignedWarehouse: shipment.assignedWarehouse || null,
+        nextTransporter: shipment.nextTransporter || null,
+        assignedRetailer: shipment.assignedRetailer || null,
         // Legacy fields for backward compatibility
         transporterWallet:
           shipment.assignedTransporter?.walletAddress ||
@@ -795,6 +1111,10 @@ router.get("/:shipmentHash", async (req, res) => {
  *
  * Fetch shipments assigned to a specific transporter.
  * Transporter dashboard uses this endpoint.
+ * 
+ * Fetches shipments from TWO fields:
+ * 1. assignedTransporter - Normal shipments going to warehouse
+ * 2. nextTransporter - Shipments going from warehouse to retailer
  *
  * Path Parameters:
  * - walletAddress: The transporter's wallet address
@@ -824,9 +1144,16 @@ router.get("/transporter/:walletAddress", async (req, res) => {
       });
     }
 
-    // Build query - only shipments assigned to this transporter
+    const normalizedWallet = walletAddress.toLowerCase();
+
+    // Build query - shipments assigned via assignedTransporter OR nextTransporter
+    // assignedTransporter: destination is warehouse
+    // nextTransporter: destination is retailer
     const query = {
-      "assignedTransporter.walletAddress": walletAddress.toLowerCase(),
+      $or: [
+        { "assignedTransporter.walletAddress": normalizedWallet },
+        { "nextTransporter.walletAddress": normalizedWallet },
+      ],
     };
 
     // Filter by status if provided
@@ -844,24 +1171,40 @@ router.get("/transporter/:walletAddress", async (req, res) => {
       .limit(limit)
       .lean();
 
-    // Transform to response format
-    const data = shipments.map((shipment) => ({
-      shipmentHash: shipment.shipmentHash,
-      supplierWallet: shipment.supplierWallet,
-      batchId: shipment.batchId,
-      productName: shipment.productName || null,
-      numberOfContainers: shipment.numberOfContainers,
-      quantityPerContainer: shipment.quantityPerContainer,
-      totalQuantity: shipment.totalQuantity,
-      txHash: shipment.txHash,
-      blockNumber: shipment.blockNumber,
-      blockchainTimestamp: shipment.blockchainTimestamp,
-      status: shipment.status,
-      assignedTransporter: shipment.assignedTransporter || null,
-      assignedWarehouse: shipment.assignedWarehouse || null,
-      createdAt: shipment.createdAt,
-      supportingDocuments: shipment.supportingDocuments || [],
-    }));
+    // Transform to response format with destination info
+    const data = shipments.map((shipment) => {
+      // Determine if this transporter is assigned via nextTransporter
+      const isNextTransporter =
+        shipment.nextTransporter?.walletAddress === normalizedWallet;
+
+      // Determine destination based on which field the transporter is assigned through
+      const destination = isNextTransporter ? "RETAILER" : "WAREHOUSE";
+
+      return {
+        shipmentHash: shipment.shipmentHash,
+        supplierWallet: shipment.supplierWallet,
+        batchId: shipment.batchId,
+        numberOfContainers: shipment.numberOfContainers,
+        quantityPerContainer: shipment.quantityPerContainer,
+        totalQuantity: shipment.totalQuantity,
+        txHash: shipment.txHash,
+        blockNumber: shipment.blockNumber,
+        blockchainTimestamp: shipment.blockchainTimestamp,
+        status: shipment.status,
+        assignedTransporter: shipment.assignedTransporter || null,
+        assignedWarehouse: shipment.assignedWarehouse || null,
+        nextTransporter: shipment.nextTransporter || null,
+        assignedRetailer: shipment.assignedRetailer || null,
+        // Transporter-specific fields
+        isNextTransporter, // true if assigned via nextTransporter field
+        destination, // "WAREHOUSE" or "RETAILER"
+        destinationDetails: isNextTransporter
+          ? shipment.assignedRetailer || null
+          : shipment.assignedWarehouse || null,
+        createdAt: shipment.createdAt,
+        supportingDocuments: shipment.supportingDocuments || [],
+      };
+    });
 
     res.json({
       success: true,
@@ -951,6 +1294,8 @@ router.get("/warehouse/:walletAddress", async (req, res) => {
       status: shipment.status,
       assignedTransporter: shipment.assignedTransporter || null,
       assignedWarehouse: shipment.assignedWarehouse || null,
+      nextTransporter: shipment.nextTransporter || null,
+      assignedRetailer: shipment.assignedRetailer || null,
       createdAt: shipment.createdAt,
       supportingDocuments: shipment.supportingDocuments || [],
     }));
@@ -1450,63 +1795,84 @@ router.delete("/:shipmentHash/documents/:docIndex", async (req, res) => {
  * Update shipment status
  * PUT /api/shipments/:shipmentId/status
  */
-router.put('/:shipmentId/status', async (req, res) => {
+router.put("/:shipmentId/status", async (req, res) => {
   try {
     const { shipmentId } = req.params;
     const { status } = req.body;
-    
-    console.log('Update shipment status request:', { shipmentId, status });
-    
+
+    console.log("Update shipment status request:", { shipmentId, status });
+
     if (!status) {
-      return res.status(400).json({ success: false, message: 'Status is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Status is required" });
     }
-    
+
     // Validate status-specific requirements
-    if (status === 'IN_TRANSIT') {
+    if (status === "IN_TRANSIT") {
       const allowed = await canSetInTransit(shipmentId);
       if (!allowed) {
-        return res.status(400).json({ success: false, message: 'All containers must be scanned before setting shipment IN_TRANSIT' });
+        return res.status(400).json({
+          success: false,
+          message:
+            "All containers must be scanned before setting shipment IN_TRANSIT",
+        });
       }
-    } else if (status === 'AT_WAREHOUSE') {
+    } else if (status === "AT_WAREHOUSE") {
       const allowed = await canSetAtWarehouse(shipmentId);
       if (!allowed) {
-        return res.status(400).json({ success: false, message: 'All containers must be received at warehouse before updating status' });
+        return res.status(400).json({
+          success: false,
+          message:
+            "All containers must be received at warehouse before updating status",
+        });
       }
     }
-    
+
     // Only use _id if it's a valid ObjectId format
-    const mongoose = require('mongoose');
-    const isValidObjectId = mongoose.Types.ObjectId.isValid(shipmentId) && /^[0-9a-fA-F]{24}$/.test(shipmentId);
-    
-    const query = isValidObjectId 
+    const mongoose = require("mongoose");
+    const isValidObjectId =
+      mongoose.Types.ObjectId.isValid(shipmentId) &&
+      /^[0-9a-fA-F]{24}$/.test(shipmentId);
+
+    const query = isValidObjectId
       ? { $or: [{ shipmentHash: shipmentId }, { _id: shipmentId }] }
       : { shipmentHash: shipmentId };
-    
+
     // Prepare update data
     const updateData = { status };
-    
+
     // Set warehouse received timestamp for AT_WAREHOUSE status
-    if (status === 'AT_WAREHOUSE') {
+    if (status === "AT_WAREHOUSE") {
       updateData.warehouseReceivedAt = new Date();
       // Note: warehouseCommittedBy should be set from authenticated user if available
       // For now, we'll let it be set by the scan controller or keep existing value
     }
-    
+
     const shipment = await Shipment.findOneAndUpdate(
       query,
       { $set: updateData },
-      { new: true }
+      { new: true },
     );
-    
+
     if (!shipment) {
-      return res.status(404).json({ success: false, message: 'Shipment not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Shipment not found" });
     }
-    
-    console.log('Shipment status updated:', { shipmentHash: shipment.shipmentHash, newStatus: status });
+
+    console.log("Shipment status updated:", {
+      shipmentHash: shipment.shipmentHash,
+      newStatus: status,
+    });
     return res.json({ success: true, shipment });
   } catch (err) {
-    console.error('Update shipment status error:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
+    console.error("Update shipment status error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
   }
 });
 
@@ -1760,6 +2126,378 @@ router.patch(
       res.status(500).json({
         success: false,
         message: "Failed to update shipment status",
+      });
+    }
+  },
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WAREHOUSE ASSIGNMENT ENDPOINTS (for next leg)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * PATCH /api/shipments/:shipmentHash/assign-transporter
+ *
+ * Assign next transporter for the next leg of shipment
+ * Can ONLY be called when shipment.status === AT_WAREHOUSE
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Body:
+ * - transporterWallet: Wallet address of the next transporter
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/assign-transporter",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const { transporterWallet } = req.body;
+      const user = req.user;
+
+      if (!transporterWallet) {
+        return res.status(400).json({
+          success: false,
+          message: "transporterWallet is required",
+        });
+      }
+
+      if (!isValidAddress(transporterWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid transporter wallet address format",
+        });
+      }
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // CRITICAL: Can only assign when status is AT_WAREHOUSE
+      if (shipment.status !== "AT_WAREHOUSE") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot assign transporter. Shipment must be AT_WAREHOUSE status. Current status: ${shipment.status}`,
+        });
+      }
+
+      // Verify the assigned warehouse is the one making the request
+      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the assigned warehouse can assign the next transporter",
+        });
+      }
+
+      // Verify the transporter exists and has correct role
+      const transporterUser = await User.findOne({
+        walletAddress: transporterWallet.toLowerCase(),
+        status: "ACTIVE",
+      });
+
+      if (!transporterUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Transporter wallet not found or inactive",
+        });
+      }
+
+      if (transporterUser.role !== "transporter") {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid assignment: wallet is not a transporter (role: ${transporterUser.role})`,
+        });
+      }
+
+      // Update shipment with next transporter
+      const now = new Date();
+      shipment.nextTransporter = {
+        walletAddress: transporterUser.walletAddress,
+        name: transporterUser.fullName || "",
+        organizationName: transporterUser.organizationName || "",
+        assignedAt: now,
+        assignedBy: user.walletAddress,
+      };
+      shipment.updatedAt = now;
+      shipment.lastUpdatedBy = user.walletAddress;
+
+      await shipment.save();
+
+      res.json({
+        success: true,
+        message: "Next transporter assigned successfully",
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          status: shipment.status,
+          nextTransporter: shipment.nextTransporter,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error assigning next transporter:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to assign transporter",
+      });
+    }
+  },
+);
+
+/**
+ * PATCH /api/shipments/:shipmentHash/assign-retailer
+ *
+ * Assign retailer for final delivery
+ * Can ONLY be called when shipment.status === AT_WAREHOUSE
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Body:
+ * - retailerWallet: Wallet address of the retailer
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/assign-retailer",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const { retailerWallet } = req.body;
+      const user = req.user;
+
+      if (!retailerWallet) {
+        return res.status(400).json({
+          success: false,
+          message: "retailerWallet is required",
+        });
+      }
+
+      if (!isValidAddress(retailerWallet)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid retailer wallet address format",
+        });
+      }
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // CRITICAL: Can only assign when status is AT_WAREHOUSE
+      if (shipment.status !== "AT_WAREHOUSE") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot assign retailer. Shipment must be AT_WAREHOUSE status. Current status: ${shipment.status}`,
+        });
+      }
+
+      // Verify the assigned warehouse is the one making the request
+      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the assigned warehouse can assign the retailer",
+        });
+      }
+
+      // Verify the retailer exists and has correct role
+      const retailerUser = await User.findOne({
+        walletAddress: retailerWallet.toLowerCase(),
+        status: "ACTIVE",
+      });
+
+      if (!retailerUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Retailer wallet not found or inactive",
+        });
+      }
+
+      if (retailerUser.role !== "retailer") {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid assignment: wallet is not a retailer (role: ${retailerUser.role})`,
+        });
+      }
+
+      // Update shipment with retailer
+      const now = new Date();
+      shipment.assignedRetailer = {
+        walletAddress: retailerUser.walletAddress,
+        name: retailerUser.fullName || "",
+        organizationName: retailerUser.organizationName || "",
+        assignedAt: now,
+        assignedBy: user.walletAddress,
+      };
+      shipment.updatedAt = now;
+      shipment.lastUpdatedBy = user.walletAddress;
+
+      await shipment.save();
+
+      res.json({
+        success: true,
+        message: "Retailer assigned successfully",
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          status: shipment.status,
+          assignedRetailer: shipment.assignedRetailer,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error assigning retailer:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to assign retailer",
+      });
+    }
+  },
+);
+
+/**
+ * PATCH /api/shipments/:shipmentHash/ready-for-dispatch
+ *
+ * Mark shipment ready for dispatch (next leg)
+ * Can ONLY be called when:
+ * - shipment.status === AT_WAREHOUSE
+ * - nextTransporter is assigned
+ * - assignedRetailer is assigned
+ *
+ * This is OFF-CHAIN only - does NOT write to blockchain
+ *
+ * Requires: Authentication
+ * Allowed Roles: warehouse
+ *
+ * Response:
+ * {
+ *   success: true,
+ *   data: { ...shipmentDetails }
+ * }
+ */
+router.patch(
+  "/:shipmentHash/ready-for-dispatch",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  async (req, res) => {
+    try {
+      const { shipmentHash } = req.params;
+      const user = req.user;
+
+      const shipment = await Shipment.findOne({ shipmentHash });
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+
+      // CRITICAL: Can only mark ready when status is AT_WAREHOUSE
+      if (shipment.status !== "AT_WAREHOUSE") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot mark ready for dispatch. Shipment must be AT_WAREHOUSE status. Current status: ${shipment.status}`,
+        });
+      }
+
+      // Verify the assigned warehouse is the one making the request
+      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the assigned warehouse can mark ready for dispatch",
+        });
+      }
+
+      // CRITICAL: Next transporter must be assigned
+      if (!shipment.nextTransporter?.walletAddress) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot mark ready for dispatch. Next transporter must be assigned first.",
+        });
+      }
+
+      // CRITICAL: Retailer must be assigned
+      if (!shipment.assignedRetailer?.walletAddress) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot mark ready for dispatch. Retailer must be assigned first.",
+        });
+      }
+
+      // Update shipment status to READY_FOR_DISPATCH
+      const now = new Date();
+      const previousStatus = shipment.status;
+      
+      // Move next transporter to assigned transporter for the next leg
+      shipment.assignedTransporter = shipment.nextTransporter;
+      shipment.nextTransporter = null;
+      
+      shipment.status = "READY_FOR_DISPATCH";
+      shipment.updatedAt = now;
+      shipment.lastUpdatedBy = user.walletAddress;
+
+      // Add to status history
+      if (!shipment.statusHistory) {
+        shipment.statusHistory = [];
+      }
+      shipment.statusHistory.push({
+        status: "READY_FOR_DISPATCH",
+        changedBy: user.walletAddress,
+        changedAt: now,
+        action: "WAREHOUSE_DISPATCH_READY",
+        notes: `Marked ready for dispatch by warehouse. Next transporter: ${shipment.assignedTransporter.walletAddress}`,
+      });
+
+      await shipment.save();
+
+      // Reset container statuses to READY_FOR_DISPATCH for the next leg
+      await Container.updateMany(
+        { shipmentHash: shipment.shipmentHash },
+        {
+          $set: {
+            status: "READY_FOR_DISPATCH",
+            updatedAt: now,
+          },
+        },
+      );
+
+      res.json({
+        success: true,
+        message: "Shipment marked ready for dispatch",
+        data: {
+          shipmentHash: shipment.shipmentHash,
+          previousStatus,
+          status: shipment.status,
+          assignedTransporter: shipment.assignedTransporter,
+          assignedRetailer: shipment.assignedRetailer,
+          updatedAt: shipment.updatedAt,
+        },
+      });
+    } catch (error) {
+      console.error("Error marking ready for dispatch:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to mark ready for dispatch",
       });
     }
   },

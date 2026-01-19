@@ -166,6 +166,7 @@ router.get(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
+<<<<<<< HEAD
 // RETAILER-SPECIFIC SCAN ROUTES
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -204,6 +205,73 @@ router.get(
   authMiddleware,
   roleMiddleware(["retailer"]),
   retailerScanController.getAssignedContainers,
+=======
+// WAREHOUSE-SPECIFIC SCAN ROUTES
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/containers/scan/warehouse/assigned
+ *
+ * Get shipments assigned to the current warehouse with container scan stats
+ * Returns shipments that are IN_TRANSIT or AT_WAREHOUSE with container counts
+ */
+router.get(
+  "/scan/warehouse/assigned",
+  authMiddleware,
+  roleMiddleware(["warehouse"]),
+  async (req, res) => {
+    try {
+      const warehouseWallet = req.user.walletAddress;
+
+      // Find shipments assigned to this warehouse
+      const shipments = await Shipment.find({
+        "assignedWarehouse.walletAddress": warehouseWallet,
+        status: { $in: ["ready_for_dispatch", "in_transit", "at_warehouse"] },
+      })
+        .select("shipmentHash batchId productName status numberOfContainers totalQuantity txHash createdAt")
+        .sort({ createdAt: -1 })
+        .limit(100);
+
+      // Get container stats for each shipment
+      const shipmentsWithStats = await Promise.all(
+        shipments.map(async (shipment) => {
+          const containers = await Container.find({
+            shipmentHash: shipment.shipmentHash,
+          }).select("containerId status scannedByWarehouse");
+
+          const totalContainers = containers.length;
+          const scannedCount = containers.filter((c) => c.scannedByWarehouse).length;
+
+          return {
+            shipmentHash: shipment.shipmentHash,
+            batchId: shipment.batchId,
+            productName: shipment.productName,
+            status: shipment.status,
+            totalContainers,
+            scannedCount,
+            pendingScans: totalContainers - scannedCount,
+            hasBlockchainLock: !!shipment.txHash,
+          };
+        })
+      );
+
+      res.json({
+        success: true,
+        data: {
+          shipments: shipmentsWithStats,
+          total: shipmentsWithStats.length,
+        },
+      });
+    } catch (error) {
+      console.error("Get warehouse assigned containers error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch assigned containers",
+        error: error.message,
+      });
+    }
+  }
+>>>>>>> 233dd2fd9db09ae8c312015c57f70ba007e3932e
 );
 
 // ═══════════════════════════════════════════════════════════════════════════

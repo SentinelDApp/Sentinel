@@ -76,12 +76,20 @@ const shipmentSchema = new mongoose.Schema(
       index: true,
     },
 
+<<<<<<< HEAD
     // Product name for this shipment
     productName: {
       type: String,
       required: [true, "Product name is required"],
       trim: true,
       index: true,
+=======
+    // Product name (human-readable identifier)
+    productName: {
+      type: String,
+      trim: true,
+      default: null,
+>>>>>>> 233dd2fd9db09ae8c312015c57f70ba007e3932e
     },
 
     // Number of containers in the shipment
@@ -210,7 +218,42 @@ const shipmentSchema = new mongoose.Schema(
       },
     },
 
+<<<<<<< HEAD
     // Assigned Retailer - set by warehouse when forwarding shipment
+=======
+    // Next Transporter - assigned by warehouse for next leg
+    // Becomes assignedTransporter when warehouse marks ready for dispatch
+    nextTransporter: {
+      walletAddress: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
+      },
+      name: {
+        type: String,
+        trim: true,
+      },
+      organizationName: {
+        type: String,
+        trim: true,
+      },
+      assignedAt: {
+        type: Date,
+      },
+      assignedBy: {
+        type: String,
+        trim: true,
+      },
+    },
+
+    // Assigned Retailer - set by warehouse for final delivery
+>>>>>>> 233dd2fd9db09ae8c312015c57f70ba007e3932e
     assignedRetailer: {
       walletAddress: {
         type: String,
@@ -236,6 +279,7 @@ const shipmentSchema = new mongoose.Schema(
       },
       assignedBy: {
         type: String,
+<<<<<<< HEAD
         lowercase: true,
         trim: true,
         validate: {
@@ -247,12 +291,55 @@ const shipmentSchema = new mongoose.Schema(
       },
     },
 
+=======
+        trim: true,
+      },
+    },
+
+    // Warehouse received timestamp - set when all containers are scanned
+    warehouseReceivedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Who committed the shipment at warehouse
+    warehouseCommittedBy: {
+      type: String,
+      default: null,
+    },
+
+    // Status history for audit trail
+    statusHistory: [
+      {
+        status: { type: String },
+        changedBy: { type: String },
+        changedAt: { type: Date },
+        action: { type: String },
+        notes: { type: String },
+      },
+    ],
+
+>>>>>>> 233dd2fd9db09ae8c312015c57f70ba007e3932e
     // Supporting documents uploaded for this shipment
     supportingDocuments: [
       {
         url: { type: String, required: true },
+        fileName: { type: String },
+        fileType: { type: String },
         uploadedBy: { type: String, required: true }, // wallet or 'SYSTEM'
         uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // Status change history for tracking
+    statusHistory: [
+      {
+        status: { type: String, required: true },
+        changedBy: { type: String },
+        changedAt: { type: Date, default: Date.now },
+        action: { type: String },
+        notes: { type: String },
+        txHash: { type: String },
       },
     ],
   },
@@ -281,6 +368,12 @@ shipmentSchema.index({ "assignedTransporter.walletAddress": 1, createdAt: -1 });
 // Index for querying shipments by assigned warehouse
 shipmentSchema.index({ "assignedWarehouse.walletAddress": 1, createdAt: -1 });
 
+<<<<<<< HEAD
+=======
+// Index for querying shipments by next transporter (warehouse to retailer)
+shipmentSchema.index({ "nextTransporter.walletAddress": 1, createdAt: -1 });
+
+>>>>>>> 233dd2fd9db09ae8c312015c57f70ba007e3932e
 // Index for querying shipments by assigned retailer
 shipmentSchema.index({ "assignedRetailer.walletAddress": 1, createdAt: -1 });
 
@@ -361,6 +454,10 @@ shipmentSchema.methods.toResponse = function () {
     // Assigned stakeholders
     assignedTransporter: this.assignedTransporter || null,
     assignedWarehouse: this.assignedWarehouse || null,
+<<<<<<< HEAD
+=======
+    nextTransporter: this.nextTransporter || null,
+>>>>>>> 233dd2fd9db09ae8c312015c57f70ba007e3932e
     assignedRetailer: this.assignedRetailer || null,
     // Legacy fields (kept for backward compatibility)
     transporterWallet:

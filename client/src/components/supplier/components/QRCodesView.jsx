@@ -13,7 +13,10 @@ const QRCodesView = ({ shipment, onClose, isDarkMode = true }) => {
   if (!shipment) return null;
 
   const containers = shipment.containers || [];
-  const productQrData = shipment.productQrData || shipment.batchId;
+  // Generate tracking URL for QR code - points to public product history page
+  const baseUrl = window.location.origin;
+  const trackingUrl = `${baseUrl}/${encodeURIComponent(shipment.batchId)}/product-history`;
+  const productQrData = trackingUrl;
   const [activeTab, setActiveTab] = useState("product"); // 'product' or 'containers'
 
   // Print product QR code
@@ -85,6 +88,11 @@ const QRCodesView = ({ shipment, onClose, isDarkMode = true }) => {
               color: #333;
               font-weight: bold;
             }
+            .tracking-info {
+              margin-top: 8px;
+              font-size: 11px;
+              color: #666;
+            }
           </style>
         </head>
         <body>
@@ -92,8 +100,9 @@ const QRCodesView = ({ shipment, onClose, isDarkMode = true }) => {
             <div class="qr-wrapper">
               <img src="${dataUrl}" class="qr-image" alt="Product QR Code" />
             </div>
-            <div class="title">Product Batch QR Code</div>
+            <div class="title">Scan to Track Product</div>
             <div class="batch-id">${shipment.batchId}</div>
+            <div class="tracking-info">Scan QR to view shipment history</div>
           </div>
           <script>
             window.onload = function() {
@@ -275,7 +284,7 @@ const QRCodesView = ({ shipment, onClose, isDarkMode = true }) => {
                           isDarkMode ? "text-emerald-400" : "text-emerald-700"
                         }`}
                       >
-                        Product Batch QR Code
+                        Product Tracking QR Code
                       </h4>
                       <p
                         className={`text-xs ${
@@ -284,7 +293,7 @@ const QRCodesView = ({ shipment, onClose, isDarkMode = true }) => {
                             : "text-emerald-600"
                         }`}
                       >
-                        Contains: Batch ID only
+                        Links to: Shipment History Page
                       </p>
                     </div>
                   </div>
@@ -340,7 +349,15 @@ const QRCodesView = ({ shipment, onClose, isDarkMode = true }) => {
                         isDarkMode ? "text-slate-400" : "text-slate-500"
                       }`}
                     >
-                      Scan to verify product batch
+                      Scan to view shipment history
+                    </p>
+                    <p
+                      className={`text-[10px] mt-2 font-mono truncate max-w-[200px] ${
+                        isDarkMode ? "text-slate-500" : "text-slate-400"
+                      }`}
+                      title={productQrData}
+                    >
+                      {productQrData}
                     </p>
                   </div>
                 </div>

@@ -1,60 +1,86 @@
 // Warehouse Dashboard Constants and Utilities
 
-// Shipment Status Constants
+/**
+ * WAREHOUSE STATE FLOW (LOCKED):
+ * READY_FOR_DISPATCH → IN_TRANSIT → AT_WAREHOUSE → READY_FOR_DISPATCH (next leg)
+ * 
+ * WAREHOUSE ROLE:
+ * - Can ONLY scan containers when shipment.status === "IN_TRANSIT"
+ * - Each container can be scanned ONLY ONCE by warehouse
+ * - When ALL containers are scanned → shipment.status becomes AT_WAREHOUSE
+ * - ONLY AFTER AT_WAREHOUSE → can assign next transporter & retailer
+ * - ONLY AFTER assignment → can mark READY_FOR_DISPATCH
+ */
+
+// Shipment Status Constants - matches backend SHIPMENT_STATUS
 export const SHIPMENT_STATUSES = {
-  PENDING: 'pending',
-  RECEIVED: 'received',
-  VERIFIED: 'verified',
-  STORED: 'stored',
-  READY_FOR_DISPATCH: 'ready_for_dispatch',
-  DISPATCHED: 'dispatched',
-  CONCERN_RAISED: 'concern_raised',
+  CREATED: 'CREATED',
+  READY_FOR_DISPATCH: 'READY_FOR_DISPATCH',
+  IN_TRANSIT: 'IN_TRANSIT',
+  AT_WAREHOUSE: 'AT_WAREHOUSE',
+  DELIVERED: 'DELIVERED',
+};
+
+// Warehouse-specific UI status labels
+export const WAREHOUSE_STATUS_LABELS = {
+  [SHIPMENT_STATUSES.READY_FOR_DISPATCH]: 'Awaiting Pickup',
+  [SHIPMENT_STATUSES.IN_TRANSIT]: 'In Transit',
+  [SHIPMENT_STATUSES.AT_WAREHOUSE]: 'At Warehouse',
+  [SHIPMENT_STATUSES.DELIVERED]: 'Delivered',
 };
 
 // Status Colors for UI
 export const STATUS_COLORS = {
-  [SHIPMENT_STATUSES.PENDING]: {
+  [SHIPMENT_STATUSES.CREATED]: {
+    bg: 'bg-slate-500/20',
+    text: 'text-slate-400',
+    border: 'border-slate-500/30',
+    label: 'Created',
+  },
+  [SHIPMENT_STATUSES.READY_FOR_DISPATCH]: {
     bg: 'bg-amber-500/20',
     text: 'text-amber-400',
     border: 'border-amber-500/30',
-    label: 'Pending',
+    label: 'Ready for Dispatch',
   },
-  [SHIPMENT_STATUSES.RECEIVED]: {
+  [SHIPMENT_STATUSES.IN_TRANSIT]: {
     bg: 'bg-blue-500/20',
     text: 'text-blue-400',
     border: 'border-blue-500/30',
-    label: 'Received',
+    label: 'In Transit',
   },
-  [SHIPMENT_STATUSES.VERIFIED]: {
-    bg: 'bg-cyan-500/20',
-    text: 'text-cyan-400',
-    border: 'border-cyan-500/30',
-    label: 'Verified',
-  },
-  [SHIPMENT_STATUSES.STORED]: {
+  [SHIPMENT_STATUSES.AT_WAREHOUSE]: {
     bg: 'bg-purple-500/20',
     text: 'text-purple-400',
     border: 'border-purple-500/30',
-    label: 'Stored',
+    label: 'At Warehouse',
   },
-  [SHIPMENT_STATUSES.READY_FOR_DISPATCH]: {
-    bg: 'bg-indigo-500/20',
-    text: 'text-indigo-400',
-    border: 'border-indigo-500/30',
-    label: 'Ready for Dispatch',
-  },
-  [SHIPMENT_STATUSES.DISPATCHED]: {
+  [SHIPMENT_STATUSES.DELIVERED]: {
     bg: 'bg-emerald-500/20',
     text: 'text-emerald-400',
     border: 'border-emerald-500/30',
-    label: 'Dispatched',
+    label: 'Delivered',
   },
-  [SHIPMENT_STATUSES.CONCERN_RAISED]: {
-    bg: 'bg-red-500/20',
-    text: 'text-red-400',
-    border: 'border-red-500/30',
-    label: 'Concern Raised',
-  },
+};
+
+// Helper to check if warehouse can scan this shipment
+// Accepts both lowercase backend status and uppercase constants
+export const canWarehouseScan = (shipmentStatus) => {
+  const normalizedStatus = shipmentStatus?.toUpperCase() || '';
+  return normalizedStatus === SHIPMENT_STATUSES.IN_TRANSIT || shipmentStatus === 'in_transit';
+};
+
+// Helper to check if warehouse can assign next leg
+export const canAssignNextLeg = (shipmentStatus) => {
+  const normalizedStatus = shipmentStatus?.toUpperCase() || '';
+  return normalizedStatus === SHIPMENT_STATUSES.AT_WAREHOUSE || shipmentStatus === 'at_warehouse';
+};
+
+// Helper to check if warehouse can mark ready for dispatch
+export const canMarkReadyForDispatch = (shipmentStatus, hasNextTransporter, hasRetailer) => {
+  const normalizedStatus = shipmentStatus?.toUpperCase() || '';
+  const isAtWarehouse = normalizedStatus === SHIPMENT_STATUSES.AT_WAREHOUSE || shipmentStatus === 'at_warehouse';
+  return isAtWarehouse && hasNextTransporter && hasRetailer;
 };
 
 // Concern Types
@@ -109,21 +135,6 @@ export const CONCERN_STATUS_COLORS = {
   },
 };
 
-// Storage Zones - Empty (will be populated from API)
-export const STORAGE_ZONES = [];
-
-// Retailers/Destinations - Empty (will be populated from API)
-export const RETAILERS = [];
-
-// Demo Incoming Shipments - Empty (will be populated from API)
-export const DEMO_SHIPMENTS = [];
-
-// Demo Alerts - Empty (will be populated from API)
-export const DEMO_ALERTS = [];
-
-// Demo Blockchain Activities - Empty (will be populated from API)
-export const DEMO_BLOCKCHAIN_ACTIVITIES = [];
-
 // Utility functions
 export const generateShipmentId = () => {
   const timestamp = Date.now().toString(36).toUpperCase();
@@ -170,4 +181,39 @@ export const getTimeAgo = (dateString) => {
   if (diffMins < 60) return `${diffMins} min ago`;
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
   return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+};
+
+// Get status badge colors for a given status
+export const getStatusBadge = (status) => {
+  const normalizedStatus = status?.toUpperCase() || '';
+  return STATUS_COLORS[normalizedStatus] || STATUS_COLORS[SHIPMENT_STATUSES.CREATED];
+};
+
+// Map backend status to display label
+export const getStatusLabel = (status) => {
+  const normalizedStatus = status?.toUpperCase() || '';
+  const colors = STATUS_COLORS[normalizedStatus];
+  return colors?.label || status || 'Unknown';
+};
+
+// Get display name for status (alias for getStatusLabel)
+export const getStatusDisplayName = (status) => {
+  return getStatusLabel(status);
+};
+
+// Get color variant for status badge
+export const getStatusVariant = (status) => {
+  const normalizedStatus = status?.toUpperCase() || '';
+  switch (normalizedStatus) {
+    case SHIPMENT_STATUSES.IN_TRANSIT:
+      return 'blue';
+    case SHIPMENT_STATUSES.AT_WAREHOUSE:
+      return 'purple';
+    case SHIPMENT_STATUSES.READY_FOR_DISPATCH:
+      return 'amber';
+    case SHIPMENT_STATUSES.DELIVERED:
+      return 'emerald';
+    default:
+      return 'slate';
+  }
 };

@@ -5,6 +5,12 @@
 
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 
+// Landing Page (Public)
+import LandingPage from "./components/landing/LandingPage";
+
+// Tracking Page (Public)
+import { ShipmentHistoryPage } from "./components/tracking";
+
 // Auth Pages
 import { Signup } from "./components/signup";
 import LoginPage from "./components/Admin/pages/LoginPage";
@@ -50,7 +56,7 @@ export const router = createBrowserRouter([
       // ============================================
       {
         path: "/",
-        element: <Navigate to="/login" replace />,
+        element: <LandingPage />,
       },
       {
         path: "/login",
@@ -63,6 +69,16 @@ export const router = createBrowserRouter([
       {
         path: "/signup",
         element: <Signup />,
+      },
+      // Public Tracking Route (accessed via QR code)
+      {
+        path: "/:batchId/product-history",
+        element: <ShipmentHistoryPage />,
+      },
+      // Keep old route for backward compatibility
+      {
+        path: "/:batchId/shipment-history",
+        element: <ShipmentHistoryPage />,
       },
 
       // ============================================
