@@ -222,12 +222,12 @@ const scanContainerAsRetailer = async (req, res) => {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // STEP 6: Check container status - must be AT_WAREHOUSE
-    // Container can only be scanned by retailer if warehouse has received it
-    // Flow: CREATED → IN_TRANSIT (transporter) → AT_WAREHOUSE (warehouse) → DELIVERED (retailer)
+    // STEP 6: Check container status - must be IN_TRANSIT or AT_WAREHOUSE
+    // Retailer can scan after transporter has picked up the container
+    // Flow: CREATED → IN_TRANSIT (transporter) → DELIVERED (retailer)
     // ═════════════════════════════════════════════════════════════════════
     
-    if (container.status !== 'AT_WAREHOUSE') {
+    if (container.status !== 'IN_TRANSIT' && container.status !== 'AT_WAREHOUSE') {
       // Check if already delivered
       if (container.status === 'DELIVERED') {
         return res.status(400).json({
@@ -245,7 +245,7 @@ const scanContainerAsRetailer = async (req, res) => {
       }
       
       // Check if transporter hasn't scanned yet
-      if (container.status === 'CREATED' || container.status === 'READY_FOR_DISPATCH' || container.status === 'LOCKED') {
+      if (container.status === 'CREATED' || container.status === 'READY_FOR_DISPATCH' || container.status === 'LOCKED' || container.status === 'SCANNED') {
         return res.status(400).json({
           success: false,
           status: 'REJECTED',
@@ -260,29 +260,13 @@ const scanContainerAsRetailer = async (req, res) => {
         });
       }
       
-      // Check if transporter has scanned but warehouse hasn't
-      if (container.status === 'IN_TRANSIT') {
-        return res.status(400).json({
-          success: false,
-          status: 'REJECTED',
-          reason: 'Warehouse has not received this container yet',
-          code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
-          message: 'The warehouse must scan this container first to confirm receipt before you can mark it as delivered. Current status: IN_TRANSIT',
-          container: {
-            containerId: container.containerId,
-            status: container.status,
-            lastScannedBy: container.lastScannedBy
-          }
-        });
-      }
-      
       // Generic fallback for any other status
       return res.status(400).json({
         success: false,
         status: 'REJECTED',
         reason: 'Container not ready for delivery',
         code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
-        message: `Container must be AT_WAREHOUSE before it can be delivered. Current status: ${container.status}`,
+        message: `Container must be IN_TRANSIT or AT_WAREHOUSE before it can be delivered. Current status: ${container.status}`,
         container: {
           containerId: container.containerId,
           status: container.status,
@@ -487,8 +471,8 @@ const getAssignedContainers = async (req, res) => {
     // Group containers by shipment
     const shipmentData = shipments.map(shipment => {
       const shipmentContainers = containers.filter(c => c.shipmentHash === shipment.shipmentHash);
-      // Pending containers are those AT_WAREHOUSE (ready for retailer scan)
-      const pendingContainers = shipmentContainers.filter(c => c.status === 'AT_WAREHOUSE');
+      // Pending containers are those IN_TRANSIT or AT_WAREHOUSE (ready for retailer scan)
+      const pendingContainers = shipmentContainers.filter(c => c.status === 'IN_TRANSIT' || c.status === 'AT_WAREHOUSE');
       const deliveredContainers = shipmentContainers.filter(c => c.status === 'DELIVERED');
       
       return {
@@ -511,7 +495,7 @@ const getAssignedContainers = async (req, res) => {
     });
     
     const totalContainers = containers.length;
-    const pendingScans = containers.filter(c => c.status === 'AT_WAREHOUSE').length;
+    const pendingScans = containers.filter(c => c.status === 'IN_TRANSIT' || c.status === 'AT_WAREHOUSE').length;
     
     return res.json({
       success: true,

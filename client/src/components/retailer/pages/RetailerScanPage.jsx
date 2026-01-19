@@ -99,7 +99,7 @@ const SCAN_STATES = {
   CONCERN_INPUT: 'CONCERN_INPUT'
 };
 
-const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null, onUpdateStatus = null, onAllScansComplete = null }) => {
+const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null, onUpdateStatus = null, onAllScansComplete = null, onScanComplete = null }) => {
   const { isDarkMode } = useRetailerTheme();
   const { user, walletAddress } = useAuth();
   
@@ -287,6 +287,11 @@ const RetailerScanPage = ({ shipmentFilter = null, shipmentData = null, onUpdate
         pending: newPending,
         scanned: prev.scanned + 1
       }));
+      
+      // Notify parent to refresh container stats (updates the badge in header)
+      if (onScanComplete) {
+        onScanComplete();
+      }
       
       // Check if all containers are now scanned (don't auto-update, just track state)
       if (result.shipment.allDelivered || newPending === 0) {
