@@ -196,7 +196,7 @@ const canSetAtWarehouse = async (shipmentId) => {
  *   success: true,
  *   data: {
  *     shipment: { ... },
- *     trackingHistory: [ ... ],
+ *     trackingHistory: [ ... ],  // Only major checkpoints
  *     certificates: [ ... ]
  *   }
  * }
@@ -227,14 +227,15 @@ router.get("/track/:batchId", async (req, res) => {
       shipmentHash: shipment.shipmentHash,
     });
 
-    // Get scan logs for tracking history
+    // Get scan logs for major tracking events (exclude individual container scans)
     const scanLogs = await ScanLog.find({
       shipmentHash: shipment.shipmentHash,
       result: "ACCEPTED",
     }).sort({ scannedAt: 1 });
 
-    // Build tracking history from statusHistory and scan logs
+    // Build tracking history with only MAJOR checkpoints (no per-container events)
     const trackingHistory = [];
+    const processedEvents = new Set(); // Track unique events to avoid duplicates
 
     // Add creation event
     trackingHistory.push({
@@ -243,8 +244,10 @@ router.get("/track/:batchId", async (req, res) => {
       description: `Batch ${shipment.batchId} was created by supplier`,
       timestamp: shipment.createdAt,
       actor: shipment.supplierWallet,
+      actorName: null, // Will be populated later
       txHash: null,
     });
+    processedEvents.add("CREATED");
 
     // Add locked on blockchain event
     if (shipment.txHash) {
@@ -256,73 +259,93 @@ router.get("/track/:batchId", async (req, res) => {
           ? new Date(shipment.blockchainTimestamp * 1000)
           : shipment.updatedAt,
         actor: shipment.supplierWallet,
+        actorName: null,
         txHash: shipment.txHash,
       });
+      processedEvents.add("LOCKED");
     }
 
-    // Add events from scan logs
+    // Group scan logs by event type to show only FIRST occurrence (major checkpoint)
+    const majorEvents = {};
     scanLogs.forEach((scan) => {
+      const eventKey = scan.action;
+      // Only keep the first occurrence of each event type
+      if (!majorEvents[eventKey]) {
+        majorEvents[eventKey] = scan;
+      }
+    });
+
+    // Add major scan events (one per event type)
+    Object.values(majorEvents).forEach((scan) => {
       let title = "";
       let description = "";
+      let shouldInclude = true;
 
       switch (scan.action) {
         case "CUSTODY_PICKUP":
           title = "Picked Up by Transporter";
-          description = `Container ${scan.containerId || "shipment"} picked up for delivery`;
+          description = "Shipment picked up for delivery";
           break;
         case "CUSTODY_RECEIVE":
           title = "Received at Warehouse";
-          description = `Container ${scan.containerId || "shipment"} received at warehouse`;
+          description = "Shipment received at warehouse facility";
           break;
         case "CUSTODY_HANDOVER":
           title = "Custody Handover";
-          description = `Container ${scan.containerId || "shipment"} handed over`;
+          description = "Shipment custody transferred";
           break;
         case "FINAL_DELIVERY":
           title = "Delivered";
-          description = `Container ${scan.containerId || "shipment"} delivered to destination`;
+          description = "Shipment delivered to final destination";
           break;
         case "SCAN_VERIFY":
-          title = "Verification Scan";
-          description = `Container ${scan.containerId || "shipment"} verified`;
+          // Skip individual verification scans - not a major checkpoint
+          shouldInclude = false;
           break;
         default:
           title = scan.action?.replace(/_/g, " ") || "Scan Event";
-          description = `Scan event for ${scan.containerId || "shipment"}`;
+          description = "Major checkpoint reached";
       }
 
-      trackingHistory.push({
-        event: scan.action,
-        title,
-        description,
-        timestamp: scan.scannedAt,
-        actor: scan.scannedBy?.walletAddress || scan.scannedBy,
-        actorRole: scan.scannedBy?.role,
-        location: scan.location,
-        txHash: scan.txHash || null,
-        containerId: scan.containerId,
-      });
+      if (shouldInclude && !processedEvents.has(scan.action)) {
+        trackingHistory.push({
+          event: scan.action,
+          title,
+          description,
+          timestamp: scan.scannedAt,
+          actor: scan.scannedBy?.walletAddress || scan.scannedBy,
+          actorName: null, // Will be populated
+          actorRole: scan.scannedBy?.role,
+          location: scan.location,
+          txHash: scan.txHash || null,
+        });
+        processedEvents.add(scan.action);
+      }
     });
 
-    // Add events from status history
+    // Add major status changes from statusHistory
     if (shipment.statusHistory && shipment.statusHistory.length > 0) {
-      shipment.statusHistory.forEach((history) => {
-        // Avoid duplicates - check if we already have this event
-        const isDuplicate = trackingHistory.some(
-          (t) =>
-            t.event === history.status &&
-            Math.abs(new Date(t.timestamp) - new Date(history.changedAt)) <
-              60000, // within 1 minute
-        );
+      // Only include major status changes
+      const majorStatusChanges = [
+        "IN_TRANSIT",
+        "AT_WAREHOUSE",
+        "READY_FOR_DISPATCH",
+        "DELIVERED",
+      ];
 
-        if (!isDuplicate) {
+      shipment.statusHistory.forEach((history) => {
+        // Only include major status changes that haven't been added yet
+        if (
+          majorStatusChanges.includes(history.status) &&
+          !processedEvents.has(history.status)
+        ) {
           let title = "";
           let description = "";
 
           switch (history.status) {
             case "IN_TRANSIT":
               title = "In Transit";
-              description = "Shipment is in transit";
+              description = "Shipment is in transit to destination";
               break;
             case "AT_WAREHOUSE":
               title = "At Warehouse";
@@ -330,16 +353,12 @@ router.get("/track/:batchId", async (req, res) => {
               break;
             case "READY_FOR_DISPATCH":
               title = "Ready for Dispatch";
-              description = "Shipment is ready for dispatch";
+              description = "Shipment processed and ready for dispatch";
               break;
             case "DELIVERED":
               title = "Delivered";
-              description = "Shipment has been delivered";
+              description = "Shipment has been delivered successfully";
               break;
-            default:
-              title = history.status?.replace(/_/g, " ") || "Status Update";
-              description =
-                history.notes || `Status changed to ${history.status}`;
           }
 
           trackingHistory.push({
@@ -348,8 +367,10 @@ router.get("/track/:batchId", async (req, res) => {
             description: history.notes || description,
             timestamp: history.changedAt,
             actor: history.changedBy,
+            actorName: null,
             txHash: history.txHash || null,
           });
+          processedEvents.add(history.status);
         }
       });
     }
@@ -358,6 +379,44 @@ router.get("/track/:batchId", async (req, res) => {
     trackingHistory.sort(
       (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
     );
+
+    // Fetch user names for all actors, supplier, and transporter
+    const actorAddresses = [
+      ...new Set(trackingHistory.map((t) => t.actor).filter(Boolean)),
+    ];
+    const stakeholderAddresses = [
+      shipment.supplierWallet,
+      shipment.assignedTransporterWallet,
+      shipment.assignedWarehouseWallet,
+      ...actorAddresses,
+    ].filter(Boolean);
+
+    const users = await User.find({
+      walletAddress: { $in: stakeholderAddresses },
+    }).select("walletAddress fullName role organizationName");
+
+    // Create a map of wallet address to user info
+    const userMap = {};
+    users.forEach((user) => {
+      userMap[user.walletAddress.toLowerCase()] = {
+        name: user.fullName,
+        role: user.role,
+        organization: user.organizationName,
+      };
+    });
+
+    // Populate actor names in tracking history
+    trackingHistory.forEach((event) => {
+      if (event.actor) {
+        const userInfo = userMap[event.actor.toLowerCase()];
+        if (userInfo) {
+          event.actorName = userInfo.name;
+          if (!event.actorRole) {
+            event.actorRole = userInfo.role;
+          }
+        }
+      }
+    });
 
     // Get certificates (supporting documents)
     const certificates = (shipment.supportingDocuments || []).map((doc) => ({
@@ -368,6 +427,13 @@ router.get("/track/:batchId", async (req, res) => {
       uploadedAt: doc.uploadedAt,
     }));
 
+    // Get supplier and transporter info
+    const supplierInfo = userMap[shipment.supplierWallet?.toLowerCase()] || {};
+    const transporterInfo =
+      userMap[shipment.assignedTransporterWallet?.toLowerCase()] || {};
+    const warehouseInfo =
+      userMap[shipment.assignedWarehouseWallet?.toLowerCase()] || {};
+
     res.json({
       success: true,
       data: {
@@ -376,6 +442,12 @@ router.get("/track/:batchId", async (req, res) => {
           batchId: shipment.batchId,
           productName: shipment.productName,
           supplierWallet: shipment.supplierWallet,
+          supplierName: supplierInfo.name,
+          supplierOrganization: supplierInfo.organization,
+          transporterName: transporterInfo.name,
+          transporterOrganization: transporterInfo.organization,
+          warehouseName: warehouseInfo.name,
+          warehouseOrganization: warehouseInfo.organization,
           numberOfContainers: shipment.numberOfContainers,
           quantityPerContainer: shipment.quantityPerContainer,
           totalQuantity: shipment.totalQuantity,
@@ -1634,24 +1706,20 @@ router.put("/:shipmentId/status", async (req, res) => {
     if (status === "IN_TRANSIT") {
       const allowed = await canSetInTransit(shipmentId);
       if (!allowed) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "All containers must be scanned before setting shipment IN_TRANSIT",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "All containers must be scanned before setting shipment IN_TRANSIT",
+        });
       }
     } else if (status === "AT_WAREHOUSE") {
       const allowed = await canSetAtWarehouse(shipmentId);
       if (!allowed) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "All containers must be received at warehouse before updating status",
-          });
+        return res.status(400).json({
+          success: false,
+          message:
+            "All containers must be received at warehouse before updating status",
+        });
       }
     }
 
@@ -1694,13 +1762,11 @@ router.put("/:shipmentId/status", async (req, res) => {
     return res.json({ success: true, shipment });
   } catch (err) {
     console.error("Update shipment status error:", err);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Internal server error",
-        error: err.message,
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
   }
 });
 

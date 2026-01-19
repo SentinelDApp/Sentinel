@@ -36,15 +36,15 @@ const LandingPage = () => {
 
     setIsVerifying(true);
     try {
-      // Try to verify by batch ID first
+      // Use the tracking API to verify batch ID exists
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/shipments?batchId=${productId}`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/shipments/track/${encodeURIComponent(productId.trim())}`,
       );
 
       if (response.ok) {
         const data = await response.json();
-        if (data.data && data.data.length > 0) {
-          const shipment = data.data[0];
+        if (data.success && data.data && data.data.shipment) {
+          const shipment = data.data.shipment;
           setVerificationResult({
             status: "authentic",
             productName: shipment.productName || "Product",
@@ -55,20 +55,28 @@ const LandingPage = () => {
         } else {
           setVerificationResult({
             status: "not_found",
-            batchId: productId,
+            batchId: productId.trim(),
+            message:
+              "This batch ID does not exist in our system. Please verify the ID and try again.",
           });
         }
       } else {
+        const errorData = await response.json().catch(() => ({}));
         setVerificationResult({
           status: "not_found",
-          batchId: productId,
+          batchId: productId.trim(),
+          message:
+            errorData.message ||
+            "This batch ID could not be found. Please check and try again.",
         });
       }
     } catch (error) {
       console.error("Verification error:", error);
       setVerificationResult({
         status: "error",
-        message: "Unable to verify product. Please try again.",
+        batchId: productId.trim(),
+        message:
+          "Unable to connect to the server. Please check your internet connection and try again.",
       });
     } finally {
       setIsVerifying(false);
@@ -105,12 +113,20 @@ const LandingPage = () => {
       const result = await html5QrCode.scanFile(file, true);
 
       // Check if the scanned result is a tracking URL
-      // Expected format: http(s)://domain/:batchId/shipment-history
-      const urlMatch = result.match(/\/([^/]+)\/shipment-history$/);
+      // Expected format: http(s)://domain/:batchId/product-history
+      const urlMatch = result.match(/\/([^/]+)\/product-history$/);
       if (urlMatch) {
         // Extract batch ID from URL and redirect to the tracking page
         const batchId = decodeURIComponent(urlMatch[1]);
-        window.location.href = `/${batchId}/shipment-history`;
+        window.location.href = `/${batchId}/product-history`;
+        return;
+      }
+
+      // Also check for old format (shipment-history) for backward compatibility
+      const oldUrlMatch = result.match(/\/([^/]+)\/shipment-history$/);
+      if (oldUrlMatch) {
+        const batchId = decodeURIComponent(oldUrlMatch[1]);
+        window.location.href = `/${batchId}/product-history`;
         return;
       }
 
@@ -518,9 +534,11 @@ const LandingPage = () => {
                 Simple, secure, and transparent verification in easy steps
               </p>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Point 1 */}
-                <div className="flex items-start gap-4">
+                <div
+                  className={`flex items-center gap-4 p-4 rounded-full ${darkMode ? "bg-green-900/30" : "bg-green-100"}`}
+                >
                   <div className="flex-shrink-0">
                     <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-500 text-white">
                       <svg
@@ -538,7 +556,7 @@ const LandingPage = () => {
                       </svg>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold">Scan or Enter ID</h3>
                     <p className={`text-sm ${mutedTextClass} mt-1`}>
                       Scan the QR code on your product or enter the batch ID
@@ -548,7 +566,9 @@ const LandingPage = () => {
                 </div>
 
                 {/* Point 2 */}
-                <div className="flex items-start gap-4">
+                <div
+                  className={`flex items-center gap-4 p-4 rounded-full ${darkMode ? "bg-green-900/30" : "bg-green-100"}`}
+                >
                   <div className="flex-shrink-0">
                     <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-500 text-white">
                       <svg
@@ -566,7 +586,7 @@ const LandingPage = () => {
                       </svg>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold">
                       Instant Verification
                     </h3>
@@ -578,7 +598,9 @@ const LandingPage = () => {
                 </div>
 
                 {/* Point 3 */}
-                <div className="flex items-start gap-4">
+                <div
+                  className={`flex items-center gap-4 p-4 rounded-full ${darkMode ? "bg-green-900/30" : "bg-green-100"}`}
+                >
                   <div className="flex-shrink-0">
                     <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-500 text-white">
                       <svg
@@ -596,7 +618,7 @@ const LandingPage = () => {
                       </svg>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold">
                       View Complete Journey
                     </h3>
@@ -608,7 +630,9 @@ const LandingPage = () => {
                 </div>
 
                 {/* Point 4 */}
-                <div className="flex items-start gap-4">
+                <div
+                  className={`flex items-center gap-4 p-4 rounded-full ${darkMode ? "bg-green-900/30" : "bg-green-100"}`}
+                >
                   <div className="flex-shrink-0">
                     <div className="flex items-center justify-center h-8 w-8 rounded-full bg-green-500 text-white">
                       <svg
@@ -626,13 +650,13 @@ const LandingPage = () => {
                       </svg>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold">
                       Trust Verified Products
                     </h3>
                     <p className={`text-sm ${mutedTextClass} mt-1`}>
-                      Get instant confirmation with detailed product information
-                      and authenticity status
+                      Get instant confirmation with detailed product
+                      information.
                     </p>
                   </div>
                 </div>
@@ -774,7 +798,7 @@ const VerificationModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
-        className={`${bgClass} ${textClass} rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl`}
+        className={`${bgClass} ${textClass} max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl`}
       >
         {/* Header */}
         <div
@@ -814,7 +838,7 @@ const VerificationModal = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => setVerificationMethod("input")}
-                  className={`flex-1 py-3 px-4 rounded-xl font-medium transition-colors ${
+                  className={`flex-1 py-3 px-4 font-medium transition-colors ${
                     verificationMethod === "input"
                       ? "bg-blue-500 text-white"
                       : darkMode
@@ -826,7 +850,7 @@ const VerificationModal = ({
                 </button>
                 <button
                   onClick={() => setVerificationMethod("scan")}
-                  className={`flex-1 py-3 px-4 rounded-xl font-medium transition-colors ${
+                  className={`flex-1 py-3 px-4 font-medium transition-colors ${
                     verificationMethod === "scan"
                       ? "bg-blue-500 text-white"
                       : darkMode
@@ -855,7 +879,7 @@ const VerificationModal = ({
                       value={productId}
                       onChange={(e) => setProductId(e.target.value)}
                       placeholder="e.g., 2010-001 or BATCH-2026-001"
-                      className={`w-full px-4 py-3 rounded-xl border ${borderClass} ${inputBgClass} ${textClass} focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                      className={`w-full px-4 py-3 border ${borderClass} ${inputBgClass} ${textClass} focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                       onKeyPress={(e) =>
                         e.key === "Enter" && handleVerifyProduct()
                       }
@@ -864,7 +888,7 @@ const VerificationModal = ({
                   <button
                     onClick={handleVerifyProduct}
                     disabled={isVerifying || !productId.trim()}
-                    className="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+                    className="w-full py-3 px-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
                   >
                     {isVerifying ? "Verifying..." : "Verify Product"}
                   </button>
@@ -882,7 +906,7 @@ const VerificationModal = ({
                   />
                   <label
                     htmlFor="qr-upload"
-                    className={`block w-full p-8 border-2 border-dashed rounded-xl cursor-pointer text-center transition-colors ${
+                    className={`block w-full p-8 border-2 border-dashed cursor-pointer text-center transition-colors ${
                       darkMode
                         ? "border-slate-600 hover:border-blue-500 bg-slate-800/50"
                         : "border-slate-300 hover:border-blue-500 bg-slate-50"
@@ -950,15 +974,14 @@ const VerificationModal = ({
                     </svg>
                   </div>
                   <h3 className="text-2xl font-bold text-green-500">
-                    Authentic Product
+                    ✓ Product Verified Successfully!
                   </h3>
                   <p className={mutedTextClass}>
-                    This product has been verified on the blockchain
+                    This product has been verified and exists in our blockchain
+                    system
                   </p>
 
-                  <div
-                    className={`${inputBgClass} rounded-xl p-6 space-y-3 text-left`}
-                  >
+                  <div className={`${inputBgClass} p-6 space-y-3 text-left`}>
                     <div className="flex justify-between">
                       <span className={mutedTextClass}>Product Name:</span>
                       <span className="font-semibold">
@@ -979,12 +1002,25 @@ const VerificationModal = ({
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleViewJourney}
-                    className="w-full py-3 px-6 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-                  >
-                    View Product Journey
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        window.location.href = `/${verificationResult.batchId}/product-history`;
+                      }}
+                      className="flex-1 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-semibold hover:shadow-lg transition-all"
+                    >
+                      View Shipment History
+                    </button>
+                    <button
+                      onClick={() => {
+                        setVerificationResult(null);
+                        setProductId("");
+                      }}
+                      className={`px-6 py-3 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-200 hover:bg-slate-300"} font-semibold transition-colors`}
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center space-y-4">
@@ -1004,33 +1040,58 @@ const VerificationModal = ({
                     </svg>
                   </div>
                   <h3 className="text-2xl font-bold text-red-500">
-                    Product Not Found
+                    ✗ Product Not Found
                   </h3>
-                  <p className={mutedTextClass}>
-                    This product could not be verified in our system.
-                    <br />
-                    It may be counterfeit or not registered.
-                  </p>
-                  <div className={`${inputBgClass} rounded-xl p-4`}>
-                    <p className={`text-sm ${mutedTextClass}`}>
-                      Batch ID:{" "}
-                      <span className="font-mono">
-                        {verificationResult.batchId}
-                      </span>
+                  <div
+                    className={`${inputBgClass} rounded-xl p-6 text-left space-y-3`}
+                  >
+                    <p className={mutedTextClass}>
+                      {verificationResult.message ||
+                        "This batch ID does not exist in our system."}
                     </p>
+                    <div className="pt-3 border-t border-slate-700/50">
+                      <p className={`text-sm ${mutedTextClass}`}>
+                        Searched Batch ID:{" "}
+                        <span className="font-mono text-red-400">
+                          {verificationResult.batchId}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="bg-amber-500/10 border border-amber-500/20 p-4 mt-3">
+                      <p className="text-sm text-amber-400">
+                        <strong>⚠️ Note:</strong> Please double-check the batch
+                        ID. If you believe this is an error, contact the
+                        manufacturer.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    {verificationResult.status === "authentic" && (
+                      <button
+                        onClick={() => {
+                          window.location.href = `/${verificationResult.batchId}/product-history`;
+                        }}
+                        className="flex-1 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+                      >
+                        View Shipment History
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setVerificationResult(null);
+                        setProductId("");
+                        setShowVerification(false);
+                      }}
+                      className={`${verificationResult.status === "authentic" ? "flex-1" : "w-full"} py-3 px-6 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-100 hover:bg-slate-200"} font-semibold transition-colors`}
+                    >
+                      {verificationResult.status === "authentic"
+                        ? "Close"
+                        : "Try Again"}
+                    </button>
                   </div>
                 </div>
               )}
-
-              <button
-                onClick={() => {
-                  setVerificationResult(null);
-                  setProductId("");
-                }}
-                className={`w-full py-3 px-6 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-100 hover:bg-slate-200"} rounded-xl font-semibold transition-colors`}
-              >
-                Verify Another Product
-              </button>
             </div>
           )}
         </div>

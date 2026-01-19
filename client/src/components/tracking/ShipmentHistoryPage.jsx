@@ -15,7 +15,7 @@ import { useParams, Link } from "react-router-dom";
 
 const ShipmentHistoryPage = () => {
   const { batchId } = useParams();
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [shipment, setShipment] = useState(null);
   const [containers, setContainers] = useState([]);
@@ -24,6 +24,8 @@ const ShipmentHistoryPage = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("tracking"); // 'tracking' or 'certificates'
   const [selectedImage, setSelectedImage] = useState(null); // For image modal
+  const [currentPage, setCurrentPage] = useState(1); // Pagination for tracking history
+  const itemsPerPage = 5; // Show 5 events per page
 
   useEffect(() => {
     const fetchTrackingData = async () => {
@@ -171,10 +173,18 @@ const ShipmentHistoryPage = () => {
       >
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => window.history.back()}
+                className={`p-2 transition-colors ${
+                  darkMode
+                    ? "bg-slate-800 hover:bg-slate-700"
+                    : "bg-slate-200 hover:bg-slate-300"
+                }`}
+                title="Go back"
+              >
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="w-5 h-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -183,55 +193,57 @@ const ShipmentHistoryPage = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
                   />
                 </svg>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-blue-500">Sentinel</h1>
-                <p className={`text-xs ${mutedTextClass}`}>Product Tracking</p>
-              </div>
-            </Link>
-
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-lg transition-colors ${
-                darkMode
-                  ? "bg-slate-800 hover:bg-slate-700"
-                  : "bg-slate-200 hover:bg-slate-300"
-              }`}
-            >
-              {darkMode ? "☀️" : "🌙"}
-            </button>
+              </button>
+              <Link to="/" className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-blue-500">Sentinel</h1>
+                  <p className={`text-xs ${mutedTextClass}`}>
+                    Product Tracking
+                  </p>
+                </div>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Batch ID Header */}
-        <div className="text-center mb-8">
-          <p className={`text-sm ${mutedTextClass} mb-2`}>Tracking Batch</p>
-          <h2 className="text-2xl font-bold font-mono">{batchId}</h2>
-        </div>
-
         {/* Loading State */}
         {loading && (
-          <div className={`${cardBgClass} border rounded-2xl p-12 text-center`}>
-            <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
+          <div className={`${cardBgClass} border p-12 text-center`}>
+            <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
             <p className={mutedTextClass}>Loading shipment information...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className={`${cardBgClass} border rounded-2xl p-12 text-center`}>
+          <div className={`${cardBgClass} border p-12 text-center`}>
             <div className="text-5xl mb-4">❌</div>
             <h3 className="text-xl font-semibold mb-2">Product Not Found</h3>
             <p className={`${mutedTextClass} mb-6`}>{error}</p>
             <Link
               to="/"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
             >
               <svg
                 className="w-5 h-5"
@@ -260,7 +272,7 @@ const ShipmentHistoryPage = () => {
             <section>
               <div className="flex items-center gap-3 mb-4">
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  className={`w-10 h-10 flex items-center justify-center ${
                     darkMode ? "bg-blue-500/20" : "bg-blue-100"
                   }`}
                 >
@@ -281,9 +293,7 @@ const ShipmentHistoryPage = () => {
                 <h2 className="text-xl font-bold">Product Details</h2>
               </div>
 
-              <div
-                className={`${cardBgClass} border rounded-2xl overflow-hidden`}
-              >
+              <div className={`${cardBgClass} border overflow-hidden`}>
                 {/* Verification Status Banner */}
                 <div
                   className={`px-6 py-4 ${
@@ -374,10 +384,26 @@ const ShipmentHistoryPage = () => {
                         >
                           Supplier
                         </p>
-                        <p className="font-mono text-sm">
-                          {truncateAddress(shipment.supplierWallet)}
+                        <p className="font-semibold">
+                          {shipment.supplierOrganization ||
+                            shipment.supplierName ||
+                            truncateAddress(shipment.supplierWallet)}
                         </p>
                       </div>
+                      {shipment.transporterOrganization && (
+                        <div>
+                          <p
+                            className={`text-xs uppercase tracking-wider ${mutedTextClass} mb-1`}
+                          >
+                            Transporter
+                          </p>
+                          <p className="font-semibold">
+                            {shipment.transporterOrganization ||
+                              shipment.transporterName ||
+                              "N/A"}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Right Column */}
@@ -461,49 +487,6 @@ const ShipmentHistoryPage = () => {
                     </div>
                   )}
                 </div>
-
-                {/* Container List (Collapsible) */}
-                {containers.length > 0 && (
-                  <div className={`px-6 pb-6`}>
-                    <div
-                      className={`p-4 rounded-xl ${darkMode ? "bg-slate-800/50" : "bg-slate-50"}`}
-                    >
-                      <p
-                        className={`text-xs uppercase tracking-wider ${mutedTextClass} mb-3`}
-                      >
-                        Container Status ({containers.length})
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {containers.slice(0, 6).map((container, index) => (
-                          <div
-                            key={container.containerId || index}
-                            className={`flex items-center justify-between p-2 rounded-lg ${
-                              darkMode
-                                ? "bg-slate-700/50"
-                                : "bg-white border border-slate-200"
-                            }`}
-                          >
-                            <span className="font-mono text-xs">
-                              {container.containerId}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded text-xs ${getStatusStyle(container.status).bg} ${getStatusStyle(container.status).text}`}
-                            >
-                              {container.status || "Created"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      {containers.length > 6 && (
-                        <p
-                          className={`text-xs ${mutedTextClass} mt-2 text-center`}
-                        >
-                          +{containers.length - 6} more containers
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </section>
 
@@ -573,116 +556,217 @@ const ShipmentHistoryPage = () => {
               {activeTab === "tracking" && (
                 <div className={`${cardBgClass} border rounded-2xl p-6`}>
                   {trackingHistory.length > 0 ? (
-                    <div className="relative">
-                      {trackingHistory.map((event, index) => {
-                        const isLast = index === trackingHistory.length - 1;
+                    <>
+                      <div className="relative">
+                        {trackingHistory
+                          .slice(
+                            (currentPage - 1) * itemsPerPage,
+                            currentPage * itemsPerPage,
+                          )
+                          .map((event, index) => {
+                            const isLast =
+                              index ===
+                              Math.min(
+                                itemsPerPage - 1,
+                                trackingHistory.slice(
+                                  (currentPage - 1) * itemsPerPage,
+                                  currentPage * itemsPerPage,
+                                ).length - 1,
+                              );
 
-                        return (
-                          <div key={index} className="flex gap-4">
-                            {/* Timeline Node */}
-                            <div className="flex flex-col items-center">
-                              <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center text-xl border-2 ${
-                                  darkMode
-                                    ? "bg-green-500/20 border-green-500/50"
-                                    : "bg-green-100 border-green-300"
-                                }`}
-                              >
-                                {getEventIcon(event.event)}
-                              </div>
-                              {!isLast && (
-                                <div
-                                  className={`w-0.5 flex-1 min-h-[40px] ${
-                                    darkMode
-                                      ? "bg-green-500/30"
-                                      : "bg-green-300"
-                                  }`}
-                                />
-                              )}
-                            </div>
-
-                            {/* Content */}
-                            <div
-                              className={`flex-1 ${!isLast ? "pb-6" : "pb-0"}`}
-                            >
-                              <div
-                                className={`p-4 rounded-xl ${
-                                  darkMode ? "bg-slate-800/50" : "bg-slate-50"
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-4 flex-wrap">
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-base">
-                                      {event.title}
-                                    </h4>
-                                    <p
-                                      className={`text-sm mt-1 ${mutedTextClass}`}
-                                    >
-                                      {event.description}
-                                    </p>
-
-                                    {/* Actor info */}
-                                    {event.actor && (
-                                      <p
-                                        className={`text-xs mt-2 ${mutedTextClass}`}
-                                      >
-                                        👤{" "}
-                                        {event.actorRole
-                                          ? `${event.actorRole}: `
-                                          : ""}
-                                        {truncateAddress(event.actor)}
-                                      </p>
-                                    )}
-
-                                    {/* Container ID if applicable */}
-                                    {event.containerId && (
-                                      <p
-                                        className={`text-xs mt-1 ${mutedTextClass}`}
-                                      >
-                                        📦 Container:{" "}
-                                        <span className="font-mono">
-                                          {event.containerId}
-                                        </span>
-                                      </p>
-                                    )}
-
-                                    {/* Transaction hash */}
-                                    {event.txHash && (
-                                      <p
-                                        className={`text-xs mt-1 font-mono text-green-500 break-all`}
-                                      >
-                                        ⛓️ {event.txHash.slice(0, 20)}...
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <span
-                                    className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium ${
+                            return (
+                              <div key={index} className="flex gap-4">
+                                {/* Timeline Node */}
+                                <div className="flex flex-col items-center">
+                                  <div
+                                    className={`w-12 h-12 flex items-center justify-center text-xl border-2 ${
                                       darkMode
-                                        ? "bg-green-500/20 text-green-400"
-                                        : "bg-green-100 text-green-600"
+                                        ? "bg-green-500/20 border-green-500/50"
+                                        : "bg-green-100 border-green-300"
                                     }`}
                                   >
-                                    ✓ Complete
-                                  </span>
+                                    {getEventIcon(event.event)}
+                                  </div>
+                                  {!isLast && (
+                                    <div
+                                      className={`w-0.5 flex-1 min-h-[40px] ${
+                                        darkMode
+                                          ? "bg-green-500/30"
+                                          : "bg-green-300"
+                                      }`}
+                                    />
+                                  )}
                                 </div>
 
-                                {/* Timestamp - Always show */}
+                                {/* Content */}
                                 <div
-                                  className={`mt-3 pt-3 border-t ${darkMode ? "border-slate-700/50" : "border-slate-200"}`}
+                                  className={`flex-1 ${!isLast ? "pb-6" : "pb-0"}`}
                                 >
-                                  <p
-                                    className={`text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                                  <div
+                                    className={`p-4 ${
+                                      darkMode
+                                        ? "bg-slate-800/50"
+                                        : "bg-slate-50"
+                                    }`}
                                   >
-                                    📅 {formatDateTime(event.timestamp)}
-                                  </p>
+                                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-base">
+                                          {event.title}
+                                        </h4>
+                                        <p
+                                          className={`text-sm mt-1 ${mutedTextClass}`}
+                                        >
+                                          {event.description}
+                                        </p>
+
+                                        {/* Actor info */}
+                                        {event.actor && (
+                                          <p
+                                            className={`text-xs mt-2 ${mutedTextClass}`}
+                                          >
+                                            👤{" "}
+                                            {event.actorName ? (
+                                              <>
+                                                <span className="font-semibold">
+                                                  {event.actorName}
+                                                </span>
+                                                {event.actorRole && (
+                                                  <span className="text-xs">
+                                                    {" "}
+                                                    ({event.actorRole})
+                                                  </span>
+                                                )}
+                                              </>
+                                            ) : (
+                                              <>
+                                                {event.actorRole &&
+                                                  `${event.actorRole}: `}
+                                                <span className="font-mono">
+                                                  {truncateAddress(event.actor)}
+                                                </span>
+                                              </>
+                                            )}
+                                          </p>
+                                        )}
+
+                                        {/* Container ID if applicable */}
+                                        {event.containerId && (
+                                          <p
+                                            className={`text-xs mt-1 ${mutedTextClass}`}
+                                          >
+                                            📦 Container:{" "}
+                                            <span className="font-mono">
+                                              {event.containerId}
+                                            </span>
+                                          </p>
+                                        )}
+
+                                        {/* Transaction hash */}
+                                        {event.txHash && (
+                                          <p
+                                            className={`text-xs mt-1 font-mono text-green-500 break-all`}
+                                          >
+                                            ⛓️ {event.txHash.slice(0, 20)}...
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      <span
+                                        className={`flex-shrink-0 px-2 py-1 text-xs font-medium ${
+                                          darkMode
+                                            ? "bg-green-500/20 text-green-400"
+                                            : "bg-green-100 text-green-600"
+                                        }`}
+                                      >
+                                        ✓ Complete
+                                      </span>
+                                    </div>
+
+                                    {/* Timestamp - Always show */}
+                                    <div
+                                      className={`mt-3 pt-3 border-t ${darkMode ? "border-slate-700/50" : "border-slate-200"}`}
+                                    >
+                                      <p
+                                        className={`text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                                      >
+                                        📅 {formatDateTime(event.timestamp)}
+                                      </p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            );
+                          })}
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {trackingHistory.length > itemsPerPage && (
+                        <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-slate-200">
+                          <button
+                            onClick={() =>
+                              setCurrentPage((prev) => Math.max(prev - 1, 1))
+                            }
+                            disabled={currentPage === 1}
+                            className={`px-3 py-2 rounded-lg transition-all ${
+                              currentPage === 1
+                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                : "bg-blue-500 text-white hover:bg-blue-600"
+                            }`}
+                          >
+                            ← Previous
+                          </button>
+
+                          <div className="flex items-center gap-2">
+                            {Array.from(
+                              {
+                                length: Math.ceil(
+                                  trackingHistory.length / itemsPerPage,
+                                ),
+                              },
+                              (_, i) => i + 1,
+                            ).map((page) => (
+                              <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`px-3 py-2 rounded-lg transition-all ${
+                                  currentPage === page
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          <button
+                            onClick={() =>
+                              setCurrentPage((prev) =>
+                                Math.min(
+                                  prev + 1,
+                                  Math.ceil(
+                                    trackingHistory.length / itemsPerPage,
+                                  ),
+                                ),
+                              )
+                            }
+                            disabled={
+                              currentPage ===
+                              Math.ceil(trackingHistory.length / itemsPerPage)
+                            }
+                            className={`px-3 py-2 rounded-lg transition-all ${
+                              currentPage ===
+                              Math.ceil(trackingHistory.length / itemsPerPage)
+                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                : "bg-blue-500 text-white hover:bg-blue-600"
+                            }`}
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="text-center py-12">
                       <div className="text-5xl mb-4">📭</div>
@@ -707,7 +791,7 @@ const ShipmentHistoryPage = () => {
                         <div
                           key={index}
                           onClick={() => setSelectedImage(cert.url)}
-                          className={`cursor-pointer group rounded-xl overflow-hidden border transition-all hover:scale-[1.02] ${
+                          className={`cursor-pointer group overflow-hidden border transition-all hover:scale-[1.02] ${
                             darkMode
                               ? "bg-slate-800/50 border-slate-700 hover:border-purple-500/50"
                               : "bg-slate-50 border-slate-200 hover:border-purple-300"

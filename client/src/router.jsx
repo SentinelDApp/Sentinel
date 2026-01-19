@@ -72,6 +72,11 @@ export const router = createBrowserRouter([
       },
       // Public Tracking Route (accessed via QR code)
       {
+        path: "/:batchId/product-history",
+        element: <ShipmentHistoryPage />,
+      },
+      // Keep old route for backward compatibility
+      {
         path: "/:batchId/shipment-history",
         element: <ShipmentHistoryPage />,
       },
