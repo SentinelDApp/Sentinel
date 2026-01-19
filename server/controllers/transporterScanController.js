@@ -528,12 +528,24 @@ const getAssignedContainers = async (req, res) => {
     // Group containers by shipment with destination info
     const shipmentData = shipments.map(shipment => {
       const shipmentContainers = containers.filter(c => c.shipmentHash === shipment.shipmentHash);
-      const pendingContainers = shipmentContainers.filter(c => c.status === 'CREATED' || c.status === 'SCANNED');
       
       // Determine if this transporter is assigned via nextTransporter
       const isNextTransporter = 
         shipment.nextTransporter?.walletAddress === normalizedWallet;
       const destination = isNextTransporter ? 'RETAILER' : 'WAREHOUSE';
+      
+      // Determine pending containers based on transporter type:
+      // - assignedTransporter (supplier → warehouse): pending = CREATED or SCANNED
+      // - nextTransporter (warehouse → retailer): pending = AT_WAREHOUSE
+      const pendingContainers = shipmentContainers.filter(c => {
+        if (isNextTransporter) {
+          // nextTransporter needs to scan containers that are AT_WAREHOUSE
+          return c.status === 'AT_WAREHOUSE';
+        } else {
+          // assignedTransporter needs to scan containers that are CREATED or SCANNED
+          return c.status === 'CREATED' || c.status === 'SCANNED';
+        }
+      });
       
       return {
         shipmentId: shipment._id.toString(),
@@ -560,7 +572,8 @@ const getAssignedContainers = async (req, res) => {
     });
     
     const totalContainers = containers.length;
-    const pendingScans = containers.filter(c => c.status === 'CREATED' || c.status === 'SCANNED').length;
+    // Calculate total pending scans across all shipments using the correct logic per transporter type
+    const pendingScans = shipmentData.reduce((total, shipment) => total + shipment.pendingScans, 0);
     
     return res.json({
       success: true,

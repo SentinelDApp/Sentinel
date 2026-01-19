@@ -189,6 +189,16 @@ const scanLogSchema = new mongoose.Schema(
         lowercase: true,
         default: null,
       },
+      nextTransporter: {
+        type: String,
+        lowercase: true,
+        default: null,
+      },
+      assignedRetailer: {
+        type: String,
+        lowercase: true,
+        default: null,
+      },
     },
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -1372,8 +1372,10 @@ const scanContainerForWarehouse = async (req, res) => {
       quantityPerContainer: shipment.quantityPerContainer,
       totalQuantity: shipment.totalQuantity,
       supplierWallet: shipment.supplierWallet,
-      assignedTransporter: shipment.assignedTransporter,
-      assignedWarehouse: shipment.assignedWarehouse,
+      assignedTransporter: shipment.assignedTransporter?.walletAddress || null,
+      assignedWarehouse: shipment.assignedWarehouse?.walletAddress || null,
+      nextTransporter: shipment.nextTransporter?.walletAddress || null,
+      assignedRetailer: shipment.assignedRetailer?.walletAddress || null,
       createdAt: shipment.createdAt,
       updatedAt: shipment.updatedAt,
     };
