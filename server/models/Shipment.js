@@ -210,8 +210,7 @@ const shipmentSchema = new mongoose.Schema(
       },
     },
 
-    // Next Transporter - assigned by warehouse for next leg
-    // Becomes assignedTransporter when warehouse marks ready for dispatch
+    // Next Transporter - set by warehouse for the next leg of shipment
     nextTransporter: {
       walletAddress: {
         type: String,
@@ -237,11 +236,18 @@ const shipmentSchema = new mongoose.Schema(
       },
       assignedBy: {
         type: String,
+        lowercase: true,
         trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
       },
     },
 
-    // Assigned Retailer - set by warehouse for final delivery
+    // Assigned Retailer - set by warehouse when forwarding shipment
     assignedRetailer: {
       walletAddress: {
         type: String,
@@ -267,9 +273,17 @@ const shipmentSchema = new mongoose.Schema(
       },
       assignedBy: {
         type: String,
+        lowercase: true,
         trim: true,
+        validate: {
+          validator: function (v) {
+            return !v || /^0x[a-fA-F0-9]{40}$/.test(v);
+          },
+          message: (props) => `${props.value} is not a valid Ethereum address`,
+        },
       },
     },
+
 
     // Warehouse received timestamp - set when all containers are scanned
     warehouseReceivedAt: {
@@ -282,6 +296,17 @@ const shipmentSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    // Status history for audit trail
+    statusHistory: [
+      {
+        status: { type: String },
+        changedBy: { type: String },
+        changedAt: { type: Date },
+        action: { type: String },
+        notes: { type: String },
+      },
+    ],
 
     // Supporting documents uploaded for this shipment
     supportingDocuments: [
@@ -331,9 +356,8 @@ shipmentSchema.index({ "assignedTransporter.walletAddress": 1, createdAt: -1 });
 // Index for querying shipments by assigned warehouse
 shipmentSchema.index({ "assignedWarehouse.walletAddress": 1, createdAt: -1 });
 
-// Index for querying shipments by next transporter (warehouse to retailer)
-shipmentSchema.index({ "nextTransporter.walletAddress": 1, createdAt: -1 });
 
+shipmentSchema.index({ "nextTransporter.walletAddress": 1, createdAt: -1 });
 // Index for querying shipments by assigned retailer
 shipmentSchema.index({ "assignedRetailer.walletAddress": 1, createdAt: -1 });
 

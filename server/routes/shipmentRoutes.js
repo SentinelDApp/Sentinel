@@ -368,6 +368,7 @@ router.get("/track/:batchId", async (req, res) => {
             timestamp: history.changedAt,
             actor: history.changedBy,
             actorName: null,
+            nextTransporter: history.nextTransporter || null,
             txHash: history.txHash || null,
           });
           processedEvents.add(history.status);
@@ -388,6 +389,7 @@ router.get("/track/:batchId", async (req, res) => {
       shipment.supplierWallet,
       shipment.assignedTransporterWallet,
       shipment.assignedWarehouseWallet,
+      shipment.nextTransporter?.walletAddress,
       ...actorAddresses,
     ].filter(Boolean);
 
@@ -433,6 +435,8 @@ router.get("/track/:batchId", async (req, res) => {
       userMap[shipment.assignedTransporterWallet?.toLowerCase()] || {};
     const warehouseInfo =
       userMap[shipment.assignedWarehouseWallet?.toLowerCase()] || {};
+    const nextTransporterInfo =
+      userMap[shipment.nextTransporter?.walletAddress?.toLowerCase()] || {};
 
     res.json({
       success: true,
@@ -448,6 +452,8 @@ router.get("/track/:batchId", async (req, res) => {
           transporterOrganization: transporterInfo.organization,
           warehouseName: warehouseInfo.name,
           warehouseOrganization: warehouseInfo.organization,
+          nextTransporterName: nextTransporterInfo.name,
+          nextTransporterOrganization: nextTransporterInfo.organization,
           numberOfContainers: shipment.numberOfContainers,
           quantityPerContainer: shipment.quantityPerContainer,
           totalQuantity: shipment.totalQuantity,
@@ -792,8 +798,13 @@ router.patch("/:shipmentHash/lock", async (req, res) => {
  */
 router.get("/", async (req, res) => {
   try {
-    const { supplierWallet, transporterWallet, warehouseWallet, retailerWallet, status } =
-      req.query;
+    const {
+      supplierWallet,
+      transporterWallet,
+      warehouseWallet,
+      retailerWallet,
+      status,
+    } = req.query;
     const { page, limit } = parsePagination(req.query);
 
     // Build query
@@ -1111,7 +1122,7 @@ router.get("/:shipmentHash", async (req, res) => {
  *
  * Fetch shipments assigned to a specific transporter.
  * Transporter dashboard uses this endpoint.
- * 
+ *
  * Fetches shipments from TWO fields:
  * 1. assignedTransporter - Normal shipments going to warehouse
  * 2. nextTransporter - Shipments going from warehouse to retailer
@@ -1937,7 +1948,11 @@ router.patch(
       }
 
       // Verify shipment status allows assignment (should be AT_WAREHOUSE or IN_TRANSIT)
-      if (!['AT_WAREHOUSE', 'IN_TRANSIT', 'READY_FOR_DISPATCH'].includes(shipment.status)) {
+      if (
+        !["AT_WAREHOUSE", "IN_TRANSIT", "READY_FOR_DISPATCH"].includes(
+          shipment.status,
+        )
+      ) {
         return res.status(400).json({
           success: false,
           message: `Cannot assign retailer when shipment status is ${shipment.status}`,
@@ -2194,10 +2209,14 @@ router.patch(
       }
 
       // Verify the assigned warehouse is the one making the request
-      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+      if (
+        shipment.assignedWarehouse?.walletAddress !==
+        user.walletAddress.toLowerCase()
+      ) {
         return res.status(403).json({
           success: false,
-          message: "Only the assigned warehouse can assign the next transporter",
+          message:
+            "Only the assigned warehouse can assign the next transporter",
         });
       }
 
@@ -2314,7 +2333,10 @@ router.patch(
       }
 
       // Verify the assigned warehouse is the one making the request
-      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+      if (
+        shipment.assignedWarehouse?.walletAddress !==
+        user.walletAddress.toLowerCase()
+      ) {
         return res.status(403).json({
           success: false,
           message: "Only the assigned warehouse can assign the retailer",
@@ -2421,7 +2443,10 @@ router.patch(
       }
 
       // Verify the assigned warehouse is the one making the request
-      if (shipment.assignedWarehouse?.walletAddress !== user.walletAddress.toLowerCase()) {
+      if (
+        shipment.assignedWarehouse?.walletAddress !==
+        user.walletAddress.toLowerCase()
+      ) {
         return res.status(403).json({
           success: false,
           message: "Only the assigned warehouse can mark ready for dispatch",
@@ -2432,7 +2457,8 @@ router.patch(
       if (!shipment.nextTransporter?.walletAddress) {
         return res.status(400).json({
           success: false,
-          message: "Cannot mark ready for dispatch. Next transporter must be assigned first.",
+          message:
+            "Cannot mark ready for dispatch. Next transporter must be assigned first.",
         });
       }
 
@@ -2440,18 +2466,20 @@ router.patch(
       if (!shipment.assignedRetailer?.walletAddress) {
         return res.status(400).json({
           success: false,
-          message: "Cannot mark ready for dispatch. Retailer must be assigned first.",
+          message:
+            "Cannot mark ready for dispatch. Retailer must be assigned first.",
         });
       }
 
       // Update shipment status to READY_FOR_DISPATCH
       const now = new Date();
       const previousStatus = shipment.status;
-      
-      // Move next transporter to assigned transporter for the next leg
-      shipment.assignedTransporter = shipment.nextTransporter;
-      shipment.nextTransporter = null;
-      
+
+      // IMPORTANT: Keep both assignedTransporter and nextTransporter separate
+      // assignedTransporter = first leg transporter (Supplier → Warehouse) - historical record
+      // nextTransporter = second leg transporter (Warehouse → Retailer) - active for next scan
+      // DO NOT overwrite assignedTransporter with nextTransporter
+
       shipment.status = "READY_FOR_DISPATCH";
       shipment.updatedAt = now;
       shipment.lastUpdatedBy = user.walletAddress;
@@ -2465,21 +2493,15 @@ router.patch(
         changedBy: user.walletAddress,
         changedAt: now,
         action: "WAREHOUSE_DISPATCH_READY",
-        notes: `Marked ready for dispatch by warehouse. Next transporter: ${shipment.assignedTransporter.walletAddress}`,
+        notes: `Marked ready for dispatch by warehouse. Next transporter: ${shipment.nextTransporter.name || shipment.nextTransporter.organizationName || shipment.nextTransporter.walletAddress}`,
+        nextTransporter: shipment.nextTransporter,
       });
 
       await shipment.save();
 
-      // Reset container statuses to READY_FOR_DISPATCH for the next leg
-      await Container.updateMany(
-        { shipmentHash: shipment.shipmentHash },
-        {
-          $set: {
-            status: "READY_FOR_DISPATCH",
-            updatedAt: now,
-          },
-        },
-      );
+      // IMPORTANT: Keep container status as AT_WAREHOUSE so nextTransporter can scan them
+      // The transporter scan controller checks for AT_WAREHOUSE status for nextTransporter scans
+      // Container status will change to IN_TRANSIT when nextTransporter scans
 
       res.json({
         success: true,
@@ -2489,6 +2511,7 @@ router.patch(
           previousStatus,
           status: shipment.status,
           assignedTransporter: shipment.assignedTransporter,
+          nextTransporter: shipment.nextTransporter,
           assignedRetailer: shipment.assignedRetailer,
           updatedAt: shipment.updatedAt,
         },

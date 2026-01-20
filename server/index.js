@@ -43,6 +43,7 @@ const indexerRoutes = require('./routes/indexerRoutes');
 const userRoutes = require('./routes/userRoutes');
 const scanRoutes = require('./routes/scanRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const aiSummaryRoutes = require('./routes/aiSummaryRoutes');
 
 // Services
 const blockchainIndexer = require('./services/blockchainIndexer');
@@ -132,6 +133,15 @@ app.use('/api/scan', scanRoutes);
  * indexed shipment data (and related on-chain information) via /api/chat.
  */
 app.use('/api/chat', chatRoutes);
+
+// ================= AI SUMMARY ROUTES ================= //
+/**
+ * AI SUMMARY APIs
+ * 
+ * Generates AI-powered product summaries for consumer verification.
+ * Includes product details, shipment journey, certifications, and insights.
+ */
+app.use('/api/ai-summary', aiSummaryRoutes);
 
 // ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**

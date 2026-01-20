@@ -310,8 +310,8 @@ const scanContainerAsTransporter = async (req, res) => {
 
     // ═════════════════════════════════════════════════════════════════════
     // STEP 5: Prevent duplicate scan based on transporter type
-    // - assignedTransporter can scan when container is CREATED or SCANNED
-    // - nextTransporter can scan when container is AT_WAREHOUSE
+    // - assignedTransporter can scan when container is CREATED (first leg: Supplier → Warehouse)
+    // - nextTransporter can scan when container is AT_WAREHOUSE (second leg: Warehouse → Retailer)
     // ═════════════════════════════════════════════════════════════════════
     
     if (isNextTransporter) {
@@ -331,8 +331,8 @@ const scanContainerAsTransporter = async (req, res) => {
         });
       }
     } else {
-      // assignedTransporter scans containers that are CREATED or SCANNED (supplier → warehouse leg)
-      if (container.status !== 'CREATED' && container.status !== 'SCANNED') {
+      // assignedTransporter scans containers that are CREATED (first leg: supplier → warehouse)
+      if (container.status !== 'CREATED') {
         return res.status(400).json({
           success: false,
           status: 'REJECTED',
