@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import StatsCard from "../components/StatsCard";
+import VisualizationModal from "../components/VisualizationModal";
+import AnomalyDetectionModal from "../components/AnomalyDetectionModal";
 import {
   BoxIcon,
   TruckIcon,
@@ -10,6 +12,23 @@ import {
   WarehouseIcon,
 } from "../icons/Icons";
 import { fetchShipments, fetchContainers } from "../../../services/shipmentApi";
+import { useAuth } from "../../../context/AuthContext";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+// Chart/Analytics Icon
+const AnalyticsIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+  </svg>
+);
+
+// Shield/Anomaly Icon
+const ShieldAlertIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+  </svg>
+);
 
 // Pie Chart Component
 const PieChart = ({ data, size = 160 }) => {
@@ -117,10 +136,14 @@ const defaultStatsData = [
 
 const SupplierDashboard = () => {
   const { isDarkMode } = useTheme();
+  const { token } = useAuth();
   const [shipments, setShipments] = useState([]);
   const [allContainers, setAllContainers] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showVisualization, setShowVisualization] = useState(false);
+  const [showAnomalyDetection, setShowAnomalyDetection] = useState(false);
 
   // Calculate stats from real data
   const stats = {
@@ -185,12 +208,27 @@ const SupplierDashboard = () => {
       const containersResults = await Promise.all(containersPromises);
       const allContainersData = containersResults.flatMap(r => r.containers || []);
       setAllContainers(allContainersData);
+
+      // Fetch users for visualization
+      if (token) {
+        try {
+          const usersResponse = await fetch(`${API_BASE_URL}/api/admin/users`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json();
+            setUsers(usersData.users || []);
+          }
+        } catch (err) {
+          console.error("Failed to fetch users:", err);
+        }
+      }
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     loadData();
@@ -238,7 +276,36 @@ const SupplierDashboard = () => {
             Welcome back! Here's your shipment overview.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowAnomalyDetection(true)}
+            className={`
+              relative flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all
+              bg-gradient-to-r from-red-500 to-orange-600 text-white
+              hover:from-red-600 hover:to-orange-700 shadow-lg shadow-red-500/25
+              hover:shadow-xl hover:shadow-red-500/30 hover:scale-105
+            `}
+          >
+            <ShieldAlertIcon className="w-4 h-4" />
+            Anomaly Detection
+            {/* Pulse indicator */}
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+            </span>
+          </button>
+          <button
+            onClick={() => setShowVisualization(true)}
+            className={`
+              flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all
+              bg-gradient-to-r from-blue-500 to-purple-600 text-white
+              hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/25
+              hover:shadow-xl hover:shadow-blue-500/30 hover:scale-105
+            `}
+          >
+            <AnalyticsIcon className="w-4 h-4" />
+            Visualization
+          </button>
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -257,6 +324,22 @@ const SupplierDashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* Anomaly Detection Modal */}
+      <AnomalyDetectionModal
+        isOpen={showAnomalyDetection}
+        onClose={() => setShowAnomalyDetection(false)}
+        shipments={shipments}
+      />
+
+      {/* Visualization Modal */}
+      <VisualizationModal
+        isOpen={showVisualization}
+        onClose={() => setShowVisualization(false)}
+        shipments={shipments}
+        containers={allContainers}
+        users={users}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">

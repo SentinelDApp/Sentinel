@@ -138,11 +138,19 @@ export const router = createBrowserRouter([
       },
       {
         path: "/retailer/dashboard",
-        element: <RetailerApp />,
+        element: (
+          <ProtectedRoute allowedRoles={["retailer"]}>
+            <RetailerApp />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/retailer/profile-settings",
-        element: <RetailerProfileSettingsPage />,
+        element: (
+          <ProtectedRoute allowedRoles={["retailer"]}>
+            <RetailerProfileSettingsPage />
+          </ProtectedRoute>
+        ),
       },
 
       // ============================================

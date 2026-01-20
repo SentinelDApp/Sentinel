@@ -44,6 +44,7 @@ const userRoutes = require('./routes/userRoutes');
 const scanRoutes = require('./routes/scanRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const aiSummaryRoutes = require('./routes/aiSummaryRoutes');
 
 // Services
 const blockchainIndexer = require('./services/blockchainIndexer');
@@ -143,6 +144,14 @@ app.use('/api/chat', chatRoutes);
  * anomaly detection, and actionable insights for all stakeholders.
  */
 app.use('/api/analytics', analyticsRoutes);
+// ================= AI SUMMARY ROUTES ================= //
+/**
+ * AI SUMMARY APIs
+ * 
+ * Generates AI-powered product summaries for consumer verification.
+ * Includes product details, shipment journey, certifications, and insights.
+ */
+app.use('/api/ai-summary', aiSummaryRoutes);
 
 // ================= REGISTRATION ENDPOINT (LEGACY - Local Storage) ================= //
 /**

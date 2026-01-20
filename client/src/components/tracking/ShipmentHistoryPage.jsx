@@ -24,8 +24,6 @@ const ShipmentHistoryPage = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("tracking"); // 'tracking' or 'certificates'
   const [selectedImage, setSelectedImage] = useState(null); // For image modal
-  const [currentPage, setCurrentPage] = useState(1); // Pagination for tracking history
-  const itemsPerPage = 5; // Show 5 events per page
 
   useEffect(() => {
     const fetchTrackingData = async () => {
@@ -404,6 +402,34 @@ const ShipmentHistoryPage = () => {
                           </p>
                         </div>
                       )}
+                      {shipment.warehouseName && (
+                        <div>
+                          <p
+                            className={`text-xs uppercase tracking-wider ${mutedTextClass} mb-1`}
+                          >
+                            Warehouse
+                          </p>
+                          <p className="font-semibold">
+                            {shipment.warehouseOrganization ||
+                              shipment.warehouseName ||
+                              "N/A"}
+                          </p>
+                        </div>
+                      )}
+                      {shipment.nextTransporterName && (
+                        <div>
+                          <p
+                            className={`text-xs uppercase tracking-wider ${mutedTextClass} mb-1`}
+                          >
+                            Next Transporter
+                          </p>
+                          <p className="font-semibold">
+                            {shipment.nextTransporterOrganization ||
+                              shipment.nextTransporterName ||
+                              "N/A"}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Right Column */}
@@ -558,214 +584,150 @@ const ShipmentHistoryPage = () => {
                   {trackingHistory.length > 0 ? (
                     <>
                       <div className="relative">
-                        {trackingHistory
-                          .slice(
-                            (currentPage - 1) * itemsPerPage,
-                            currentPage * itemsPerPage,
-                          )
-                          .map((event, index) => {
-                            const isLast =
-                              index ===
-                              Math.min(
-                                itemsPerPage - 1,
-                                trackingHistory.slice(
-                                  (currentPage - 1) * itemsPerPage,
-                                  currentPage * itemsPerPage,
-                                ).length - 1,
-                              );
+                        {trackingHistory.map((event, index) => {
+                          const isLast = index === trackingHistory.length - 1;
 
-                            return (
-                              <div key={index} className="flex gap-4">
-                                {/* Timeline Node */}
-                                <div className="flex flex-col items-center">
-                                  <div
-                                    className={`w-12 h-12 flex items-center justify-center text-xl border-2 ${
-                                      darkMode
-                                        ? "bg-green-500/20 border-green-500/50"
-                                        : "bg-green-100 border-green-300"
-                                    }`}
-                                  >
-                                    {getEventIcon(event.event)}
-                                  </div>
-                                  {!isLast && (
-                                    <div
-                                      className={`w-0.5 flex-1 min-h-[40px] ${
-                                        darkMode
-                                          ? "bg-green-500/30"
-                                          : "bg-green-300"
-                                      }`}
-                                    />
-                                  )}
-                                </div>
-
-                                {/* Content */}
+                          return (
+                            <div key={index} className="flex gap-4">
+                              {/* Timeline Node */}
+                              <div className="flex flex-col items-center">
                                 <div
-                                  className={`flex-1 ${!isLast ? "pb-6" : "pb-0"}`}
+                                  className={`w-12 h-12 flex items-center justify-center text-xl border-2 ${
+                                    darkMode
+                                      ? "bg-green-500/20 border-green-500/50"
+                                      : "bg-green-100 border-green-300"
+                                  }`}
                                 >
+                                  {getEventIcon(event.event)}
+                                </div>
+                                {!isLast && (
                                   <div
-                                    className={`p-4 ${
+                                    className={`w-0.5 flex-1 min-h-[40px] ${
                                       darkMode
-                                        ? "bg-slate-800/50"
-                                        : "bg-slate-50"
+                                        ? "bg-green-500/30"
+                                        : "bg-green-300"
                                     }`}
-                                  >
-                                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                                      <div className="flex-1 min-w-0">
-                                        <h4 className="font-semibold text-base">
-                                          {event.title}
-                                        </h4>
-                                        <p
-                                          className={`text-sm mt-1 ${mutedTextClass}`}
-                                        >
-                                          {event.description}
-                                        </p>
+                                  />
+                                )}
+                              </div>
 
-                                        {/* Actor info */}
-                                        {event.actor && (
-                                          <p
-                                            className={`text-xs mt-2 ${mutedTextClass}`}
-                                          >
-                                            👤{" "}
-                                            {event.actorName ? (
-                                              <>
-                                                <span className="font-semibold">
-                                                  {event.actorName}
-                                                </span>
-                                                {event.actorRole && (
-                                                  <span className="text-xs">
-                                                    {" "}
-                                                    ({event.actorRole})
-                                                  </span>
-                                                )}
-                                              </>
-                                            ) : (
-                                              <>
-                                                {event.actorRole &&
-                                                  `${event.actorRole}: `}
-                                                <span className="font-mono">
-                                                  {truncateAddress(event.actor)}
-                                                </span>
-                                              </>
-                                            )}
-                                          </p>
-                                        )}
-
-                                        {/* Container ID if applicable */}
-                                        {event.containerId && (
-                                          <p
-                                            className={`text-xs mt-1 ${mutedTextClass}`}
-                                          >
-                                            📦 Container:{" "}
-                                            <span className="font-mono">
-                                              {event.containerId}
-                                            </span>
-                                          </p>
-                                        )}
-
-                                        {/* Transaction hash */}
-                                        {event.txHash && (
-                                          <p
-                                            className={`text-xs mt-1 font-mono text-green-500 break-all`}
-                                          >
-                                            ⛓️ {event.txHash.slice(0, 20)}...
-                                          </p>
-                                        )}
-                                      </div>
-
-                                      <span
-                                        className={`flex-shrink-0 px-2 py-1 text-xs font-medium ${
-                                          darkMode
-                                            ? "bg-green-500/20 text-green-400"
-                                            : "bg-green-100 text-green-600"
-                                        }`}
-                                      >
-                                        ✓ Complete
-                                      </span>
-                                    </div>
-
-                                    {/* Timestamp - Always show */}
-                                    <div
-                                      className={`mt-3 pt-3 border-t ${darkMode ? "border-slate-700/50" : "border-slate-200"}`}
-                                    >
+                              {/* Content */}
+                              <div
+                                className={`flex-1 ${!isLast ? "pb-6" : "pb-0"}`}
+                              >
+                                <div
+                                  className={`p-4 ${
+                                    darkMode ? "bg-slate-800/50" : "bg-slate-50"
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-base">
+                                        {event.title}
+                                      </h4>
                                       <p
-                                        className={`text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                                        className={`text-sm mt-1 ${mutedTextClass}`}
                                       >
-                                        📅 {formatDateTime(event.timestamp)}
+                                        {event.description}
                                       </p>
+
+                                      {/* Actor info */}
+                                      {event.actor && (
+                                        <p
+                                          className={`text-xs mt-2 ${mutedTextClass}`}
+                                        >
+                                          👤{" "}
+                                          {event.actorName ? (
+                                            <>
+                                              <span className="font-semibold">
+                                                {event.actorName}
+                                              </span>
+                                              {event.actorRole && (
+                                                <span className="text-xs">
+                                                  {" "}
+                                                  ({event.actorRole})
+                                                </span>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <>
+                                              {event.actorRole &&
+                                                `${event.actorRole}: `}
+                                              <span className="font-mono">
+                                                {truncateAddress(event.actor)}
+                                              </span>
+                                            </>
+                                          )}
+                                        </p>
+                                      )}
+
+                                      {/* Next Transporter info (for READY_FOR_DISPATCH events) */}
+                                      {event.nextTransporter && (
+                                        <p
+                                          className={`text-xs mt-2 ${mutedTextClass}`}
+                                        >
+                                          🚚 Next Transporter:{" "}
+                                          <span className="font-semibold">
+                                            {event.nextTransporter
+                                              .organizationName ||
+                                              event.nextTransporter.name ||
+                                              truncateAddress(
+                                                event.nextTransporter
+                                                  .walletAddress,
+                                              )}
+                                          </span>
+                                        </p>
+                                      )}
+
+                                      {/* Container ID if applicable */}
+                                      {event.containerId && (
+                                        <p
+                                          className={`text-xs mt-1 ${mutedTextClass}`}
+                                        >
+                                          📦 Container:{" "}
+                                          <span className="font-mono">
+                                            {event.containerId}
+                                          </span>
+                                        </p>
+                                      )}
+
+                                      {/* Transaction hash */}
+                                      {event.txHash && (
+                                        <p
+                                          className={`text-xs mt-1 font-mono text-green-500 break-all`}
+                                        >
+                                          ⛓️ {event.txHash.slice(0, 20)}...
+                                        </p>
+                                      )}
                                     </div>
+
+                                    <span
+                                      className={`flex-shrink-0 px-2 py-1 text-xs font-medium ${
+                                        darkMode
+                                          ? "bg-green-500/20 text-green-400"
+                                          : "bg-green-100 text-green-600"
+                                      }`}
+                                    >
+                                      ✓ Complete
+                                    </span>
+                                  </div>
+
+                                  {/* Timestamp - Always show */}
+                                  <div
+                                    className={`mt-3 pt-3 border-t ${darkMode ? "border-slate-700/50" : "border-slate-200"}`}
+                                  >
+                                    <p
+                                      className={`text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                                    >
+                                      📅 {formatDateTime(event.timestamp)}
+                                    </p>
                                   </div>
                                 </div>
                               </div>
-                            );
-                          })}
+                            </div>
+                          );
+                        })}
                       </div>
-
-                      {/* Pagination Controls */}
-                      {trackingHistory.length > itemsPerPage && (
-                        <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-slate-200">
-                          <button
-                            onClick={() =>
-                              setCurrentPage((prev) => Math.max(prev - 1, 1))
-                            }
-                            disabled={currentPage === 1}
-                            className={`px-3 py-2 rounded-lg transition-all ${
-                              currentPage === 1
-                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                : "bg-blue-500 text-white hover:bg-blue-600"
-                            }`}
-                          >
-                            ← Previous
-                          </button>
-
-                          <div className="flex items-center gap-2">
-                            {Array.from(
-                              {
-                                length: Math.ceil(
-                                  trackingHistory.length / itemsPerPage,
-                                ),
-                              },
-                              (_, i) => i + 1,
-                            ).map((page) => (
-                              <button
-                                key={page}
-                                onClick={() => setCurrentPage(page)}
-                                className={`px-3 py-2 rounded-lg transition-all ${
-                                  currentPage === page
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            ))}
-                          </div>
-
-                          <button
-                            onClick={() =>
-                              setCurrentPage((prev) =>
-                                Math.min(
-                                  prev + 1,
-                                  Math.ceil(
-                                    trackingHistory.length / itemsPerPage,
-                                  ),
-                                ),
-                              )
-                            }
-                            disabled={
-                              currentPage ===
-                              Math.ceil(trackingHistory.length / itemsPerPage)
-                            }
-                            className={`px-3 py-2 rounded-lg transition-all ${
-                              currentPage ===
-                              Math.ceil(trackingHistory.length / itemsPerPage)
-                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                : "bg-blue-500 text-white hover:bg-blue-600"
-                            }`}
-                          >
-                            Next →
-                          </button>
-                        </div>
-                      )}
                     </>
                   ) : (
                     <div className="text-center py-12">

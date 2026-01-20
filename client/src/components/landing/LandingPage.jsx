@@ -15,6 +15,272 @@ import { Html5Qrcode } from "html5-qrcode";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { TextRotate } from "../ui/text-rotate";
 
+// Skeleton Component for loading states with shimmer effect
+const Skeleton = ({ className = "" }) => (
+  <div
+    className={`relative overflow-hidden bg-slate-700/50 rounded ${className}`}
+  >
+    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-slate-600/30 to-transparent" />
+  </div>
+);
+
+// AI Summary Skeleton Loader
+const AISummarySkeleton = ({ darkMode }) => {
+  const bgClass = darkMode ? "bg-slate-800/50" : "bg-slate-100";
+  
+  return (
+    <div className="space-y-6">
+      {/* Product Info Skeleton */}
+      <div className={`${bgClass} rounded-xl p-6`}>
+        <Skeleton className="h-6 w-32 mb-4" />
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+
+      {/* Shipment Details Skeleton */}
+      <div className={`${bgClass} rounded-xl p-6`}>
+        <Skeleton className="h-6 w-40 mb-4" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-lg" />
+        </div>
+      </div>
+
+      {/* AI Summary Skeleton */}
+      <div className={`${bgClass} rounded-xl p-6`}>
+        <div className="flex items-center gap-2 mb-4">
+          <Skeleton className="h-6 w-6 rounded-full" />
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <Skeleton className="h-4 w-full mb-2" />
+        <Skeleton className="h-4 w-full mb-2" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+
+      {/* Journey Skeleton */}
+      <div className={`${bgClass} rounded-xl p-6`}>
+        <Skeleton className="h-6 w-36 mb-4" />
+        <div className="flex items-center gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-2">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// AI Summary Display Component
+const AISummaryDisplay = ({ summaryData, darkMode }) => {
+  const bgClass = darkMode ? "bg-slate-800/50" : "bg-slate-100";
+  const borderClass = darkMode ? "border-slate-700" : "border-slate-200";
+  const mutedTextClass = darkMode ? "text-slate-400" : "text-slate-600";
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'CREATED': 'bg-blue-500',
+      'READY_FOR_DISPATCH': 'bg-yellow-500',
+      'IN_TRANSIT': 'bg-purple-500',
+      'AT_WAREHOUSE': 'bg-orange-500',
+      'DELIVERED': 'bg-green-500'
+    };
+    return colors[status] || 'bg-gray-500';
+  };
+
+  return (
+    <div className="space-y-5 animate-in fade-in duration-500">
+      {/* Success Header */}
+      <div className="text-center">
+        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-green-500">✓ Product Verified</h3>
+      </div>
+
+      {/* Product Info Card */}
+      <div className={`${bgClass} rounded-xl p-5 border ${borderClass}`}>
+        <div className="flex items-center gap-2 mb-4">
+          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          <h4 className="font-semibold">Product Information</h4>
+        </div>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className={mutedTextClass}>Product Name</span>
+            <span className="font-medium">{summaryData.productInfo.name}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className={mutedTextClass}>Batch ID</span>
+            <span className="font-mono text-xs">{summaryData.productInfo.batchId}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className={mutedTextClass}>Total Quantity</span>
+            <span>{summaryData.productInfo.totalQuantity} {summaryData.productInfo.unit}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className={mutedTextClass}>Containers</span>
+            <span>{summaryData.productInfo.containers}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Shipment Status & Blockchain */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Status Card */}
+        <div className={`${bgClass} rounded-xl p-4 border ${borderClass}`}>
+          <div className="flex items-center gap-2 mb-2">
+            <div className={`w-3 h-3 rounded-full ${getStatusColor(summaryData.shipmentDetails.statusCode)}`}></div>
+            <span className={`text-xs ${mutedTextClass}`}>Status</span>
+          </div>
+          <p className="font-semibold text-sm">{summaryData.shipmentDetails.status}</p>
+        </div>
+
+        {/* Blockchain Card */}
+        <div className={`${bgClass} rounded-xl p-4 border ${borderClass}`}>
+          <div className="flex items-center gap-2 mb-2">
+            {summaryData.shipmentDetails.blockchainVerified ? (
+              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            )}
+            <span className={`text-xs ${mutedTextClass}`}>Blockchain</span>
+          </div>
+          <p className="font-semibold text-sm">
+            {summaryData.shipmentDetails.blockchainVerified ? 'Verified' : 'Pending'}
+          </p>
+        </div>
+      </div>
+
+      {/* AI Summary Card */}
+      <div className={`${bgClass} rounded-xl p-5 border ${borderClass} bg-gradient-to-br ${darkMode ? 'from-purple-900/20 to-blue-900/20' : 'from-purple-50 to-blue-50'}`}>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h4 className="font-semibold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">AI Summary</h4>
+        </div>
+        <p className={`text-sm leading-relaxed ${mutedTextClass}`}>
+          {summaryData.aiSummary}
+        </p>
+      </div>
+
+      {/* Journey Milestones */}
+      {summaryData.journeyMilestones && summaryData.journeyMilestones.length > 0 && (
+        <div className={`${bgClass} rounded-xl p-5 border ${borderClass}`}>
+          <div className="flex items-center gap-2 mb-4">
+            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <h4 className="font-semibold">Journey Milestones</h4>
+          </div>
+          <div className="flex items-center justify-between overflow-x-auto pb-2">
+            {summaryData.journeyMilestones.map((milestone, index) => (
+              <div key={index} className="flex flex-col items-center min-w-[80px]">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
+                  milestone.status === 'completed' ? 'bg-green-500' : 
+                  milestone.status === 'in-progress' ? 'bg-yellow-500 animate-pulse' : 
+                  darkMode ? 'bg-slate-600' : 'bg-slate-300'
+                }`}>
+                  {milestone.status === 'completed' ? (
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : milestone.status === 'in-progress' ? (
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  ) : (
+                    <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                  )}
+                </div>
+                <span className={`text-xs text-center ${milestone.status === 'completed' ? 'text-green-500' : mutedTextClass}`}>
+                  {milestone.stage}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Certifications */}
+      {summaryData.certifications && summaryData.certifications.length > 0 && (
+        <div className={`${bgClass} rounded-xl p-5 border ${borderClass}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
+            <h4 className="font-semibold">Certifications</h4>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {summaryData.certifications.map((cert, index) => (
+              <span key={index} className="px-3 py-1 bg-yellow-500/20 text-yellow-500 text-xs font-medium rounded-full">
+                {cert.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Supply Chain Info */}
+      {(summaryData.supplyChain.supplier || summaryData.supplyChain.transporter || summaryData.supplyChain.warehouse) && (
+        <div className={`${bgClass} rounded-xl p-5 border ${borderClass}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h4 className="font-semibold">Supply Chain Partners</h4>
+          </div>
+          <div className="space-y-2 text-sm">
+            {summaryData.supplyChain.supplier && (
+              <div className="flex justify-between">
+                <span className={mutedTextClass}>Supplier</span>
+                <span className="font-mono text-xs">{summaryData.supplyChain.supplier}</span>
+              </div>
+            )}
+            {summaryData.supplyChain.transporter && (
+              <div className="flex justify-between">
+                <span className={mutedTextClass}>Transporter</span>
+                <span>{summaryData.supplyChain.transporter}</span>
+              </div>
+            )}
+            {summaryData.supplyChain.warehouse && (
+              <div className="flex justify-between">
+                <span className={mutedTextClass}>Warehouse</span>
+                <span>{summaryData.supplyChain.warehouse}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Shipment Date */}
+      <div className={`text-center text-xs ${mutedTextClass}`}>
+        <span>Shipment created on </span>
+        <span className="font-medium">
+          {new Date(summaryData.shipmentDetails.createdAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const LandingPage = () => {
   const [darkMode, setDarkMode] = useState(true);
   const [showVerification, setShowVerification] = useState(false);
@@ -25,7 +291,38 @@ const LandingPage = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [journeyData, setJourneyData] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Fetch AI Summary for a product
+  const fetchAISummary = async (batchId) => {
+    setIsLoadingSummary(true);
+    setAiSummary(null);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/ai-summary/generate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ batchId }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setAiSummary(data.data);
+        }
+      }
+    } catch (error) {
+      console.error("AI Summary fetch error:", error);
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
 
   // Verify product authenticity
   const handleVerifyProduct = async () => {
@@ -35,6 +332,8 @@ const LandingPage = () => {
     }
 
     setIsVerifying(true);
+    setIsLoadingSummary(true);
+    setAiSummary(null);
     try {
       // Use the tracking API to verify batch ID exists
       const response = await fetch(
@@ -52,6 +351,8 @@ const LandingPage = () => {
             batchId: shipment.batchId,
             shipmentHash: shipment.shipmentHash,
           });
+          // Fetch AI Summary in parallel
+          fetchAISummary(shipment.batchId);
         } else {
           setVerificationResult({
             status: "not_found",
@@ -59,6 +360,7 @@ const LandingPage = () => {
             message:
               "This batch ID does not exist in our system. Please verify the ID and try again.",
           });
+          setIsLoadingSummary(false);
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -69,6 +371,7 @@ const LandingPage = () => {
             errorData.message ||
             "This batch ID could not be found. Please check and try again.",
         });
+        setIsLoadingSummary(false);
       }
     } catch (error) {
       console.error("Verification error:", error);
@@ -78,6 +381,7 @@ const LandingPage = () => {
         message:
           "Unable to connect to the server. Please check your internet connection and try again.",
       });
+      setIsLoadingSummary(false);
     } finally {
       setIsVerifying(false);
     }
@@ -116,9 +420,58 @@ const LandingPage = () => {
       // Expected format: http(s)://domain/:batchId/product-history
       const urlMatch = result.match(/\/([^/]+)\/product-history$/);
       if (urlMatch) {
-        // Extract batch ID from URL and redirect to the tracking page
+        // Extract batch ID from URL and show AI summary instead of redirecting
         const batchId = decodeURIComponent(urlMatch[1]);
-        window.location.href = `/${batchId}/product-history`;
+        setProductId(batchId);
+        setVerificationMethod("input");
+        await html5QrCode.clear();
+        // Auto-verify after setting product ID
+        setIsVerifying(true);
+        setIsLoadingSummary(true);
+        setAiSummary(null);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/shipments/track/${encodeURIComponent(batchId)}`,
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.shipment) {
+              const shipment = data.data.shipment;
+              setVerificationResult({
+                status: "authentic",
+                productName: shipment.productName || "Product",
+                manufacturer: shipment.supplierWallet?.substring(0, 10) + "...",
+                batchId: shipment.batchId,
+                shipmentHash: shipment.shipmentHash,
+              });
+              fetchAISummary(shipment.batchId);
+            } else {
+              setVerificationResult({
+                status: "not_found",
+                batchId: batchId,
+                message: "This batch ID does not exist in our system.",
+              });
+              setIsLoadingSummary(false);
+            }
+          } else {
+            setVerificationResult({
+              status: "not_found",
+              batchId: batchId,
+              message: "This batch ID could not be found.",
+            });
+            setIsLoadingSummary(false);
+          }
+        } catch (error) {
+          console.error("Verification error:", error);
+          setVerificationResult({
+            status: "error",
+            batchId: batchId,
+            message: "Unable to connect to the server.",
+          });
+          setIsLoadingSummary(false);
+        } finally {
+          setIsVerifying(false);
+        }
         return;
       }
 
@@ -126,14 +479,110 @@ const LandingPage = () => {
       const oldUrlMatch = result.match(/\/([^/]+)\/shipment-history$/);
       if (oldUrlMatch) {
         const batchId = decodeURIComponent(oldUrlMatch[1]);
-        window.location.href = `/${batchId}/product-history`;
+        setProductId(batchId);
+        setVerificationMethod("input");
+        await html5QrCode.clear();
+        // Auto-verify
+        setIsVerifying(true);
+        setIsLoadingSummary(true);
+        setAiSummary(null);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/shipments/track/${encodeURIComponent(batchId)}`,
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.shipment) {
+              const shipment = data.data.shipment;
+              setVerificationResult({
+                status: "authentic",
+                productName: shipment.productName || "Product",
+                manufacturer: shipment.supplierWallet?.substring(0, 10) + "...",
+                batchId: shipment.batchId,
+                shipmentHash: shipment.shipmentHash,
+              });
+              fetchAISummary(shipment.batchId);
+            } else {
+              setVerificationResult({
+                status: "not_found",
+                batchId: batchId,
+                message: "This batch ID does not exist in our system.",
+              });
+              setIsLoadingSummary(false);
+            }
+          } else {
+            setVerificationResult({
+              status: "not_found",
+              batchId: batchId,
+              message: "This batch ID could not be found.",
+            });
+            setIsLoadingSummary(false);
+          }
+        } catch (error) {
+          console.error("Verification error:", error);
+          setVerificationResult({
+            status: "error",
+            batchId: batchId,
+            message: "Unable to connect to the server.",
+          });
+          setIsLoadingSummary(false);
+        } finally {
+          setIsVerifying(false);
+        }
         return;
       }
 
-      // If it's not a URL, treat it as a batch ID
+      // If it's not a URL, treat it as a batch ID and auto-verify
       setProductId(result);
       setVerificationMethod("input");
       await html5QrCode.clear();
+      // Auto-verify the batch ID
+      setIsVerifying(true);
+      setIsLoadingSummary(true);
+      setAiSummary(null);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/shipments/track/${encodeURIComponent(result)}`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.shipment) {
+            const shipment = data.data.shipment;
+            setVerificationResult({
+              status: "authentic",
+              productName: shipment.productName || "Product",
+              manufacturer: shipment.supplierWallet?.substring(0, 10) + "...",
+              batchId: shipment.batchId,
+              shipmentHash: shipment.shipmentHash,
+            });
+            fetchAISummary(shipment.batchId);
+          } else {
+            setVerificationResult({
+              status: "not_found",
+              batchId: result,
+              message: "This batch ID does not exist in our system.",
+            });
+            setIsLoadingSummary(false);
+          }
+        } else {
+          setVerificationResult({
+            status: "not_found",
+            batchId: result,
+            message: "This batch ID could not be found.",
+          });
+          setIsLoadingSummary(false);
+        }
+      } catch (error) {
+        console.error("Verification error:", error);
+        setVerificationResult({
+          status: "error",
+          batchId: result,
+          message: "Unable to connect to the server.",
+        });
+        setIsLoadingSummary(false);
+      } finally {
+        setIsVerifying(false);
+      }
     } catch (error) {
       console.error("QR scan error:", error);
       alert(
@@ -746,6 +1195,8 @@ const LandingPage = () => {
             setShowVerification(false);
             setVerificationResult(null);
             setProductId("");
+            setAiSummary(null);
+            setIsLoadingSummary(false);
           }}
           verificationMethod={verificationMethod}
           setVerificationMethod={setVerificationMethod}
@@ -758,6 +1209,8 @@ const LandingPage = () => {
           handleQRUpload={handleQRUpload}
           isScanning={isScanning}
           fileInputRef={fileInputRef}
+          aiSummary={aiSummary}
+          isLoadingSummary={isLoadingSummary}
         />
       )}
 
@@ -788,6 +1241,8 @@ const VerificationModal = ({
   handleQRUpload,
   isScanning,
   fileInputRef,
+  aiSummary,
+  isLoadingSummary,
 }) => {
   const bgClass = darkMode ? "bg-slate-900" : "bg-white";
   const textClass = darkMode ? "text-slate-100" : "text-slate-900";
@@ -954,74 +1409,100 @@ const VerificationModal = ({
               )}
             </>
           ) : (
-            // Verification Result
+            // Verification Result with AI Summary
             <div className="space-y-6">
               {verificationResult.status === "authentic" ? (
-                <div className="text-center space-y-4">
-                  <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
-                    <svg
-                      className="w-10 h-10 text-green-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-bold text-green-500">
-                    ✓ Product Verified Successfully!
-                  </h3>
-                  <p className={mutedTextClass}>
-                    This product has been verified and exists in our blockchain
-                    system
-                  </p>
+                <>
+                  {/* Show Skeleton while loading AI Summary */}
+                  {isLoadingSummary && !aiSummary ? (
+                    <AISummarySkeleton darkMode={darkMode} />
+                  ) : aiSummary ? (
+                    /* Show AI Summary when loaded */
+                    <>
+                      <AISummaryDisplay summaryData={aiSummary} darkMode={darkMode} />
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          onClick={() => {
+                            window.location.href = `/${verificationResult.batchId}/product-history`;
+                          }}
+                          className="flex-1 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-semibold hover:shadow-lg transition-all rounded-lg"
+                        >
+                          View Full History
+                        </button>
+                        <button
+                          onClick={onClose}
+                          className={`px-6 py-3 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-200 hover:bg-slate-300"} font-semibold transition-colors rounded-lg`}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    /* Fallback to original result display if AI Summary fails */
+                    <div className="text-center space-y-4">
+                      <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+                        <svg
+                          className="w-10 h-10 text-green-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <h3 className="text-2xl font-bold text-green-500">
+                        ✓ Product Verified Successfully!
+                      </h3>
+                      <p className={mutedTextClass}>
+                        This product has been verified and exists in our blockchain
+                        system
+                      </p>
 
-                  <div className={`${inputBgClass} p-6 space-y-3 text-left`}>
-                    <div className="flex justify-between">
-                      <span className={mutedTextClass}>Product Name:</span>
-                      <span className="font-semibold">
-                        {verificationResult.productName}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className={mutedTextClass}>Manufacturer:</span>
-                      <span className="font-mono text-sm">
-                        {verificationResult.manufacturer}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className={mutedTextClass}>Batch ID:</span>
-                      <span className="font-mono text-sm">
-                        {verificationResult.batchId}
-                      </span>
-                    </div>
-                  </div>
+                      <div className={`${inputBgClass} p-6 space-y-3 text-left`}>
+                        <div className="flex justify-between">
+                          <span className={mutedTextClass}>Product Name:</span>
+                          <span className="font-semibold">
+                            {verificationResult.productName}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className={mutedTextClass}>Manufacturer:</span>
+                          <span className="font-mono text-sm">
+                            {verificationResult.manufacturer}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className={mutedTextClass}>Batch ID:</span>
+                          <span className="font-mono text-sm">
+                            {verificationResult.batchId}
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        window.location.href = `/${verificationResult.batchId}/product-history`;
-                      }}
-                      className="flex-1 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-semibold hover:shadow-lg transition-all"
-                    >
-                      View Shipment History
-                    </button>
-                    <button
-                      onClick={() => {
-                        setVerificationResult(null);
-                        setProductId("");
-                      }}
-                      className={`px-6 py-3 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-200 hover:bg-slate-300"} font-semibold transition-colors`}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            window.location.href = `/${verificationResult.batchId}/product-history`;
+                          }}
+                          className="flex-1 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-semibold hover:shadow-lg transition-all"
+                        >
+                          View Shipment History
+                        </button>
+                        <button
+                          onClick={onClose}
+                          className={`px-6 py-3 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-200 hover:bg-slate-300"} font-semibold transition-colors`}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center space-y-4">
                   <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
@@ -1067,27 +1548,11 @@ const VerificationModal = ({
                   </div>
 
                   <div className="flex gap-3">
-                    {verificationResult.status === "authentic" && (
-                      <button
-                        onClick={() => {
-                          window.location.href = `/${verificationResult.batchId}/product-history`;
-                        }}
-                        className="flex-1 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
-                      >
-                        View Shipment History
-                      </button>
-                    )}
                     <button
-                      onClick={() => {
-                        setVerificationResult(null);
-                        setProductId("");
-                        setShowVerification(false);
-                      }}
-                      className={`${verificationResult.status === "authentic" ? "flex-1" : "w-full"} py-3 px-6 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-100 hover:bg-slate-200"} font-semibold transition-colors`}
+                      onClick={onClose}
+                      className={`w-full py-3 px-6 ${darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-slate-100 hover:bg-slate-200"} font-semibold transition-colors rounded-lg`}
                     >
-                      {verificationResult.status === "authentic"
-                        ? "Close"
-                        : "Try Again"}
+                      Try Again
                     </button>
                   </div>
                 </div>
