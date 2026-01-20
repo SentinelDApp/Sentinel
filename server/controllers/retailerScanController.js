@@ -283,7 +283,7 @@ const scanContainerAsRetailer = async (req, res) => {
         status: 'REJECTED',
         reason: 'Container not ready for delivery',
         code: REJECTION_REASONS.INVALID_STATUS_TRANSITION,
-        message: `Container must be AT_WAREHOUSE before it can be delivered. Current status: ${container.status}`,
+        message: `Container must be IN_TRANSIT or AT_WAREHOUSE before it can be delivered. Current status: ${container.status}`,
         container: {
           containerId: container.containerId,
           status: container.status,
@@ -488,8 +488,8 @@ const getAssignedContainers = async (req, res) => {
     // Group containers by shipment
     const shipmentData = shipments.map(shipment => {
       const shipmentContainers = containers.filter(c => c.shipmentHash === shipment.shipmentHash);
-      // Pending containers are those AT_WAREHOUSE (ready for retailer scan)
-      const pendingContainers = shipmentContainers.filter(c => c.status === 'AT_WAREHOUSE');
+      // Pending containers are those IN_TRANSIT or AT_WAREHOUSE (ready for retailer scan)
+      const pendingContainers = shipmentContainers.filter(c => c.status === 'IN_TRANSIT' || c.status === 'AT_WAREHOUSE');
       const deliveredContainers = shipmentContainers.filter(c => c.status === 'DELIVERED');
       
       return {
@@ -512,7 +512,7 @@ const getAssignedContainers = async (req, res) => {
     });
     
     const totalContainers = containers.length;
-    const pendingScans = containers.filter(c => c.status === 'AT_WAREHOUSE').length;
+    const pendingScans = containers.filter(c => c.status === 'IN_TRANSIT' || c.status === 'AT_WAREHOUSE').length;
     
     return res.json({
       success: true,
