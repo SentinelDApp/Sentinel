@@ -180,60 +180,61 @@ async function generateAISummary(shipmentData) {
     const currentStatusDesc = statusDescriptions[shipmentData.status] || 'being tracked in our system';
 
     const prompt = `
-You are "Sentinel AI", the intelligent assistant for Sentinel - a blockchain-powered supply chain transparency platform that helps consumers verify product authenticity.
+You are "Sentinel AI", the intelligent assistant for Sentinel - a blockchain-powered supply chain transparency platform.
 
-PRODUCT VERIFICATION DATA:
-═══════════════════════════════════════════════════════════════
-Product Name: ${shipmentData.productName}
-Batch ID: ${shipmentData.batchId}
-Total Quantity: ${shipmentData.totalQuantity} units across ${shipmentData.numberOfContainers} containers
-Current Status: ${shipmentData.status} (This product has ${currentStatusDesc})
-Registration Date: ${new Date(shipmentData.createdAt).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-Blockchain Verification: ${shipmentData.txHash ? `✓ VERIFIED (Block #${shipmentData.blockNumber || 'N/A'})` : '⏳ Pending verification'}
-${shipmentData.assignedTransporter?.name ? `Transportation Partner: ${shipmentData.assignedTransporter.organizationName || shipmentData.assignedTransporter.name}` : ''}
-${shipmentData.assignedWarehouse?.name ? `Warehouse Facility: ${shipmentData.assignedWarehouse.organizationName || shipmentData.assignedWarehouse.name}` : ''}
-${shipmentData.assignedRetailer?.name ? `Retail Partner: ${shipmentData.assignedRetailer.organizationName || shipmentData.assignedRetailer.name}` : ''}
-Journey Checkpoints Recorded: ${shipmentData.journeySteps.length} verification points
-Supporting Documentation: ${shipmentData.supportingDocuments.length} documents on file
-Containers Details: ${shipmentData.containers.map(c => c.containerId).join(', ') || 'Standard packaging'}
-═══════════════════════════════════════════════════════════════
+PRODUCT DATA:
+- Product: ${shipmentData.productName}
+- Batch ID: ${shipmentData.batchId}
+- Quantity: ${shipmentData.totalQuantity} units in ${shipmentData.numberOfContainers} containers
+- Status: ${shipmentData.status} (${currentStatusDesc})
+- Registered: ${new Date(shipmentData.createdAt).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+- Blockchain: ${shipmentData.txHash ? `VERIFIED on Block #${shipmentData.blockNumber || 'confirmed'}` : 'Pending'}
+- Checkpoints: ${shipmentData.journeySteps.length} recorded
+- Documents: ${shipmentData.supportingDocuments.length} on file
 
-YOUR TASK:
-Write a comprehensive, engaging summary (4-6 sentences, approximately 150-200 words) for a consumer who just scanned this product's QR code. This is their first interaction with product verification, so make it informative and reassuring.
+STRICT INSTRUCTIONS - YOU MUST FOLLOW:
 
-CONTENT REQUIREMENTS:
-1. Start with a warm confirmation that the product is verified/authentic
-2. Mention specific details about the product (name, batch, quantity)
-3. Explain the supply chain journey - where it came from, current status
-4. Highlight the blockchain security aspect and what it means for the consumer
-5. ${shipmentData.journeySteps.length > 0 ? `Mention that ${shipmentData.journeySteps.length} verification checkpoints have been recorded` : 'Note that the journey tracking is active'}
-6. End with a reassuring statement about product authenticity
+Write EXACTLY 5-7 sentences. The response MUST be between 180-250 words. Count your words carefully.
 
-STYLE REQUIREMENTS:
+Structure your response in this EXACT order:
+1. SENTENCE 1: Confirm the product "${shipmentData.productName}" with batch "${shipmentData.batchId}" is verified and authentic.
+2. SENTENCE 2: Describe the quantity (${shipmentData.totalQuantity} units across ${shipmentData.numberOfContainers} containers) and packaging details.
+3. SENTENCE 3: Explain current status - the product has ${currentStatusDesc}. Elaborate on what this means.
+4. SENTENCE 4: Explain blockchain verification - how it ensures tamper-proof records and why consumers can trust it.
+5. SENTENCE 5: Mention ${shipmentData.journeySteps.length > 0 ? `the ${shipmentData.journeySteps.length} verification checkpoints recorded` : 'that journey tracking is active'} and what this means for traceability.
+6. SENTENCE 6: Mention registration date (${new Date(shipmentData.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}) and complete documentation.
+7. SENTENCE 7: End with a strong reassuring statement about authenticity and consumer safety.
+
+STYLE:
 - Tone: ${randomTone}
-- Focus emphasis on: ${randomFocus}
-- Write in a conversational yet professional manner
-- Use varied sentence structures (mix short and long sentences)
-- Do NOT use markdown, bullet points, or special formatting
-- Do NOT use emojis
-- Make it sound natural, not robotic
-- Variation seed: ${randomSeed} (use this to ensure unique phrasing)
+- Focus: ${randomFocus}
+- NO markdown, NO bullet points, NO emojis
+- Natural, flowing paragraph
+- Seed for uniqueness: ${randomSeed}
 
-IMPORTANT: Each summary should be unique. Avoid repetitive phrases. Be creative with your wording while maintaining accuracy.
+CRITICAL: Your response MUST be 180-250 words. Do NOT write less. Do NOT write a single short sentence. Write a FULL detailed paragraph.
 
-Generate the detailed summary now:`;
+Generate now:`;
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.9,
-        topP: 0.95,
+        temperature: 0.8,
+        topP: 0.9,
         topK: 40,
-        maxOutputTokens: 500,
+        maxOutputTokens: 800,
       }
     });
     const response = await result.response;
-    return response.text().trim();
+    let summary = response.text().trim();
+    
+    // If summary is too short, use fallback
+    if (summary.length < 300) {
+      console.log('[AI Summary] Response too short, using fallback. Length:', summary.length);
+      return generateFallbackSummary(shipmentData);
+    }
+    
+    return summary;
 
   } catch (error) {
     console.error('[AI Summary] Gemini error:', error);
