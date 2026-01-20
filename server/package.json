@@ -7,7 +7,10 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "seed:admin": "node scripts/seedAdmin.js",
+    "seed:analytics": "node scripts/seedAnalyticsData.js",
+    "seed:analytics:clear": "node scripts/seedAnalyticsData.js --clear"
   },
   "keywords": [
     "blockchain",
