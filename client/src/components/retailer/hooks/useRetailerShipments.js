@@ -137,7 +137,8 @@ export const useRetailerShipments = () => {
     setError(null);
 
     try {
-      // Fetch only shipments assigned to this retailer
+      // Fetch shipments assigned to this retailer
+      // Include IN_TRANSIT and DELIVERED statuses for retailer dashboard
       const result = await getRetailerShipments(walletAddress, { 
         limit: 100 
       });
@@ -145,8 +146,15 @@ export const useRetailerShipments = () => {
       console.log('useRetailerShipments: API response:', result);
       
       if (result.success && result.data) {
+        // Filter to show only IN_TRANSIT and DELIVERED shipments
+        // IN_TRANSIT = transporter has picked up, ready for retailer to scan
+        // DELIVERED = retailer has confirmed delivery
+        const filteredShipments = result.data.filter(s => 
+          s.status === 'IN_TRANSIT' || s.status === 'DELIVERED'
+        );
+        
         // Transform shipments to display format
-        const transformedShipments = result.data.map(transformShipmentToDisplay);
+        const transformedShipments = filteredShipments.map(transformShipmentToDisplay);
         console.log('useRetailerShipments: Transformed shipments:', transformedShipments);
         setShipments(transformedShipments);
         setPagination(result.pagination);

@@ -270,9 +270,9 @@ const ShipmentDetailPanel = ({
             {getStatusDisplayName(backendStatus)}
           </span>
           
-          {containerStats && (
+          {containerStats && containerStats.total > 0 && (
             <span className={`px-3 py-1 rounded-lg text-xs font-medium border ${
-              containerStats.pending === 0
+              containerStats.scanned === containerStats.total
                 ? isDarkMode ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
                 : isDarkMode ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-amber-50 text-amber-600 border-amber-200'
             }`}>

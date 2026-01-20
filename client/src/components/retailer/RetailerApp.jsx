@@ -118,6 +118,31 @@ function RetailerDashboardContent() {
   const [showScanMode, setShowScanMode] = useState(false);
   const [shipmentContainerStats, setShipmentContainerStats] = useState(null);
 
+  // Function to refresh container stats for selected shipment
+  const refreshShipmentContainerStats = async () => {
+    if (!selectedShipment) return;
+    
+    try {
+      const response = await getRetailerAssignedContainers();
+      if (response.success && response.data.shipments) {
+        const shipment = response.data.shipments.find(
+          s => s.shipmentHash === selectedShipment.shipmentHash ||
+               s.shipmentId === selectedShipment.id ||
+               s.batchId === selectedShipment.batchId
+        );
+        if (shipment) {
+          setShipmentContainerStats({
+            total: shipment.totalContainers,
+            scanned: shipment.scannedCount,
+            pending: shipment.pendingScans
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh shipment container stats:', error);
+    }
+  };
+
   // Fetch container stats when a shipment is selected for Manage tab
   useEffect(() => {
     const fetchShipmentStats = async () => {
@@ -447,21 +472,21 @@ function RetailerDashboardContent() {
                           </span>
                         )}
                         {shipmentContainerStats && (
-                          shipmentContainerStats.pending === 0 ? (
+                          shipmentContainerStats.total > 0 && shipmentContainerStats.scanned === shipmentContainerStats.total ? (
                             <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-lg">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               All Scanned
                             </span>
-                          ) : (
+                          ) : shipmentContainerStats.total > 0 ? (
                             <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded-lg">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               Scan Pending ({shipmentContainerStats.scanned}/{shipmentContainerStats.total})
                             </span>
-                          )
+                          ) : null
                         )}
                       </div>
                       <p className={`text-xs font-mono mb-2 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
@@ -512,6 +537,21 @@ function RetailerDashboardContent() {
                       </svg>
                       Scan QR
                     </button>
+                    {/* Update Status Button - Only show when all containers are scanned and not delivered */}
+                    {shipmentContainerStats && 
+                     shipmentContainerStats.total > 0 && 
+                     shipmentContainerStats.scanned === shipmentContainerStats.total && 
+                     selectedShipment.originalStatus !== 'DELIVERED' && (
+                      <button
+                        onClick={() => handleUpdateShipmentStatus(selectedShipment.shipmentHash || selectedShipment.id)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25 hover:from-purple-600 hover:to-pink-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Update Status
+                      </button>
+                    )}
                     <button
                       onClick={handleClearSelection}
                       className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-colors border ${isDarkMode ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700" : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"}`}
@@ -533,6 +573,7 @@ function RetailerDashboardContent() {
                 shipmentFilter={selectedShipment.shipmentHash} 
                 shipmentData={selectedShipment}
                 onUpdateStatus={handleUpdateShipmentStatus}
+                onScanComplete={refreshShipmentContainerStats}
               />
             ) : (
               <div className="grid lg:grid-cols-2 gap-6">
