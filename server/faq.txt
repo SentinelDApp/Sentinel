@@ -243,6 +243,68 @@ A: Sentinel can run on:
    - Ethereum Mainnet (for production)
    Check with your administrator for the current network.
 
+--------------------------------------------------------------------------------
+SECTION 8: AI-POWERED DECISION SUPPORT SYSTEM
+--------------------------------------------------------------------------------
+
+Q: What AI features does Sentinel have?
+A: Sentinel includes an advanced Generative AI-powered decision support system:
+   - DEMAND FORECASTING: Predicts future shipment volumes based on historical trends
+   - INVENTORY OPTIMIZATION: Analyzes stock levels and recommends reordering
+   - DELIVERY PREDICTION: Estimates delivery times with confidence levels
+   - PERFORMANCE ANALYSIS: Ranks transporters and suppliers by reliability
+   - ANOMALY DETECTION: Identifies delays, issues, and supply chain risks
+   - INSIGHTS REPORTS: Generates comprehensive supply chain health reports
+   - REPLENISHMENT PLANNING: Creates procurement recommendations
+
+Q: How do I access AI analytics?
+A: You can access AI analytics in two ways:
+   1. CHATBOT: Ask me questions like "What's the demand forecast?" or "Show anomalies"
+   2. DASHBOARD: Go to Analytics section for visual reports and metrics
+   The AI automatically analyzes your supply chain data in real-time.
+
+Q: What can I ask the AI chatbot?
+A: You can ask me about:
+   - "Show me the demand forecast for next week"
+   - "What problems or delays are there?"
+   - "Which transporter has the best performance?"
+   - "Give me an overview of the supply chain"
+   - "What items need to be restocked?"
+   - "Predict delivery time for shipment [ID]"
+   - "Analyze inventory levels"
+   - Any supply chain question!
+
+Q: How accurate are the AI predictions?
+A: AI predictions are based on historical data from your supply chain:
+   - Demand forecasts use trend analysis and seasonal patterns
+   - Delivery predictions consider average transit times and delays
+   - Performance scores are calculated from actual completion rates
+   Accuracy improves as more data is collected over time.
+
+Q: What is the Supply Chain Health Score?
+A: The Supply Chain Health Score is an AI-calculated metric (0-100) that measures:
+   - Active issues and anomalies (lower is better)
+   - Inventory health (critical/stale items)
+   - Demand trends
+   - Overall operational efficiency
+   Grades: A (90+), B (80-89), C (70-79), D (60-69), F (below 60)
+
+Q: How does anomaly detection work?
+A: The AI continuously monitors for:
+   - Delayed shipments (past expected delivery)
+   - High rejection rates during scanning
+   - Stale inventory (items sitting too long)
+   - Unusual patterns in supply chain flow
+   Alerts are categorized as Critical, Warning, or Info severity.
+
+Q: Can the AI help with procurement planning?
+A: Yes! The replenishment planning feature:
+   - Identifies items below reorder threshold
+   - Calculates optimal order quantities
+   - Estimates procurement costs
+   - Prioritizes by urgency level
+   Ask me "What should I order?" or "Show replenishment plan"
+
 ================================================================================
                               END OF FAQ DOCUMENT
 ================================================================================
