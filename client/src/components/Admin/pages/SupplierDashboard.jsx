@@ -248,7 +248,7 @@ const SupplierDashboard = () => {
     destination: s.warehouseName || 'Warehouse',
     boxes: s.numberOfContainers || 0,
     scanned: allContainers.filter(c => c.shipmentHash === s.shipmentHash && c.status !== 'CREATED').length,
-    lastUpdate: new Date(s.createdAt).toLocaleDateString(),
+    lastUpdate: s.createdAt
   }));
 
   const handleViewShipment = (id) => {
@@ -277,7 +277,7 @@ const SupplierDashboard = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button
+          {/*<button
             onClick={() => setShowAnomalyDetection(true)}
             className={`
               relative flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all
@@ -288,12 +288,11 @@ const SupplierDashboard = () => {
           >
             <ShieldAlertIcon className="w-4 h-4" />
             Anomaly Detection
-            {/* Pulse indicator */}
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
             </span>
-          </button>
+          </button> */}
           <button
             onClick={() => setShowVisualization(true)}
             className={`
@@ -591,25 +590,36 @@ const SupplierDashboard = () => {
 
                     <div className="text-right">
                       <div className="flex items-center gap-1">
-                        <BoxIcon
-                          className={`w-4 h-4 ${
-                            isDarkMode ? "text-slate-500" : "text-slate-400"
-                          }`}
-                        />
-                        <span
+                        
+                        {/* <span
                           className={`text-sm font-medium ${
                             isDarkMode ? "text-white" : "text-slate-900"
                           }`}
                         >
                           {shipment.scanned}/{shipment.boxes}
-                        </span>
+                        </span> */}
+                        
+                       <span>
+                        {new Date(shipment.lastUpdate).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true, 
+                          timeZone: "Asia/Kolkata",
+                        }).toUpperCase()}
+                      </span>
+
                       </div>
                       <span
                         className={`text-xs ${
                           isDarkMode ? "text-slate-500" : "text-slate-400"
                         }`}
                       >
-                        {shipment.lastUpdate}
+                        {new Date(shipment.lastUpdate).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          timeZone: "Asia/Kolkata",
+                        })}
                       </span>
                     </div>
                   </div>
