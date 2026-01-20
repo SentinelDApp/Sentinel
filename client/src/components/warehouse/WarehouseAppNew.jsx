@@ -482,7 +482,8 @@ const WarehouseDashboardContent = ({ page }) => {
       const warehouseShipments = result.shipments.map((shipment) => ({
         ...shipment,
         id: shipment.shipmentHash,
-        rawStatus: shipment.status,
+        // Normalize status to uppercase for comparison with SHIPMENT_STATUSES constants
+        rawStatus: shipment.status?.toUpperCase() || shipment.status,
       }));
       setShipments(warehouseShipments);
     } catch (err) {
@@ -612,7 +613,7 @@ const WarehouseDashboardContent = ({ page }) => {
       const warehouseShipments = freshShipments.shipments.map((s) => ({
         ...s,
         id: s.shipmentHash,
-        rawStatus: s.status,
+        rawStatus: s.status?.toUpperCase() || s.status,
       }));
       setShipments(warehouseShipments);
       

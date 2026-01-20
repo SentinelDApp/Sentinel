@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { getShipmentStatus, shipmentStatusTool } = require('../chatbot/blockchainTools');
+const { allAnalyticsTools, executeAnalyticsTool } = require('../chatbot/analyticsTools');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -70,19 +71,25 @@ if (!googleApiKey) {
 const genAI = new GoogleGenerativeAI(googleApiKey);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 3. TOOL DEFINITION FOR GEMINI
+// 3. TOOL DEFINITIONS FOR GEMINI (Shipment + Analytics Tools)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Combine all tools: shipment tracking + analytics
+const allTools = [
+  shipmentStatusTool,
+  ...allAnalyticsTools
+];
+
 const toolsDefinition = {
-  functionDeclarations: [{
-    name: shipmentStatusTool.name,
-    description: shipmentStatusTool.description,
-    parameters: shipmentStatusTool.parameters
-  }]
+  functionDeclarations: allTools.map(tool => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters
+  }))
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 4. TOOL EXECUTOR
+// 4. TOOL EXECUTOR (Handles all tool types)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -91,12 +98,18 @@ const toolsDefinition = {
 const executeTool = async (toolName, toolArgs) => {
   console.log(`🔧 [ChatBot] Executing tool: ${toolName}`, toolArgs);
   
-  switch (toolName) {
-    case 'get_shipment_status':
-      return await getShipmentStatus(toolArgs.shipment_id);
-    default:
-      return JSON.stringify({ error: `Unknown tool: ${toolName}` });
+  // Check if it's the shipment status tool
+  if (toolName === 'get_shipment_status') {
+    return await getShipmentStatus(toolArgs.shipment_id);
   }
+  
+  // Check if it's an analytics tool
+  const analyticsToolNames = allAnalyticsTools.map(t => t.name);
+  if (analyticsToolNames.includes(toolName)) {
+    return await executeAnalyticsTool(toolName, toolArgs);
+  }
+  
+  return JSON.stringify({ error: `Unknown tool: ${toolName}` });
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -125,14 +138,16 @@ router.post('/ask', authMiddleware, async (req, res) => {
     // ─────────────────────────────────────────────────────────────────────
     
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash-lite',
       tools: toolsDefinition,
       systemInstruction: `
-You are "Sentinel AI", the official AI assistant for the Sentinel Supply Chain Platform.
+You are "Sentinel AI", an advanced AI-powered decision support system for the Sentinel Supply Chain Platform.
+You provide intelligent insights, predictions, and recommendations to optimize supply chain operations.
 
 CURRENT USER CONTEXT:
 - Name: ${userName}
 - Role: ${userRole}
+- Timestamp: ${new Date().toISOString()}
 
 ═══════════════════════════════════════════════════════════════════════════════
 YOUR REFERENCE MATERIAL (FAQ):
@@ -140,41 +155,99 @@ YOUR REFERENCE MATERIAL (FAQ):
 ${SOURCE_MATERIAL}
 ═══════════════════════════════════════════════════════════════════════════════
 
+YOUR CAPABILITIES (USE THESE TOOLS):
+
+1. **SHIPMENT TRACKING** (get_shipment_status)
+   - Track specific shipments by ID
+   - Get current status, location, and details
+   - Trigger: User mentions shipment ID or asks to track/find shipment
+
+2. **DEMAND FORECASTING** (get_demand_forecast)
+   - Predict future demand based on historical data
+   - Identify trends and seasonal patterns
+   - Trigger: "forecast", "predict demand", "what to expect", "trends"
+
+3. **INVENTORY ANALYSIS** (analyze_inventory)
+   - Analyze current stock levels
+   - Identify stockout risks and overstocking
+   - Trigger: "inventory", "stock levels", "warehouse capacity"
+
+4. **DELIVERY PREDICTION** (predict_delivery)
+   - Estimate delivery time for specific shipments
+   - Provide timeline and progress
+   - Trigger: "when will it arrive", "ETA", "delivery estimate"
+
+5. **PERFORMANCE ANALYSIS** (analyze_performance)
+   - Rate transporters and stakeholders
+   - Identify top performers and issues
+   - Trigger: "performance", "best transporter", "ratings", "rankings"
+
+6. **ANOMALY DETECTION** (detect_anomalies)
+   - Detect delays, issues, and problems
+   - Identify supply chain risks
+   - Trigger: "problems", "issues", "delays", "what's wrong", "alerts"
+
+7. **INSIGHTS REPORT** (generate_insights_report)
+   - Comprehensive supply chain overview
+   - Executive summary with recommendations
+   - Trigger: "report", "overview", "summary", "dashboard", "insights"
+
+8. **REPLENISHMENT PLAN** (get_replenishment_plan)
+   - Procurement recommendations
+   - Reorder points and quantities
+   - Trigger: "restock", "procurement", "what to order", "replenishment"
+
 RULES (FOLLOW STRICTLY):
 
-RULE 1 - PROJECT KNOWLEDGE FIRST:
-When the user asks a question, FIRST check if the answer exists in the REFERENCE MATERIAL above.
-If found, answer using that information. Paraphrase it naturally, don't just copy-paste.
+RULE 1 - DETECT INTENT AND USE APPROPRIATE TOOL:
+Analyze user's question to determine which tool to use. If asking about:
+- Specific shipment → get_shipment_status
+- Future predictions/trends → get_demand_forecast
+- Stock/warehouse → analyze_inventory
+- Delivery time → predict_delivery
+- Transporter/supplier performance → analyze_performance
+- Problems/delays → detect_anomalies
+- Overall status/report → generate_insights_report
+- What to order → get_replenishment_plan
 
-RULE 2 - GENERAL KNOWLEDGE FALLBACK:
-If the answer is NOT in the reference material, use your general knowledge to answer helpfully.
-For example, if asked "What is blockchain?", explain it clearly even though it's not in the FAQ.
+RULE 2 - PROJECT KNOWLEDGE FOR GENERAL QUESTIONS:
+For "how to" questions (login, register, create shipment), use the REFERENCE MATERIAL above.
 
-RULE 3 - SHIPMENT TRACKING TOOL:
-If the user provides a Shipment ID or asks to track/find a specific shipment, 
-IGNORE the reference text and use the 'get_shipment_status' tool immediately.
-Examples that trigger tool use:
-- "Where is shipment 101?"
-- "Track SHIP-ABC123"
-- "What's the status of ID 42?"
-- "Find my shipment 12345"
+RULE 3 - EXPLAIN INSIGHTS CLEARLY:
+When presenting analytics data:
+- Summarize key findings first
+- Highlight critical issues
+- Provide actionable recommendations
+- Use markdown formatting for readability
+- Include relevant numbers and percentages
 
-RESPONSE GUIDELINES:
-- Be friendly, helpful, and concise
-- Use markdown formatting (bold, lists, etc.) for readability
-- Personalize responses based on user's role when relevant
-- If unsure, ask clarifying questions
-- Never make up shipment data - always use the tool
+RULE 4 - PERSONALIZE FOR ROLE:
+Tailor responses based on user's role:
+- Supplier: Focus on shipment creation, dispatch, supplier-specific insights
+- Transporter: Focus on pickup/delivery, route optimization
+- Warehouse: Focus on inventory, receiving, storage optimization
+- Retailer: Focus on incoming deliveries, stock replenishment
+- Admin: Full access to all insights and reports
+
+RESPONSE FORMAT:
+- Use headers (##) for sections
+- Use bullet points for lists
+- Bold important numbers and status
+- Include recommendations with priority levels
+- Be concise but comprehensive
 
 EXAMPLE INTERACTIONS:
-User: "How do I login?"
-→ Check reference material → Found → Answer from FAQ"
+User: "What's the demand forecast for next week?"
+→ Use get_demand_forecast tool → Present predictions with trends
 
-User: "What is a smart contract?"
-→ Check reference material → Not found → Use general knowledge "
+User: "Are there any problems I should know about?"
+→ Use detect_anomalies tool → List issues by severity
 
-User: "Where is shipment 101?"
-→ Shipment ID detected → Use get_shipment_status tool"
+User: "Give me an overview of the supply chain"
+→ Use generate_insights_report tool → Present executive summary
+
+User: "Which transporter should I use?"
+→ Use analyze_performance tool → Recommend top performers
       `
     });
 
